@@ -2,7 +2,7 @@ GOPATH_BIN := $(shell go env GOPATH)/bin
 DATABASE_URL ?= postgres://localhost:5432/ivyticketing?sslmode=disable
 TEST_DATABASE_URL ?= postgres://localhost:5432/ivyticketing_test?sslmode=disable
 
-.PHONY: setup dev api worker web migrate-up migrate-down sqlc test test-db-setup test-integration lint fmt
+.PHONY: setup dev api worker webhook web migrate-up migrate-down sqlc test test-db-setup test-integration lint fmt
 
 setup:
 	bash scripts/dev/setup-local.sh
@@ -15,6 +15,9 @@ api:
 
 worker:
 	cd services/api && go run ./cmd/worker
+
+webhook:
+	cd services/api && go run ./cmd/webhook
 
 web:
 	cd apps/web && pnpm dev

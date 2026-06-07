@@ -17,6 +17,7 @@ import (
 	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
 	ordersmod "github.com/varin/ivyticketing/services/api/internal/modules/orders"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
+	paymentsmod "github.com/varin/ivyticketing/services/api/internal/modules/payments"
 	publicmod "github.com/varin/ivyticketing/services/api/internal/modules/publiccatalog"
 	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
 	"github.com/varin/ivyticketing/services/api/internal/modules/system"
@@ -75,6 +76,13 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	ordersHandler := ordersmod.NewHandler(ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration))
 	publicHandler := publicmod.NewHandler(publicmod.NewService(publicmod.NewRepository(pool), store))
 
+	paymentsRegistry := BuildPaymentRegistry(cfg)
+	paymentsRepo := paymentsmod.NewRepository(pool)
+	paymentsProc := paymentsmod.NewProcessor(paymentsRepo, auditLog)
+	paymentsSvc := paymentsmod.NewService(paymentsRepo, paymentsRegistry, auditLog, cfg.PaymentDefaultExpiry)
+	paymentsReconciler := paymentsmod.NewReconciler(paymentsRepo, paymentsRegistry, paymentsProc)
+	paymentsHandler := paymentsmod.NewHandler(paymentsSvc, paymentsReconciler)
+
 	r.Route("/api/v1", func(r chi.Router) {
 		// Auth (mixed public/protected; mounts its own /me behind authn).
 		authHandler.RegisterRoutes(r, signer)
@@ -88,6 +96,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 
 			orgHandler.RegisterRoutes(r)
 			ordersHandler.RegisterRoutes(r)
+			paymentsHandler.RegisterRoutes(r)
 
 			// Per-org sub-resources, authz enforced per route.
 			r.Route("/organizations/{orgId}", func(r chi.Router) {
@@ -98,6 +107,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 					formHandler.RegisterRoutes(r, loader)
 					ordersHandler.RegisterEventRoutes(r, loader)
 				})
+				paymentsHandler.RegisterOrgRoutes(r, loader)
 			})
 		})
 	})
