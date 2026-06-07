@@ -7,3 +7,5 @@ dist/
 *.log
 .DS_Store
 /services/api/bin/
+.astro/
+pnpm-debug.log
