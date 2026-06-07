@@ -11,6 +11,7 @@ import (
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
 	authmod "github.com/varin/ivyticketing/services/api/internal/modules/auth"
+	eventsmod "github.com/varin/ivyticketing/services/api/internal/modules/events"
 	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
 	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
@@ -20,9 +21,10 @@ import (
 	appmw "github.com/varin/ivyticketing/services/api/internal/platform/middleware"
 	"github.com/varin/ivyticketing/services/api/internal/platform/rbac"
 	"github.com/varin/ivyticketing/services/api/internal/platform/security"
+	"github.com/varin/ivyticketing/services/api/internal/platform/storage"
 )
 
-func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.Checker) http.Handler {
+func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.Checker) (http.Handler, error) {
 	r := chi.NewRouter()
 	r.Use(appmw.RequestID)
 	r.Use(cors.Handler(cors.Options{
@@ -50,6 +52,21 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	memberHandler := membersmod.NewHandler(membersmod.NewService(membersmod.NewRepository(pool), auditLog))
 	roleHandler := rolesmod.NewHandler(rolesmod.NewService(rolesmod.NewRepository(pool)))
 
+	store, err := storage.New(storage.Config{
+		Driver:        cfg.StorageDriver,
+		LocalPath:     cfg.StorageLocalPath,
+		PublicBaseURL: cfg.StoragePublicBaseURL,
+		Bucket:        cfg.StorageBucket,
+		Endpoint:      cfg.StorageEndpoint,
+		AccessKey:     cfg.StorageAccessKey,
+		SecretKey:     cfg.StorageSecretKey,
+		Region:        cfg.StorageRegion,
+	})
+	if err != nil {
+		return nil, err
+	}
+	eventHandler := eventsmod.NewHandler(eventsmod.NewService(eventsmod.NewRepository(pool), store, auditLog))
+
 	r.Route("/api/v1", func(r chi.Router) {
 		// Auth (mixed public/protected; mounts its own /me behind authn).
 		authHandler.RegisterRoutes(r, signer)
@@ -64,12 +81,13 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			r.Route("/organizations/{orgId}", func(r chi.Router) {
 				memberHandler.RegisterRoutes(r, loader)
 				roleHandler.RegisterRoutes(r, loader)
+				eventHandler.RegisterRoutes(r, loader)
 			})
 		})
 	})
 
 	log.Info("router assembled", "web_origin", cfg.WebOrigin)
-	return r
+	return r, nil
 }
 
 func StartServer(ctx context.Context, cfg Config, log *slog.Logger, handler http.Handler) error {

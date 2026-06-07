@@ -34,7 +34,11 @@ func main() {
 	}
 	defer rdb.Close()
 
-	handler := app.NewRouter(cfg, log, pg.Pool, pg, rdb)
+	handler, err := app.NewRouter(cfg, log, pg.Pool, pg, rdb)
+	if err != nil {
+		log.Error("router init failed", "error", err)
+		os.Exit(1)
+	}
 	if err := app.StartServer(ctx, cfg, log, handler); err != nil {
 		log.Error("server stopped", "error", err)
 		os.Exit(1)
