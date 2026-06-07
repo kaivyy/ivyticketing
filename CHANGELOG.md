@@ -4,6 +4,43 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
+## [Phase 4] — 2026-06-07
+
+Custom registration form builder. Backend-only (builder; submission deferred to Phase 5).
+
+### Added
+
+**Form builder**
+- One form per event (auto-created on first `GET /form`)
+- Field CRUD: `POST/PUT/DELETE .../events/:eventId/form/fields[/:fieldId]`
+- Reorder: `PUT .../form/fields/reorder { fieldIds }`
+- Field types: text, email, phone, number, date, dropdown, radio, checkbox, textarea, file
+- Per-field validation rules (minLength/maxLength/pattern for text; min/max for number/date)
+
+**Conditional logic**
+- Multi-condition AND/OR tree (`{op:"and"|"or", rules:[...]}` + leaves `{field, op, value}`)
+- Operators: equals, notEquals, in, notIn, gt, gte, lt, lte
+- Acyclic (refs earlier fields only), depth ≤ 3, ≤ 20 leaves/field
+
+**Per-category scoping**
+- `categoryScope` limits a field to specific categories (null = all)
+
+**Preview / dry-run**
+- `GET .../form/preview?categoryId=` — effective visible fields for a category
+- `POST .../form/preview/validate?categoryId=` — runs conditional + validation over sample answers
+
+**Pure logic package** `formschema`
+- `ValidateFields` (definition validation), `Evaluate` (conditional), `ValidateAnswers` (preview) — no DB, fully unit-tested
+
+**Database** (goose migrations 00010–00011)
+- Tables: `form_schemas`, `form_fields`
+
+**Tests**
+- Unit: formschema (validate, conditional AND/OR, answers), forms service (upsert, CRUD, reorder, tenant guard, referenced-field delete)
+- Integration: full form flow, conditional show/hide, category scope, tenant isolation (404/403)
+
+---
+
 ## [Phase 3] — 2026-06-07
 
 Event & category management. Backend-only.

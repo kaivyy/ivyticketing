@@ -2,6 +2,29 @@
 
 Race registration & event ticketing platform. Go modular monolith + Astro frontend.
 
+## Phase 4 — Custom Registration Form Builder
+
+Per-event form builder: fields (text/email/dropdown/etc), per-field validation,
+AND/OR conditional logic, per-category field scoping, and a preview/dry-run validator.
+Builder only — participant submission arrives in Phase 5.
+
+### Smoke test
+
+```bash
+# auto-create form + add a field (needs form.manage; use an Owner token)
+curl -s localhost:8080/api/v1/organizations/<orgId>/events/<eventId>/form \
+  -H "authorization: Bearer <accessToken>"
+
+curl -s -X POST localhost:8080/api/v1/organizations/<orgId>/events/<eventId>/form/fields \
+  -H "authorization: Bearer <accessToken>" -H 'content-type: application/json' \
+  -d '{"fieldType":"dropdown","label":"WNA","fieldKey":"wna","options":["Ya","Tidak"]}'
+
+# dry-run validate
+curl -s -X POST "localhost:8080/api/v1/organizations/<orgId>/events/<eventId>/form/preview/validate" \
+  -H "authorization: Bearer <accessToken>" -H 'content-type: application/json' \
+  -d '{"answers":{"wna":"Ya"}}'
+```
+
 ## Phase 3 — Event & Category Management
 
 Event CRUD with draft/published/archived lifecycle, categories, pluggable storage

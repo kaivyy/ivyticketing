@@ -3,7 +3,9 @@
 package integration
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -34,6 +36,8 @@ func testPool(t *testing.T) *pgxpool.Pool {
 func truncate(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	_, err := pool.Exec(context.Background(), `
+		DELETE FROM form_fields;
+		DELETE FROM form_schemas;
 		DELETE FROM event_categories;
 		DELETE FROM events;
 		DELETE FROM member_roles;
@@ -93,4 +97,23 @@ func refreshCookie(resp *http.Response) *http.Cookie {
 		}
 	}
 	return nil
+}
+
+// createEvent makes a draft event and returns its ID. Requires event.create.
+func createEvent(t *testing.T, client *http.Client, baseURL, token, orgID, name string) string {
+	t.Helper()
+	resp := postJSON(t, client, baseURL+"/api/v1/organizations/"+orgID+"/events",
+		map[string]any{"name": name, "eventType": "marathon"}, token)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create event = %d, want 201", resp.StatusCode)
+	}
+	var ev struct{ ID string }
+	json.NewDecoder(resp.Body).Decode(&ev)
+	return ev.ID
+}
+
+// bytesReader wraps a byte slice in a *bytes.Reader for use as an HTTP body.
+func bytesReader(b []byte) *bytes.Reader {
+	return bytes.NewReader(b)
 }
