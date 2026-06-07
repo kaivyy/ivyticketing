@@ -55,6 +55,10 @@ func (f *fakeRepo) CreatePayment(_ context.Context, arg db.CreatePaymentParams) 
 		Currency:          arg.Currency,
 		GatewayReference:  arg.GatewayReference,
 		MerchantReference: arg.MerchantReference,
+		PayUrl:            arg.PayUrl,
+		QrString:          arg.QrString,
+		VaNumber:          arg.VaNumber,
+		ExpiresAt:         arg.ExpiresAt,
 	}
 	f.payments[arg.MerchantReference] = p
 	return p, nil
