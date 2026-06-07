@@ -66,7 +66,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	if err != nil {
 		return nil, err
 	}
-	eventHandler := eventsmod.NewHandler(eventsmod.NewService(eventsmod.NewRepository(pool), store, auditLog))
+	eventHandler := eventsmod.NewHandler(eventsmod.NewService(eventsmod.NewRepository(pool), store, auditLog), cfg.StorageUploadMaxBytes)
 	categoryHandler := categoriesmod.NewHandler(categoriesmod.NewService(categoriesmod.NewRepository(pool)))
 
 	r.Route("/api/v1", func(r chi.Router) {

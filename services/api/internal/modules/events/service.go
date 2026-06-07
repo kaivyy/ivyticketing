@@ -176,6 +176,23 @@ func (s *Service) Archive(ctx context.Context, orgID, eventID uuid.UUID) (Respon
 	return s.toResponse(updated), nil
 }
 
+func (s *Service) SetMedia(ctx context.Context, orgID, eventID uuid.UUID, kind, objectKey string) (Response, error) {
+	if _, err := s.loadOrgEvent(ctx, orgID, eventID); err != nil {
+		return Response{}, err
+	}
+	arg := db.SetEventMediaKeyParams{ID: eventID, OrganizationID: orgID}
+	if kind == "banner" {
+		arg.BannerObjectKey = pgtype.Text{String: objectKey, Valid: true}
+	} else {
+		arg.LogoObjectKey = pgtype.Text{String: objectKey, Valid: true}
+	}
+	e, err := s.repo.SetEventMediaKey(ctx, arg)
+	if err != nil {
+		return Response{}, err
+	}
+	return s.toResponse(e), nil
+}
+
 func (s *Service) Delete(ctx context.Context, orgID, eventID uuid.UUID) error {
 	e, err := s.loadOrgEvent(ctx, orgID, eventID)
 	if err != nil {

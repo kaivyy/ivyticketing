@@ -18,5 +18,8 @@ func (h *Handler) RegisterRoutes(r chi.Router, loader middleware.PermissionLoade
 		r.With(middleware.RequirePermission(loader, "event.publish")).Post("/{eventId}/unpublish", h.Unpublish)
 		r.With(middleware.RequirePermission(loader, "event.publish")).Post("/{eventId}/archive", h.Archive)
 		r.With(middleware.RequirePermission(loader, "event.delete")).Delete("/{eventId}", h.Delete)
+		r.With(middleware.RequirePermission(loader, "event.edit")).Post("/{eventId}/media/{kind}", h.RequestTicket)
+		r.With(middleware.RequirePermission(loader, "event.edit")).Post("/{eventId}/media/{kind}/upload", h.UploadDirect)
+		r.With(middleware.RequirePermission(loader, "event.edit")).Put("/{eventId}/media/{kind}/confirm", h.ConfirmMedia)
 	})
 }

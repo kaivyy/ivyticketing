@@ -12,10 +12,13 @@ import (
 )
 
 type Handler struct {
-	svc *Service
+	svc            *Service
+	maxUploadBytes int64
 }
 
-func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
+func NewHandler(svc *Service, maxUploadBytes int64) *Handler {
+	return &Handler{svc: svc, maxUploadBytes: maxUploadBytes}
+}
 
 func (h *Handler) orgID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 	id, err := uuid.Parse(chi.URLParam(r, "orgId"))
