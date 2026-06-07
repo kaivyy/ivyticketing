@@ -11,6 +11,7 @@ import (
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
 	authmod "github.com/varin/ivyticketing/services/api/internal/modules/auth"
+	categoriesmod "github.com/varin/ivyticketing/services/api/internal/modules/categories"
 	eventsmod "github.com/varin/ivyticketing/services/api/internal/modules/events"
 	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
@@ -66,6 +67,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 		return nil, err
 	}
 	eventHandler := eventsmod.NewHandler(eventsmod.NewService(eventsmod.NewRepository(pool), store, auditLog))
+	categoryHandler := categoriesmod.NewHandler(categoriesmod.NewService(categoriesmod.NewRepository(pool)))
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Auth (mixed public/protected; mounts its own /me behind authn).
@@ -82,6 +84,9 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 				memberHandler.RegisterRoutes(r, loader)
 				roleHandler.RegisterRoutes(r, loader)
 				eventHandler.RegisterRoutes(r, loader)
+				r.Route("/events/{eventId}", func(r chi.Router) {
+					categoryHandler.RegisterRoutes(r, loader)
+				})
 			})
 		})
 	})
