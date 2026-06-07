@@ -4,6 +4,50 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
+## [Phase 5] — 2026-06-07
+
+Orders, inventory, reservation, and checkout foundation + UI design system. Backend + UI; no payment yet.
+
+### Added
+
+**Orders**
+- Checkout: `POST /api/v1/organizations/:orgId/events/:eventId/categories/:categoryId/checkout` → PENDING_PAYMENT order + reservation (atomic)
+- `GET /api/v1/orders`, `GET /api/v1/orders/:id`, `DELETE /api/v1/orders/:id` (participant-owned)
+- `GET /api/v1/organizations/:orgId/events/:eventId/orders` (organizer, order.view)
+- Status machine: DRAFT/PENDING_PAYMENT/PAID/EXPIRED/CANCELLED/REFUNDED
+- Order number `ORD-YYYYMMDD-XXXXXX` (unique, crypto-random)
+
+**Inventory & Reservation**
+- Source of truth = PostgreSQL: `remaining = capacity - active_reservations - paid_orders`
+- Oversold prevention via `SELECT ... FOR UPDATE` on the category row inside a transaction
+- max_order_per_user enforced
+- Reservation lifecycle ACTIVE → EXPIRED/RELEASED/COMPLETED, one per order
+
+**Expiration worker** (`services/api/cmd/worker`)
+- Ticker (`WORKER_INTERVAL`, default 1m) expires PENDING_PAYMENT orders past `expired_at`, releases reservations; idempotent (`FOR UPDATE SKIP LOCKED` + status guards)
+- `make worker`
+
+**Audit**
+- ORDER_CREATED, ORDER_EXPIRED, ORDER_CANCELLED, RESERVATION_CREATED, RESERVATION_EXPIRED
+
+**UI foundation** (`packages/ui`)
+- Tailwind + Radix design system: Button, Input, Select, Textarea, Checkbox, Radio, Badge, Alert, Card, Modal, Dialog, Table, EmptyState, LoadingState, ErrorState, QueueCard, PaymentCard, TicketCard
+- Theme tokens + README
+
+**Database** (goose migrations 00012–00014)
+- Tables: `orders`, `inventory_reservations`; permissions `order.create`, `order.manage`
+
+**Config**: `ORDER_EXPIRATION`, `WORKER_INTERVAL`
+
+**Docs**: ORDER_FLOW, INVENTORY, RESERVATION_SYSTEM, CHECKOUT_FLOW, PHASE5_DECISIONS
+
+**Tests**
+- Unit: stock formula, order-number generator, orders service (checkout/cancel/max-order/ownership), expiration idempotency, worker ticker
+- Integration: HTTP checkout flow, ownership isolation
+- Concurrency (`-race`): 200 vs capacity 100 → no oversell, unique order numbers, worker idempotent
+
+---
+
 ## [Phase 4] — 2026-06-07
 
 Custom registration form builder. Backend-only (builder; submission deferred to Phase 5).

@@ -27,6 +27,9 @@ type Config struct {
 	StorageAccessKey      string
 	StorageSecretKey      string
 	StorageRegion         string
+
+	OrderExpiration time.Duration
+	WorkerInterval  time.Duration
 }
 
 func LoadConfig() (Config, error) {
@@ -80,6 +83,18 @@ func LoadConfig() (Config, error) {
 			return Config{}, fmt.Errorf("config: STORAGE_BUCKET/ACCESS_KEY/SECRET_KEY required when STORAGE_DRIVER=%s", cfg.StorageDriver)
 		}
 	}
+
+	orderExp, err := getDuration("ORDER_EXPIRATION", 15*time.Minute)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.OrderExpiration = orderExp
+
+	workerInterval, err := getDuration("WORKER_INTERVAL", time.Minute)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.WorkerInterval = workerInterval
 
 	return cfg, nil
 }

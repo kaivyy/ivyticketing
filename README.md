@@ -2,6 +2,36 @@
 
 Race registration & event ticketing platform. Go modular monolith + Astro frontend.
 
+## Phase 5 — Orders, Inventory & Checkout
+
+Participant checkout with atomic oversold-prevention, reservation system, and an
+expiration worker. Plus `packages/ui` design-system foundation. No payment yet (Phase 6).
+
+### New env
+
+```bash
+ORDER_EXPIRATION=15m
+WORKER_INTERVAL=1m
+```
+
+### Run the expiration worker
+
+```bash
+make worker   # ticks every WORKER_INTERVAL, expires stale PENDING_PAYMENT orders
+```
+
+### Smoke test
+
+```bash
+# as a logged-in participant (access token from login)
+curl -s -X POST localhost:8080/api/v1/organizations/<orgId>/events/<eventId>/categories/<categoryId>/checkout \
+  -H "authorization: Bearer <accessToken>"
+# → 201 { orderNumber: "ORD-...", status: "PENDING_PAYMENT", total: 100000 }
+
+curl -s localhost:8080/api/v1/orders -H "authorization: Bearer <accessToken>"
+curl -s -X DELETE localhost:8080/api/v1/orders/<orderId> -H "authorization: Bearer <accessToken>"
+```
+
 ## Phase 4 — Custom Registration Form Builder
 
 Per-event form builder: fields (text/email/dropdown/etc), per-field validation,

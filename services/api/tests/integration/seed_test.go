@@ -14,8 +14,8 @@ func TestSeed_CatalogAndTemplatesPresent(t *testing.T) {
 	if err := pool.QueryRow(context.Background(), "SELECT count(*) FROM permissions").Scan(&permCount); err != nil {
 		t.Fatalf("count permissions: %v", err)
 	}
-	if permCount != 21 {
-		t.Errorf("permissions = %d, want 21", permCount)
+	if permCount != 23 {
+		t.Errorf("permissions = %d, want 23", permCount)
 	}
 
 	var tmplCount int

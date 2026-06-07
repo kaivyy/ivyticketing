@@ -85,6 +85,25 @@ func TestLoadConfig_StorageDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_OrderDefaults(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
+	t.Setenv("REDIS_URL", "redis://localhost:6379")
+	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("ORDER_EXPIRATION", "")
+	t.Setenv("WORKER_INTERVAL", "")
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.OrderExpiration != 15*time.Minute {
+		t.Errorf("OrderExpiration = %v, want 15m", cfg.OrderExpiration)
+	}
+	if cfg.WorkerInterval != time.Minute {
+		t.Errorf("WorkerInterval = %v, want 1m", cfg.WorkerInterval)
+	}
+}
+
 func TestLoadConfig_CloudDriverRequiresCredentials(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
 	t.Setenv("REDIS_URL", "redis://localhost:6379")
