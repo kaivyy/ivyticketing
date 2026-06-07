@@ -122,6 +122,49 @@ func bytesReader(b []byte) *bytes.Reader {
 	return bytes.NewReader(b)
 }
 
+// registerAndLogin registers a new user and returns their access token.
+func registerAndLogin(t *testing.T, client *http.Client, baseURL, email string) string {
+	t.Helper()
+	postJSON(t, client, baseURL+"/api/v1/auth/register",
+		map[string]string{"email": email, "password": "pw123456", "fullName": email}, "").Body.Close()
+	resp := postJSON(t, client, baseURL+"/api/v1/auth/login",
+		map[string]string{"email": email, "password": "pw123456"}, "")
+	var login struct {
+		AccessToken string `json:"accessToken"`
+	}
+	json.NewDecoder(resp.Body).Decode(&login)
+	resp.Body.Close()
+	return login.AccessToken
+}
+
+// publishEventWithCategory creates an event, adds a category (capacity), and publishes it.
+// Returns (eventID, categoryID). Requires event.create/edit/publish + category.manage.
+func publishEventWithCategory(t *testing.T, client *http.Client, baseURL, token, orgID string, capacity, maxOrder int) (string, string) {
+	t.Helper()
+	eventID := createEvent(t, client, baseURL, token, orgID, "Marathon "+orgID[:8])
+
+	resp := postJSON(t, client, baseURL+"/api/v1/organizations/"+orgID+"/events/"+eventID+"/categories",
+		map[string]any{
+			"name": "42K", "price": 100000, "capacity": capacity,
+			"registrationOpensAt":  time.Now().Add(-time.Hour).Format(time.RFC3339),
+			"registrationClosesAt": time.Now().Add(time.Hour).Format(time.RFC3339),
+			"maxOrderPerUser":      maxOrder,
+		}, token)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create category = %d, want 201", resp.StatusCode)
+	}
+	var cat struct{ ID string }
+	json.NewDecoder(resp.Body).Decode(&cat)
+	resp.Body.Close()
+
+	resp = postJSON(t, client, baseURL+"/api/v1/organizations/"+orgID+"/events/"+eventID+"/publish", map[string]any{}, token)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("publish = %d, want 200", resp.StatusCode)
+	}
+	resp.Body.Close()
+	return eventID, cat.ID
+}
+
 // seedPublishedCategory inserts an org, a published event, and a category with the
 // given capacity directly via SQL, returning their IDs. For concurrency tests.
 func seedPublishedCategory(t *testing.T, pool *pgxpool.Pool, capacity, maxOrder int32) (orgID, eventID, categoryID uuid.UUID) {
