@@ -5,10 +5,83 @@
 package db
 
 import (
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type AuditLog struct {
+	ID             uuid.UUID
+	OrganizationID *uuid.UUID
+	ActorUserID    *uuid.UUID
+	Action         string
+	TargetType     pgtype.Text
+	TargetID       pgtype.Text
+	Metadata       []byte
+	CreatedAt      pgtype.Timestamptz
+}
+
+type MemberRole struct {
+	OrganizationMemberID uuid.UUID
+	RoleID               uuid.UUID
+}
+
+type Organization struct {
+	ID        uuid.UUID
+	Name      string
+	Slug      string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type OrganizationMember struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	UserID         uuid.UUID
+	CreatedAt      pgtype.Timestamptz
+}
+
+type Permission struct {
+	ID          uuid.UUID
+	Key         string
+	Description string
+}
+
+type RefreshToken struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	TokenHash string
+	ExpiresAt pgtype.Timestamptz
+	RevokedAt pgtype.Timestamptz
+	CreatedAt pgtype.Timestamptz
+}
+
+type Role struct {
+	ID             uuid.UUID
+	OrganizationID *uuid.UUID
+	Name           string
+	Slug           string
+	IsSystem       bool
+	CreatedAt      pgtype.Timestamptz
+}
+
+type RolePermission struct {
+	RoleID       uuid.UUID
+	PermissionID uuid.UUID
+}
 
 type SchemaHealth struct {
 	ID        int16
 	CheckedAt pgtype.Timestamptz
+}
+
+type User struct {
+	ID              uuid.UUID
+	Email           string
+	PasswordHash    pgtype.Text
+	FullName        string
+	Phone           pgtype.Text
+	IsPlatformAdmin bool
+	EmailVerifiedAt pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 }
