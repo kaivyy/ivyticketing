@@ -13,6 +13,7 @@ import (
 	authmod "github.com/varin/ivyticketing/services/api/internal/modules/auth"
 	categoriesmod "github.com/varin/ivyticketing/services/api/internal/modules/categories"
 	eventsmod "github.com/varin/ivyticketing/services/api/internal/modules/events"
+	formsmod "github.com/varin/ivyticketing/services/api/internal/modules/forms"
 	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
 	publicmod "github.com/varin/ivyticketing/services/api/internal/modules/publiccatalog"
@@ -69,6 +70,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	}
 	eventHandler := eventsmod.NewHandler(eventsmod.NewService(eventsmod.NewRepository(pool), store, auditLog), cfg.StorageUploadMaxBytes)
 	categoryHandler := categoriesmod.NewHandler(categoriesmod.NewService(categoriesmod.NewRepository(pool)))
+	formHandler := formsmod.NewHandler(formsmod.NewService(formsmod.NewRepository(pool)))
 	publicHandler := publicmod.NewHandler(publicmod.NewService(publicmod.NewRepository(pool), store))
 
 	r.Route("/api/v1", func(r chi.Router) {
@@ -90,6 +92,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 				roleHandler.RegisterRoutes(r, loader)
 				eventHandler.RegisterRoutes(r, loader, func(r chi.Router) {
 					categoryHandler.RegisterRoutes(r, loader)
+					formHandler.RegisterRoutes(r, loader)
 				})
 			})
 		})
