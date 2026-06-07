@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/varin/ivyticketing/services/api/internal/app"
@@ -38,6 +40,8 @@ func truncate(t *testing.T, pool *pgxpool.Pool) {
 	_, err := pool.Exec(context.Background(), `
 		DELETE FROM form_fields;
 		DELETE FROM form_schemas;
+		DELETE FROM inventory_reservations;
+		DELETE FROM orders;
 		DELETE FROM event_categories;
 		DELETE FROM events;
 		DELETE FROM member_roles;
@@ -116,4 +120,51 @@ func createEvent(t *testing.T, client *http.Client, baseURL, token, orgID, name 
 // bytesReader wraps a byte slice in a *bytes.Reader for use as an HTTP body.
 func bytesReader(b []byte) *bytes.Reader {
 	return bytes.NewReader(b)
+}
+
+// seedPublishedCategory inserts an org, a published event, and a category with the
+// given capacity directly via SQL, returning their IDs. For concurrency tests.
+func seedPublishedCategory(t *testing.T, pool *pgxpool.Pool, capacity, maxOrder int32) (orgID, eventID, categoryID uuid.UUID) {
+	t.Helper()
+	ctx := context.Background()
+	orgID = uuid.New()
+	eventID = uuid.New()
+	categoryID = uuid.New()
+	_, err := pool.Exec(ctx, `INSERT INTO organizations (id, name, slug) VALUES ($1,$2,$3)`,
+		orgID, "Conc Org "+orgID.String()[:8], "conc-"+orgID.String()[:8])
+	if err != nil {
+		t.Fatalf("seed org: %v", err)
+	}
+	_, err = pool.Exec(ctx,
+		fmt.Sprintf(`INSERT INTO events (id, organization_id, name, slug, event_type, status)
+		VALUES ($1,$2,'E','e-%s','marathon','published')`, eventID.String()[:8]),
+		eventID, orgID)
+	if err != nil {
+		t.Fatalf("seed event: %v", err)
+	}
+	_, err = pool.Exec(ctx, `INSERT INTO event_categories
+		(id, organization_id, event_id, name, price, capacity, registration_opens_at, registration_closes_at, max_order_per_user)
+		VALUES ($1,$2,$3,'42K',100000,$4, now()-interval '1 hour', now()+interval '1 hour', $5)`,
+		categoryID, orgID, eventID, capacity, maxOrder)
+	if err != nil {
+		t.Fatalf("seed category: %v", err)
+	}
+	return orgID, eventID, categoryID
+}
+
+// seedUsers bulk-inserts n users into the users table and returns their UUIDs.
+func seedUsers(t *testing.T, pool *pgxpool.Pool, n int) []uuid.UUID {
+	t.Helper()
+	ctx := context.Background()
+	ids := make([]uuid.UUID, n)
+	for i := range ids {
+		ids[i] = uuid.New()
+		_, err := pool.Exec(ctx,
+			`INSERT INTO users (id, email, password_hash, full_name) VALUES ($1, $2, 'x', 'Test User')`,
+			ids[i], fmt.Sprintf("user-%s@test.com", ids[i].String()[:8]))
+		if err != nil {
+			t.Fatalf("seed user: %v", err)
+		}
+	}
+	return ids
 }
