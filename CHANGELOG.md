@@ -4,6 +4,47 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
+## [Phase 3] — 2026-06-07
+
+Event & category management. Backend-only.
+
+### Added
+
+**Events**
+- CRUD: `POST/GET/PUT/DELETE /api/v1/organizations/:orgId/events[/:eventId]`
+- Lifecycle: `publish` (rejects if no categories), `unpublish`, `archive`
+- Status: draft → published → archived
+- Auto slug from name (unique per org)
+- Audit logging on publish/unpublish/archive/delete
+
+**Categories**
+- CRUD: `.../events/:eventId/categories[/:categoryId]`
+- Fields: price (minor units), capacity, registration window, bib prefix, min age, max order per user
+- Validation: price ≥ 0, capacity > 0, opens < closes, max order ≥ 1
+- No inventory/stock logic yet (Phase 5) — capacity is a stored number
+
+**Media**
+- Pluggable `Storage` interface: full `local` disk driver; S3-compatible (R2/Tencent) stub with presigned-upload contract
+- Upload flow: request ticket → (cloud: presigned PUT direct-to-storage; local: multipart to API) → confirm
+- Object keys namespaced per tenant (`org/{orgId}/event/{eventId}/{kind}/`), confirm validates prefix (anti-tamper)
+- Local media served at `/media/{key}`
+
+**Public catalog** (no auth)
+- `GET /api/v1/public/organizations/:orgSlug/events` — published only
+- `GET /api/v1/public/organizations/:orgSlug/events/:eventSlug` — detail + categories
+
+**Database** (goose migrations 00008–00009)
+- Tables: `events`, `event_categories`
+
+**Config**
+- `STORAGE_DRIVER`, `STORAGE_LOCAL_PATH`, `STORAGE_PUBLIC_BASE_URL`, `STORAGE_UPLOAD_MAX_BYTES`, and cloud credential vars
+
+**Tests**
+- Unit: events service (lifecycle, tenant guard), categories service (validation), storage local driver, media key validation
+- Integration: full event→category→publish→public flow, tenant isolation (404/403), local media upload end-to-end
+
+---
+
 ## [Phase 2] — 2026-06-07
 
 Auth, RBAC, and multi-tenant core. Backend-only.

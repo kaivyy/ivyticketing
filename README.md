@@ -2,6 +2,40 @@
 
 Race registration & event ticketing platform. Go modular monolith + Astro frontend.
 
+## Phase 3 — Event & Category Management
+
+Event CRUD with draft/published/archived lifecycle, categories, pluggable storage
+(local now; R2/Tencent via presigned URL later), and a public read-only catalog.
+
+### New env
+
+```bash
+STORAGE_DRIVER=local                       # local | r2 | tencent | s3
+STORAGE_LOCAL_PATH=./var/media
+STORAGE_PUBLIC_BASE_URL=http://localhost:8080
+STORAGE_UPLOAD_MAX_BYTES=5242880
+# cloud (when used): STORAGE_BUCKET, STORAGE_ENDPOINT, STORAGE_ACCESS_KEY, STORAGE_SECRET_KEY, STORAGE_REGION
+```
+
+### Smoke test
+
+```bash
+# create event (needs event.create; use an Owner access token from Phase 2 login)
+curl -s -X POST localhost:8080/api/v1/organizations/<orgId>/events \
+  -H "authorization: Bearer <accessToken>" -H 'content-type: application/json' \
+  -d '{"name":"Jakarta Marathon 2026","eventType":"marathon"}'
+
+# add a category
+curl -s -X POST localhost:8080/api/v1/organizations/<orgId>/events/<eventId>/categories \
+  -H "authorization: Bearer <accessToken>" -H 'content-type: application/json' \
+  -d '{"name":"42K","price":350000,"capacity":2000,"registrationOpensAt":"2026-07-01T00:00:00Z","registrationClosesAt":"2026-08-01T00:00:00Z","maxOrderPerUser":1}'
+
+# publish, then view publicly
+curl -s -X POST localhost:8080/api/v1/organizations/<orgId>/events/<eventId>/publish \
+  -H "authorization: Bearer <accessToken>"
+curl -s localhost:8080/api/v1/public/organizations/<orgSlug>/events
+```
+
 ## Phase 2 — Auth, RBAC & Multi-Tenant
 
 Backend auth (hybrid token), multi-tenant orgs, and custom-role RBAC.

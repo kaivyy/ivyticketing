@@ -11,8 +11,11 @@ import (
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
 	authmod "github.com/varin/ivyticketing/services/api/internal/modules/auth"
+	categoriesmod "github.com/varin/ivyticketing/services/api/internal/modules/categories"
+	eventsmod "github.com/varin/ivyticketing/services/api/internal/modules/events"
 	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
+	publicmod "github.com/varin/ivyticketing/services/api/internal/modules/publiccatalog"
 	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
 	"github.com/varin/ivyticketing/services/api/internal/modules/system"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
@@ -20,9 +23,10 @@ import (
 	appmw "github.com/varin/ivyticketing/services/api/internal/platform/middleware"
 	"github.com/varin/ivyticketing/services/api/internal/platform/rbac"
 	"github.com/varin/ivyticketing/services/api/internal/platform/security"
+	"github.com/varin/ivyticketing/services/api/internal/platform/storage"
 )
 
-func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.Checker) http.Handler {
+func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.Checker) (http.Handler, error) {
 	r := chi.NewRouter()
 	r.Use(appmw.RequestID)
 	r.Use(cors.Handler(cors.Options{
@@ -50,9 +54,29 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	memberHandler := membersmod.NewHandler(membersmod.NewService(membersmod.NewRepository(pool), auditLog))
 	roleHandler := rolesmod.NewHandler(rolesmod.NewService(rolesmod.NewRepository(pool)))
 
+	store, err := storage.New(storage.Config{
+		Driver:        cfg.StorageDriver,
+		LocalPath:     cfg.StorageLocalPath,
+		PublicBaseURL: cfg.StoragePublicBaseURL,
+		Bucket:        cfg.StorageBucket,
+		Endpoint:      cfg.StorageEndpoint,
+		AccessKey:     cfg.StorageAccessKey,
+		SecretKey:     cfg.StorageSecretKey,
+		Region:        cfg.StorageRegion,
+	})
+	if err != nil {
+		return nil, err
+	}
+	eventHandler := eventsmod.NewHandler(eventsmod.NewService(eventsmod.NewRepository(pool), store, auditLog), cfg.StorageUploadMaxBytes)
+	categoryHandler := categoriesmod.NewHandler(categoriesmod.NewService(categoriesmod.NewRepository(pool)))
+	publicHandler := publicmod.NewHandler(publicmod.NewService(publicmod.NewRepository(pool), store))
+
 	r.Route("/api/v1", func(r chi.Router) {
 		// Auth (mixed public/protected; mounts its own /me behind authn).
 		authHandler.RegisterRoutes(r, signer)
+
+		// Public read-only (no auth).
+		publicHandler.RegisterRoutes(r)
 
 		// Everything else requires authentication.
 		r.Group(func(r chi.Router) {
@@ -64,12 +88,21 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			r.Route("/organizations/{orgId}", func(r chi.Router) {
 				memberHandler.RegisterRoutes(r, loader)
 				roleHandler.RegisterRoutes(r, loader)
+				eventHandler.RegisterRoutes(r, loader, func(r chi.Router) {
+					categoryHandler.RegisterRoutes(r, loader)
+				})
 			})
 		})
 	})
 
+	// Serve local media files (local driver only).
+	if cfg.StorageDriver == "local" {
+		fs := http.StripPrefix("/media/", http.FileServer(http.Dir(cfg.StorageLocalPath)))
+		r.Get("/media/*", fs.ServeHTTP)
+	}
+
 	log.Info("router assembled", "web_origin", cfg.WebOrigin)
-	return r
+	return r, nil
 }
 
 func StartServer(ctx context.Context, cfg Config, log *slog.Logger, handler http.Handler) error {

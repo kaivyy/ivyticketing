@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -16,6 +17,16 @@ type Config struct {
 	JWTSecret       string
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
+
+	StorageDriver         string
+	StorageLocalPath      string
+	StoragePublicBaseURL  string
+	StorageUploadMaxBytes int64
+	StorageBucket         string
+	StorageEndpoint       string
+	StorageAccessKey      string
+	StorageSecretKey      string
+	StorageRegion         string
 }
 
 func LoadConfig() (Config, error) {
@@ -49,6 +60,27 @@ func LoadConfig() (Config, error) {
 	cfg.AccessTokenTTL = accessTTL
 	cfg.RefreshTokenTTL = refreshTTL
 
+	cfg.StorageDriver = getEnv("STORAGE_DRIVER", "local")
+	cfg.StorageLocalPath = getEnv("STORAGE_LOCAL_PATH", "./var/media")
+	cfg.StoragePublicBaseURL = getEnv("STORAGE_PUBLIC_BASE_URL", "http://localhost:8080")
+	cfg.StorageBucket = os.Getenv("STORAGE_BUCKET")
+	cfg.StorageEndpoint = os.Getenv("STORAGE_ENDPOINT")
+	cfg.StorageAccessKey = os.Getenv("STORAGE_ACCESS_KEY")
+	cfg.StorageSecretKey = os.Getenv("STORAGE_SECRET_KEY")
+	cfg.StorageRegion = os.Getenv("STORAGE_REGION")
+
+	maxBytes, err := getInt64("STORAGE_UPLOAD_MAX_BYTES", 5242880)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.StorageUploadMaxBytes = maxBytes
+
+	if cfg.StorageDriver != "local" {
+		if cfg.StorageBucket == "" || cfg.StorageAccessKey == "" || cfg.StorageSecretKey == "" {
+			return Config{}, fmt.Errorf("config: STORAGE_BUCKET/ACCESS_KEY/SECRET_KEY required when STORAGE_DRIVER=%s", cfg.StorageDriver)
+		}
+	}
+
 	return cfg, nil
 }
 
@@ -69,4 +101,16 @@ func getDuration(key string, fallback time.Duration) (time.Duration, error) {
 		return 0, fmt.Errorf("config: %s invalid duration: %w", key, err)
 	}
 	return d, nil
+}
+
+func getInt64(key string, fallback int64) (int64, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback, nil
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("config: %s invalid int: %w", key, err)
+	}
+	return n, nil
 }

@@ -20,6 +20,44 @@ type AuditLog struct {
 	CreatedAt      pgtype.Timestamptz
 }
 
+type Event struct {
+	ID              uuid.UUID
+	OrganizationID  uuid.UUID
+	Name            string
+	Slug            string
+	Description     pgtype.Text
+	EventType       string
+	Status          string
+	BannerObjectKey pgtype.Text
+	LogoObjectKey   pgtype.Text
+	VenueName       pgtype.Text
+	VenueAddress    pgtype.Text
+	StartsAt        pgtype.Timestamptz
+	EndsAt          pgtype.Timestamptz
+	Faq             pgtype.Text
+	Terms           pgtype.Text
+	Waiver          pgtype.Text
+	PublishedAt     pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+}
+
+type EventCategory struct {
+	ID                   uuid.UUID
+	OrganizationID       uuid.UUID
+	EventID              uuid.UUID
+	Name                 string
+	Price                int64
+	Capacity             int32
+	RegistrationOpensAt  pgtype.Timestamptz
+	RegistrationClosesAt pgtype.Timestamptz
+	BibPrefix            pgtype.Text
+	MinAge               pgtype.Int4
+	MaxOrderPerUser      int32
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+}
+
 type MemberRole struct {
 	OrganizationMemberID uuid.UUID
 	RoleID               uuid.UUID

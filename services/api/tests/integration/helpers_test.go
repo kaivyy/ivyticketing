@@ -34,6 +34,8 @@ func testPool(t *testing.T) *pgxpool.Pool {
 func truncate(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	_, err := pool.Exec(context.Background(), `
+		DELETE FROM event_categories;
+		DELETE FROM events;
 		DELETE FROM member_roles;
 		DELETE FROM organization_members;
 		DELETE FROM audit_logs;
@@ -58,15 +60,27 @@ func newNopLogger() *slog.Logger {
 
 func newTestServer(t *testing.T, pool *pgxpool.Pool) *httptest.Server {
 	t.Helper()
-	cfg := app.Config{
-		AppEnv:          "test",
-		APIPort:         "0",
-		WebOrigin:       "http://localhost:4321",
-		JWTSecret:       "integration-secret",
-		AccessTokenTTL:  15 * time.Minute,
-		RefreshTokenTTL: 168 * time.Hour,
+	mediaDir, err := os.MkdirTemp("", "ivyticketing-test-media-*")
+	if err != nil {
+		t.Fatalf("create temp media dir: %v", err)
 	}
-	h := app.NewRouter(cfg, newNopLogger(), pool, stubChecker{}, stubChecker{})
+	t.Cleanup(func() { os.RemoveAll(mediaDir) })
+	cfg := app.Config{
+		AppEnv:                "test",
+		APIPort:               "0",
+		WebOrigin:             "http://localhost:4321",
+		JWTSecret:             "integration-secret",
+		AccessTokenTTL:        15 * time.Minute,
+		RefreshTokenTTL:       168 * time.Hour,
+		StorageDriver:         "local",
+		StorageLocalPath:      mediaDir,
+		StoragePublicBaseURL:  "http://localhost:8080",
+		StorageUploadMaxBytes: 5242880,
+	}
+	h, err := app.NewRouter(cfg, newNopLogger(), pool, stubChecker{}, stubChecker{})
+	if err != nil {
+		t.Fatalf("new router: %v", err)
+	}
 	srv := httptest.NewServer(h)
 	t.Cleanup(srv.Close)
 	return srv
