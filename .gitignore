@@ -1,0 +1,9 @@
+.env
+.env.local
+.env.staging
+.env.production
+node_modules/
+dist/
+*.log
+.DS_Store
+/services/api/bin/
