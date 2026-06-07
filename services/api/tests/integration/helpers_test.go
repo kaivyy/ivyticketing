@@ -34,6 +34,8 @@ func testPool(t *testing.T) *pgxpool.Pool {
 func truncate(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	_, err := pool.Exec(context.Background(), `
+		DELETE FROM event_categories;
+		DELETE FROM events;
 		DELETE FROM member_roles;
 		DELETE FROM organization_members;
 		DELETE FROM audit_logs;

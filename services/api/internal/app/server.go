@@ -88,8 +88,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			r.Route("/organizations/{orgId}", func(r chi.Router) {
 				memberHandler.RegisterRoutes(r, loader)
 				roleHandler.RegisterRoutes(r, loader)
-				eventHandler.RegisterRoutes(r, loader)
-				r.Route("/events/{eventId}", func(r chi.Router) {
+				eventHandler.RegisterRoutes(r, loader, func(r chi.Router) {
 					categoryHandler.RegisterRoutes(r, loader)
 				})
 			})
