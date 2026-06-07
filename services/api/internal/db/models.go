@@ -134,6 +134,47 @@ type OrganizationMember struct {
 	CreatedAt      pgtype.Timestamptz
 }
 
+type Payment struct {
+	ID                uuid.UUID
+	OrganizationID    uuid.UUID
+	EventID           uuid.UUID
+	OrderID           uuid.UUID
+	ParticipantID     uuid.UUID
+	Gateway           string
+	Method            string
+	Channel           pgtype.Text
+	Status            string
+	Amount            int64
+	Currency          string
+	GatewayReference  pgtype.Text
+	MerchantReference string
+	PayUrl            pgtype.Text
+	QrString          pgtype.Text
+	VaNumber          pgtype.Text
+	Instructions      []byte
+	ExpiresAt         pgtype.Timestamptz
+	PaidAt            pgtype.Timestamptz
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+}
+
+type PaymentWebhook struct {
+	ID                 uuid.UUID
+	Gateway            string
+	EventType          pgtype.Text
+	MerchantReference  pgtype.Text
+	GatewayReference   pgtype.Text
+	Signature          pgtype.Text
+	SignatureValid     bool
+	Payload            []byte
+	DedupeKey          pgtype.Text
+	ProcessingStatus   string
+	ProcessedPaymentID *uuid.UUID
+	ErrorDetail        pgtype.Text
+	ReceivedAt         pgtype.Timestamptz
+	ProcessedAt        pgtype.Timestamptz
+}
+
 type Permission struct {
 	ID          uuid.UUID
 	Key         string
