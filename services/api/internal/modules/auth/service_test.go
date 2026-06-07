@@ -17,6 +17,11 @@ type fakeRepo struct {
 	users    map[string]db.User // by email
 	usersIID map[uuid.UUID]db.User
 	tokens   map[string]db.RefreshToken // by hash
+	// Me enrichment fields
+	meOrgs   []db.Organization
+	meMember db.OrganizationMember
+	meRoles  []db.Role
+	mePerms  []string
 }
 
 func newFakeRepo() *fakeRepo {
@@ -142,5 +147,50 @@ func TestRefresh_RejectsExpired(t *testing.T) {
 
 	if _, err := svc.Refresh(ctx, login.RefreshToken); err != ErrTokenExpired {
 		t.Fatalf("refresh err = %v, want ErrTokenExpired", err)
+	}
+}
+
+func (f *fakeRepo) ListOrganizationsForUser(_ context.Context, _ uuid.UUID) ([]db.Organization, error) {
+	return f.meOrgs, nil
+}
+func (f *fakeRepo) GetMemberByOrgAndUser(_ context.Context, _ db.GetMemberByOrgAndUserParams) (db.OrganizationMember, error) {
+	return f.meMember, nil
+}
+func (f *fakeRepo) ListRolesForMember(_ context.Context, _ uuid.UUID) ([]db.Role, error) {
+	return f.meRoles, nil
+}
+func (f *fakeRepo) ListPermissionsForMember(_ context.Context, _ uuid.UUID) ([]string, error) {
+	return f.mePerms, nil
+}
+
+func TestMe_IncludesMemberships(t *testing.T) {
+	repo := newFakeRepo()
+	svc := newTestService(repo)
+	ctx := context.Background()
+	u, err := svc.Register(ctx, RegisterRequest{Email: "a@b.com", Password: "pw123456", FullName: "A"})
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	orgID := uuid.New()
+	memberID := uuid.New()
+	repo.meOrgs = []db.Organization{{ID: orgID, Name: "Org", Slug: "org"}}
+	repo.meMember = db.OrganizationMember{ID: memberID, OrganizationID: orgID, UserID: u.ID}
+	repo.meRoles = []db.Role{{ID: uuid.New(), Slug: "owner"}}
+	repo.mePerms = []string{"member.manage", "role.manage"}
+
+	me, err := svc.Me(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("me: %v", err)
+	}
+	if len(me.Memberships) != 1 {
+		t.Fatalf("memberships = %d, want 1", len(me.Memberships))
+	}
+	m := me.Memberships[0]
+	if m.OrganizationID != orgID || len(m.RoleSlugs) != 1 || m.RoleSlugs[0] != "owner" {
+		t.Errorf("unexpected membership: %+v", m)
+	}
+	if len(m.Permissions) != 2 {
+		t.Errorf("permissions = %v, want 2", m.Permissions)
 	}
 }

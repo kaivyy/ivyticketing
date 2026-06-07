@@ -8,15 +8,24 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
+	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 )
 
 const ownerSlug = "owner"
 
-type Service struct {
-	repo Repository
+// AuditRecorder records sensitive actions.
+type AuditRecorder interface {
+	Record(ctx context.Context, e audit.Entry)
 }
 
-func NewService(repo Repository) *Service { return &Service{repo: repo} }
+type Service struct {
+	repo  Repository
+	audit AuditRecorder
+}
+
+func NewService(repo Repository, recorder AuditRecorder) *Service {
+	return &Service{repo: repo, audit: recorder}
+}
 
 func (s *Service) List(ctx context.Context, orgID uuid.UUID) ([]MemberResponse, error) {
 	rows, err := s.repo.ListMembersByOrg(ctx, orgID)
@@ -75,6 +84,14 @@ func (s *Service) Add(ctx context.Context, orgID uuid.UUID, req AddMemberRequest
 	if err != nil {
 		return MemberResponse{}, err
 	}
+	if s.audit != nil {
+		s.audit.Record(ctx, audit.Entry{
+			OrganizationID: &orgID,
+			Action:         "member.add",
+			TargetType:     "member",
+			TargetID:       member.ID.String(),
+		})
+	}
 	return MemberResponse{ID: member.ID, UserID: user.ID, Email: user.Email, FullName: user.FullName, RoleIDs: req.RoleIDs}, nil
 }
 
@@ -86,7 +103,18 @@ func (s *Service) Remove(ctx context.Context, orgID, memberID uuid.UUID) error {
 	if err := s.guardLastOwner(ctx, orgID, member.ID, false); err != nil {
 		return err
 	}
-	return s.repo.DeleteMember(ctx, db.DeleteMemberParams{ID: memberID, OrganizationID: orgID})
+	if err := s.repo.DeleteMember(ctx, db.DeleteMemberParams{ID: memberID, OrganizationID: orgID}); err != nil {
+		return err
+	}
+	if s.audit != nil {
+		s.audit.Record(ctx, audit.Entry{
+			OrganizationID: &orgID,
+			Action:         "member.remove",
+			TargetType:     "member",
+			TargetID:       memberID.String(),
+		})
+	}
+	return nil
 }
 
 func (s *Service) UpdateRoles(ctx context.Context, orgID, memberID uuid.UUID, req UpdateRolesRequest) (MemberResponse, error) {
@@ -129,6 +157,14 @@ func (s *Service) UpdateRoles(ctx context.Context, orgID, memberID uuid.UUID, re
 	})
 	if err != nil {
 		return MemberResponse{}, err
+	}
+	if s.audit != nil {
+		s.audit.Record(ctx, audit.Entry{
+			OrganizationID: &orgID,
+			Action:         "member.roles.update",
+			TargetType:     "member",
+			TargetID:       memberID.String(),
+		})
 	}
 	return MemberResponse{ID: member.ID, UserID: member.UserID, RoleIDs: req.RoleIDs}, nil
 }

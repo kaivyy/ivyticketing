@@ -15,6 +15,10 @@ type Repository interface {
 	CreateRefreshToken(ctx context.Context, arg db.CreateRefreshTokenParams) (db.RefreshToken, error)
 	GetRefreshTokenByHash(ctx context.Context, hash string) (db.RefreshToken, error)
 	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error
+	ListOrganizationsForUser(ctx context.Context, userID uuid.UUID) ([]db.Organization, error)
+	GetMemberByOrgAndUser(ctx context.Context, arg db.GetMemberByOrgAndUserParams) (db.OrganizationMember, error)
+	ListRolesForMember(ctx context.Context, memberID uuid.UUID) ([]db.Role, error)
+	ListPermissionsForMember(ctx context.Context, memberID uuid.UUID) ([]string, error)
 }
 
 // sqlcRepo adapts *db.Queries to Repository.
@@ -39,4 +43,16 @@ func (r *sqlcRepo) GetRefreshTokenByHash(ctx context.Context, hash string) (db.R
 }
 func (r *sqlcRepo) RevokeRefreshToken(ctx context.Context, id uuid.UUID) error {
 	return r.q.RevokeRefreshToken(ctx, id)
+}
+func (r *sqlcRepo) ListOrganizationsForUser(ctx context.Context, userID uuid.UUID) ([]db.Organization, error) {
+	return r.q.ListOrganizationsForUser(ctx, userID)
+}
+func (r *sqlcRepo) GetMemberByOrgAndUser(ctx context.Context, arg db.GetMemberByOrgAndUserParams) (db.OrganizationMember, error) {
+	return r.q.GetMemberByOrgAndUser(ctx, arg)
+}
+func (r *sqlcRepo) ListRolesForMember(ctx context.Context, memberID uuid.UUID) ([]db.Role, error) {
+	return r.q.ListRolesForMember(ctx, memberID)
+}
+func (r *sqlcRepo) ListPermissionsForMember(ctx context.Context, memberID uuid.UUID) ([]string, error) {
+	return r.q.ListPermissionsForMember(ctx, memberID)
 }

@@ -80,12 +80,12 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 		apperr.WriteError(w, r, apperr.New(http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated"))
 		return
 	}
-	u, err := h.svc.GetUser(r.Context(), id.UserID)
+	me, err := h.svc.Me(r.Context(), id.UserID)
 	if err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}
-	apperr.WriteJSON(w, http.StatusOK, toUserResponse(u))
+	apperr.WriteJSON(w, http.StatusOK, me)
 }
 
 func (h *Handler) setRefreshCookie(w http.ResponseWriter, raw string, ttlSeconds int) {

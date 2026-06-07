@@ -37,3 +37,15 @@ type RefreshResult struct {
 	RefreshToken string `json:"-"`
 	RefreshTTL   int    `json:"-"`
 }
+
+type MembershipResponse struct {
+	OrganizationID uuid.UUID `json:"organizationId"`
+	MemberID       uuid.UUID `json:"memberId"`
+	RoleSlugs      []string  `json:"roleSlugs"`
+	Permissions    []string  `json:"permissions"`
+}
+
+type MeResponse struct {
+	User        UserResponse         `json:"user"`
+	Memberships []MembershipResponse `json:"memberships"`
+}

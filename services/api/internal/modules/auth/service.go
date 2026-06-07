@@ -125,6 +125,46 @@ func (s *Service) GetUser(ctx context.Context, id uuid.UUID) (db.User, error) {
 	return s.repo.GetUserByID(ctx, id)
 }
 
+func (s *Service) Me(ctx context.Context, userID uuid.UUID) (MeResponse, error) {
+	u, err := s.repo.GetUserByID(ctx, userID)
+	if err != nil {
+		return MeResponse{}, err
+	}
+	orgs, err := s.repo.ListOrganizationsForUser(ctx, userID)
+	if err != nil {
+		return MeResponse{}, err
+	}
+	memberships := make([]MembershipResponse, 0, len(orgs))
+	for _, org := range orgs {
+		member, err := s.repo.GetMemberByOrgAndUser(ctx, db.GetMemberByOrgAndUserParams{OrganizationID: org.ID, UserID: userID})
+		if err != nil {
+			return MeResponse{}, err
+		}
+		roles, err := s.repo.ListRolesForMember(ctx, member.ID)
+		if err != nil {
+			return MeResponse{}, err
+		}
+		perms, err := s.repo.ListPermissionsForMember(ctx, member.ID)
+		if err != nil {
+			return MeResponse{}, err
+		}
+		slugs := make([]string, 0, len(roles))
+		for _, r := range roles {
+			slugs = append(slugs, r.Slug)
+		}
+		if perms == nil {
+			perms = []string{}
+		}
+		memberships = append(memberships, MembershipResponse{
+			OrganizationID: org.ID,
+			MemberID:       member.ID,
+			RoleSlugs:      slugs,
+			Permissions:    perms,
+		})
+	}
+	return MeResponse{User: toUserResponse(u), Memberships: memberships}, nil
+}
+
 func (s *Service) issueTokens(ctx context.Context, u db.User) (access, raw string, err error) {
 	access, err = s.signer.Sign(u.ID, u.IsPlatformAdmin)
 	if err != nil {

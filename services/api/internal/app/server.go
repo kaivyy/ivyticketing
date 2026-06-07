@@ -15,6 +15,7 @@ import (
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
 	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
 	"github.com/varin/ivyticketing/services/api/internal/modules/system"
+	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 	"github.com/varin/ivyticketing/services/api/internal/platform/middleware"
 	appmw "github.com/varin/ivyticketing/services/api/internal/platform/middleware"
 	"github.com/varin/ivyticketing/services/api/internal/platform/rbac"
@@ -39,13 +40,14 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	signer := security.NewJWTSigner(cfg.JWTSecret, cfg.AccessTokenTTL)
 	loader := rbac.NewLoader(queries)
 	secureCookie := cfg.AppEnv != "local"
+	auditLog := audit.NewLogger(queries, log)
 
 	authHandler := authmod.NewHandler(
 		authmod.NewService(authmod.NewRepository(queries), signer, cfg.AccessTokenTTL, cfg.RefreshTokenTTL),
 		secureCookie,
 	)
 	orgHandler := orgsmod.NewHandler(orgsmod.NewService(orgsmod.NewRepository(pool)))
-	memberHandler := membersmod.NewHandler(membersmod.NewService(membersmod.NewRepository(pool)))
+	memberHandler := membersmod.NewHandler(membersmod.NewService(membersmod.NewRepository(pool), auditLog))
 	roleHandler := rolesmod.NewHandler(rolesmod.NewService(rolesmod.NewRepository(pool)))
 
 	r.Route("/api/v1", func(r chi.Router) {

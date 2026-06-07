@@ -105,7 +105,7 @@ func (f *fakeRepo) seedRole(orgID uuid.UUID, slug string) db.Role {
 }
 
 func TestAdd_RejectsUnknownEmail(t *testing.T) {
-	svc := NewService(newFakeRepo())
+	svc := NewService(newFakeRepo(), nil)
 	_, err := svc.Add(context.Background(), uuid.New(), AddMemberRequest{Email: "ghost@x.com"})
 	if err != ErrUserNotFound {
 		t.Fatalf("err = %v, want ErrUserNotFound", err)
@@ -114,7 +114,7 @@ func TestAdd_RejectsUnknownEmail(t *testing.T) {
 
 func TestAdd_AssignsRoles(t *testing.T) {
 	repo := newFakeRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil)
 	orgID := uuid.New()
 	repo.usersByEmail["staff@x.com"] = db.User{ID: uuid.New(), Email: "staff@x.com", FullName: "Staff"}
 	role := repo.seedRole(orgID, "manager")
@@ -130,7 +130,7 @@ func TestAdd_AssignsRoles(t *testing.T) {
 
 func TestAdd_RejectsRoleFromOtherOrg(t *testing.T) {
 	repo := newFakeRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil)
 	orgID := uuid.New()
 	otherOrg := uuid.New()
 	repo.usersByEmail["staff@x.com"] = db.User{ID: uuid.New(), Email: "staff@x.com", FullName: "Staff"}
@@ -144,7 +144,7 @@ func TestAdd_RejectsRoleFromOtherOrg(t *testing.T) {
 
 func TestRemove_RejectsLastOwner(t *testing.T) {
 	repo := newFakeRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil)
 	orgID := uuid.New()
 	owner := repo.seedRole(orgID, "owner")
 	member := db.OrganizationMember{ID: uuid.New(), OrganizationID: orgID, UserID: uuid.New()}
@@ -159,7 +159,7 @@ func TestRemove_RejectsLastOwner(t *testing.T) {
 
 func TestUpdateRoles_RejectsDemotingLastOwner(t *testing.T) {
 	repo := newFakeRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil)
 	orgID := uuid.New()
 	owner := repo.seedRole(orgID, "owner")
 	manager := repo.seedRole(orgID, "manager")
