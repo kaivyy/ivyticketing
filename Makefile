@@ -1,7 +1,8 @@
 GOPATH_BIN := $(shell go env GOPATH)/bin
 DATABASE_URL ?= postgres://localhost:5432/ivyticketing?sslmode=disable
+TEST_DATABASE_URL ?= postgres://localhost:5432/ivyticketing_test?sslmode=disable
 
-.PHONY: setup dev api web migrate-up migrate-down sqlc test lint fmt
+.PHONY: setup dev api web migrate-up migrate-down sqlc test test-db-setup test-integration lint fmt
 
 setup:
 	bash scripts/dev/setup-local.sh
@@ -26,6 +27,12 @@ sqlc:
 
 test:
 	cd services/api && go test ./...
+
+test-db-setup:
+	$(GOPATH_BIN)/goose -dir database/migrations postgres "$(TEST_DATABASE_URL)" up
+
+test-integration:
+	cd services/api && TEST_DATABASE_URL="$(TEST_DATABASE_URL)" go test -tags=integration ./tests/integration/... -v
 
 lint:
 	cd services/api && go vet ./...

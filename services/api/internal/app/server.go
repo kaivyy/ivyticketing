@@ -7,23 +7,66 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/varin/ivyticketing/services/api/internal/db"
+	authmod "github.com/varin/ivyticketing/services/api/internal/modules/auth"
+	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
+	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
+	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
 	"github.com/varin/ivyticketing/services/api/internal/modules/system"
+	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
+	"github.com/varin/ivyticketing/services/api/internal/platform/middleware"
 	appmw "github.com/varin/ivyticketing/services/api/internal/platform/middleware"
+	"github.com/varin/ivyticketing/services/api/internal/platform/rbac"
+	"github.com/varin/ivyticketing/services/api/internal/platform/security"
 )
 
-func NewRouter(cfg Config, log *slog.Logger, pg, rdb system.Checker) http.Handler {
+func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.Checker) http.Handler {
 	r := chi.NewRouter()
 	r.Use(appmw.RequestID)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{cfg.WebOrigin},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Content-Type", "X-Request-Id"},
-		AllowCredentials: false,
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-Id"},
+		AllowCredentials: true,
 	}))
 
-	sys := system.NewHandler(pg, rdb)
-	sys.RegisterRoutes(r)
+	// System (Phase 1).
+	system.NewHandler(pg, rdb).RegisterRoutes(r)
+
+	// Shared deps.
+	queries := db.New(pool)
+	signer := security.NewJWTSigner(cfg.JWTSecret, cfg.AccessTokenTTL)
+	loader := rbac.NewLoader(queries)
+	secureCookie := cfg.AppEnv != "local"
+	auditLog := audit.NewLogger(queries, log)
+
+	authHandler := authmod.NewHandler(
+		authmod.NewService(authmod.NewRepository(queries), signer, cfg.AccessTokenTTL, cfg.RefreshTokenTTL),
+		secureCookie,
+	)
+	orgHandler := orgsmod.NewHandler(orgsmod.NewService(orgsmod.NewRepository(pool)))
+	memberHandler := membersmod.NewHandler(membersmod.NewService(membersmod.NewRepository(pool), auditLog))
+	roleHandler := rolesmod.NewHandler(rolesmod.NewService(rolesmod.NewRepository(pool)))
+
+	r.Route("/api/v1", func(r chi.Router) {
+		// Auth (mixed public/protected; mounts its own /me behind authn).
+		authHandler.RegisterRoutes(r, signer)
+
+		// Everything else requires authentication.
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Authn(signer))
+
+			orgHandler.RegisterRoutes(r)
+
+			// Per-org sub-resources, authz enforced per route.
+			r.Route("/organizations/{orgId}", func(r chi.Router) {
+				memberHandler.RegisterRoutes(r, loader)
+				roleHandler.RegisterRoutes(r, loader)
+			})
+		})
+	})
 
 	log.Info("router assembled", "web_origin", cfg.WebOrigin)
 	return r

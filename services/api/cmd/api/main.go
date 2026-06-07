@@ -34,7 +34,7 @@ func main() {
 	}
 	defer rdb.Close()
 
-	handler := app.NewRouter(cfg, log, pg, rdb)
+	handler := app.NewRouter(cfg, log, pg.Pool, pg, rdb)
 	if err := app.StartServer(ctx, cfg, log, handler); err != nil {
 		log.Error("server stopped", "error", err)
 		os.Exit(1)
