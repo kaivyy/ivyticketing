@@ -2,6 +2,46 @@
 
 Race registration & event ticketing platform. Go modular monolith + Astro frontend.
 
+## Phase 6 — Payment Gateway V1
+
+Duitku + Xendit payment integration. Order `PENDING_PAYMENT` → `PAID` via callback. Webhook receiver as a separate binary on a different port. Idempotent callback processing.
+
+### New env
+```bash
+WEBHOOK_PORT=8090
+PAYMENT_CALLBACK_BASE_URL=http://localhost:8090
+PAYMENT_DEFAULT_EXPIRY=15m
+
+DUITKU_ENABLED=false
+DUITKU_MERCHANT_CODE=
+DUITKU_API_KEY=
+DUITKU_ENV=sandbox
+
+XENDIT_ENABLED=false
+XENDIT_SECRET_KEY=
+XENDIT_CALLBACK_TOKEN=
+XENDIT_ENV=sandbox
+```
+
+### Run the webhook receiver
+```bash
+make webhook   # starts on WEBHOOK_PORT (default 8090)
+```
+
+### Smoke test (with a gateway enabled)
+```bash
+# Create payment for an existing PENDING_PAYMENT order
+curl -s -X POST localhost:8080/api/v1/orders/<orderId>/payments \
+  -H "authorization: Bearer <accessToken>" \
+  -H "content-type: application/json" \
+  -d '{"gateway":"duitku","method":"qris"}'
+# → 201 { status: "PENDING", merchantReference: "PAY-...", qrString: "..." }
+
+# Check payment status
+curl -s localhost:8080/api/v1/payments/<paymentId> \
+  -H "authorization: Bearer <accessToken>"
+```
+
 ## Phase 5 — Orders, Inventory & Checkout
 
 Participant checkout with atomic oversold-prevention, reservation system, and an

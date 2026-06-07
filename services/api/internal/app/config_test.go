@@ -115,3 +115,33 @@ func TestLoadConfig_CloudDriverRequiresCredentials(t *testing.T) {
 		t.Fatal("expected error for cloud driver without credentials, got nil")
 	}
 }
+
+func TestLoadConfig_PaymentDefaults(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost:5432/x?sslmode=disable")
+	t.Setenv("REDIS_URL", "redis://localhost:6379")
+	t.Setenv("JWT_SECRET", "secret")
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.WebhookPort != "8090" {
+		t.Errorf("WebhookPort = %q, want 8090", cfg.WebhookPort)
+	}
+	if cfg.PaymentDefaultExpiry != 15*time.Minute {
+		t.Errorf("PaymentDefaultExpiry = %v, want 15m", cfg.PaymentDefaultExpiry)
+	}
+}
+
+func TestLoadConfig_DuitkuEnabledRequiresCreds(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost:5432/x?sslmode=disable")
+	t.Setenv("REDIS_URL", "redis://localhost:6379")
+	t.Setenv("JWT_SECRET", "secret")
+	t.Setenv("DUITKU_ENABLED", "true")
+	t.Setenv("DUITKU_MERCHANT_CODE", "")
+
+	_, err := LoadConfig()
+	if err == nil {
+		t.Fatal("expected error when DUITKU_ENABLED=true but creds missing")
+	}
+}

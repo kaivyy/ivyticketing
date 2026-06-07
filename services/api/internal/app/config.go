@@ -30,6 +30,21 @@ type Config struct {
 
 	OrderExpiration time.Duration
 	WorkerInterval  time.Duration
+
+	// Payments / webhook
+	WebhookPort            string
+	PaymentCallbackBaseURL string
+	PaymentDefaultExpiry   time.Duration
+
+	DuitkuEnabled      bool
+	DuitkuMerchantCode string
+	DuitkuAPIKey       string
+	DuitkuEnv          string
+
+	XenditEnabled       bool
+	XenditSecretKey     string
+	XenditCallbackToken string
+	XenditEnv           string
 }
 
 func LoadConfig() (Config, error) {
@@ -95,6 +110,31 @@ func LoadConfig() (Config, error) {
 		return Config{}, err
 	}
 	cfg.WorkerInterval = workerInterval
+
+	cfg.WebhookPort = getEnv("WEBHOOK_PORT", "8090")
+	cfg.PaymentCallbackBaseURL = os.Getenv("PAYMENT_CALLBACK_BASE_URL")
+
+	payExpiry, err := getDuration("PAYMENT_DEFAULT_EXPIRY", 15*time.Minute)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.PaymentDefaultExpiry = payExpiry
+
+	cfg.DuitkuEnabled = getEnv("DUITKU_ENABLED", "false") == "true"
+	cfg.DuitkuMerchantCode = os.Getenv("DUITKU_MERCHANT_CODE")
+	cfg.DuitkuAPIKey = os.Getenv("DUITKU_API_KEY")
+	cfg.DuitkuEnv = getEnv("DUITKU_ENV", "sandbox")
+	if cfg.DuitkuEnabled && (cfg.DuitkuMerchantCode == "" || cfg.DuitkuAPIKey == "") {
+		return Config{}, fmt.Errorf("config: DUITKU_MERCHANT_CODE/DUITKU_API_KEY required when DUITKU_ENABLED=true")
+	}
+
+	cfg.XenditEnabled = getEnv("XENDIT_ENABLED", "false") == "true"
+	cfg.XenditSecretKey = os.Getenv("XENDIT_SECRET_KEY")
+	cfg.XenditCallbackToken = os.Getenv("XENDIT_CALLBACK_TOKEN")
+	cfg.XenditEnv = getEnv("XENDIT_ENV", "sandbox")
+	if cfg.XenditEnabled && (cfg.XenditSecretKey == "" || cfg.XenditCallbackToken == "") {
+		return Config{}, fmt.Errorf("config: XENDIT_SECRET_KEY/XENDIT_CALLBACK_TOKEN required when XENDIT_ENABLED=true")
+	}
 
 	return cfg, nil
 }

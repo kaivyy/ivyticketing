@@ -41,6 +41,8 @@ func truncate(t *testing.T, pool *pgxpool.Pool) {
 		DELETE FROM form_fields;
 		DELETE FROM form_schemas;
 		DELETE FROM inventory_reservations;
+		DELETE FROM payment_webhooks;
+		DELETE FROM payments;
 		DELETE FROM orders;
 		DELETE FROM event_categories;
 		DELETE FROM events;

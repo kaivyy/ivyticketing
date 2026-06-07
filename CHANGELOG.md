@@ -4,6 +4,42 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
+## [Phase 6] — 2026-06-07
+
+Payment Gateway V1: Duitku + Xendit (QRIS/VA/e-wallet), idempotent callback processing, separate webhook binary.
+
+### Added
+
+**Payments**
+- `POST /api/v1/orders/:orderId/payments` — create payment (QRIS/VA/e-wallet), returns pay_url/qr_string/va_number
+- `GET /api/v1/orders/:orderId/payments` — payment history for order
+- `GET /api/v1/payments/:paymentId` — payment status (participant-owned)
+- `GET /api/v1/organizations/:orgId/events/:eventId/payments` — org payment list (payment.view)
+- `POST /api/v1/organizations/:orgId/payments/:paymentId/reconcile` — manual reconcile (payment.manage)
+
+**Callback processing**
+- Separate webhook binary `services/api/cmd/webhook` (port 8090) — `make webhook`
+- Store-then-process: raw callback always persisted before validation
+- Two-layer idempotency: dedupe_key + DB status guards
+- `POST /webhooks/duitku`, `POST /webhooks/xendit`
+- Race handling: order expired before callback → payment PAID, order unchanged, noted for reconcile
+
+**Gateway abstraction**
+- `Gateway` interface: `CreateCharge`, `VerifySignature`, `ParseCallback`, `QueryStatus`
+- `BuildPaymentRegistry` from config; fail-fast if gateway enabled with missing credentials
+- Duitku adapter: MD5 signature, form-encoded callback, status codes 00/01/02
+- Xendit adapter: x-callback-token header, JSON payload, status mapping
+
+**Database** (goose migrations 00015–00017)
+- Tables: `payments`, `payment_webhooks`
+- Permission: `payment.manage` (assigned to Owner + Finance templates)
+
+**Config**: `WEBHOOK_PORT`, `PAYMENT_CALLBACK_BASE_URL`, `PAYMENT_DEFAULT_EXPIRY`, `DUITKU_*`, `XENDIT_*`
+
+**Docs**: PAYMENT_FLOW, WEBHOOK_PROCESSING, GATEWAY_INTEGRATION, PAYMENT_RECONCILIATION, PHASE6_DECISIONS, docs/payment/DUITKU, XENDIT, CALLBACK_SECURITY
+
+---
+
 ## [Phase 5] — 2026-06-07
 
 Orders, inventory, reservation, and checkout foundation + UI design system. Backend + UI; no payment yet.
