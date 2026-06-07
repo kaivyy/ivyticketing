@@ -20,3 +20,6 @@ RETURNING *;
 
 -- name: DeleteCategory :exec
 DELETE FROM event_categories WHERE id = $1 AND event_id = $2;
+
+-- name: ListCategoriesByEventForPublic :many
+SELECT * FROM event_categories WHERE event_id = $1 ORDER BY price;

@@ -141,6 +141,44 @@ func (q *Queries) ListCategoriesByEvent(ctx context.Context, eventID uuid.UUID) 
 	return items, nil
 }
 
+const listCategoriesByEventForPublic = `-- name: ListCategoriesByEventForPublic :many
+SELECT id, organization_id, event_id, name, price, capacity, registration_opens_at, registration_closes_at, bib_prefix, min_age, max_order_per_user, created_at, updated_at FROM event_categories WHERE event_id = $1 ORDER BY price
+`
+
+func (q *Queries) ListCategoriesByEventForPublic(ctx context.Context, eventID uuid.UUID) ([]EventCategory, error) {
+	rows, err := q.db.Query(ctx, listCategoriesByEventForPublic, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EventCategory
+	for rows.Next() {
+		var i EventCategory
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
+			&i.EventID,
+			&i.Name,
+			&i.Price,
+			&i.Capacity,
+			&i.RegistrationOpensAt,
+			&i.RegistrationClosesAt,
+			&i.BibPrefix,
+			&i.MinAge,
+			&i.MaxOrderPerUser,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateCategory = `-- name: UpdateCategory :one
 UPDATE event_categories SET
     name = $2, price = $3, capacity = $4,
