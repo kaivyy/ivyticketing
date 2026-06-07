@@ -15,6 +15,7 @@ import (
 	eventsmod "github.com/varin/ivyticketing/services/api/internal/modules/events"
 	formsmod "github.com/varin/ivyticketing/services/api/internal/modules/forms"
 	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
+	ordersmod "github.com/varin/ivyticketing/services/api/internal/modules/orders"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
 	publicmod "github.com/varin/ivyticketing/services/api/internal/modules/publiccatalog"
 	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
@@ -71,6 +72,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	eventHandler := eventsmod.NewHandler(eventsmod.NewService(eventsmod.NewRepository(pool), store, auditLog), cfg.StorageUploadMaxBytes)
 	categoryHandler := categoriesmod.NewHandler(categoriesmod.NewService(categoriesmod.NewRepository(pool)))
 	formHandler := formsmod.NewHandler(formsmod.NewService(formsmod.NewRepository(pool)))
+	ordersHandler := ordersmod.NewHandler(ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration))
 	publicHandler := publicmod.NewHandler(publicmod.NewService(publicmod.NewRepository(pool), store))
 
 	r.Route("/api/v1", func(r chi.Router) {
@@ -85,6 +87,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			r.Use(middleware.Authn(signer))
 
 			orgHandler.RegisterRoutes(r)
+			ordersHandler.RegisterRoutes(r)
 
 			// Per-org sub-resources, authz enforced per route.
 			r.Route("/organizations/{orgId}", func(r chi.Router) {
@@ -93,6 +96,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 				eventHandler.RegisterRoutes(r, loader, func(r chi.Router) {
 					categoryHandler.RegisterRoutes(r, loader)
 					formHandler.RegisterRoutes(r, loader)
+					ordersHandler.RegisterEventRoutes(r, loader)
 				})
 			})
 		})
