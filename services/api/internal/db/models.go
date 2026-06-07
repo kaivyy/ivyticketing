@@ -58,6 +58,33 @@ type EventCategory struct {
 	UpdatedAt            pgtype.Timestamptz
 }
 
+type FormField struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	FormSchemaID   uuid.UUID
+	FieldType      string
+	Label          string
+	FieldKey       string
+	HelpText       pgtype.Text
+	IsRequired     bool
+	DisplayOrder   int32
+	Options        []byte
+	Validation     []byte
+	Conditional    []byte
+	CategoryScope  []byte
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type FormSchema struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	EventID        uuid.UUID
+	Name           string
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type MemberRole struct {
 	OrganizationMemberID uuid.UUID
 	RoleID               uuid.UUID
