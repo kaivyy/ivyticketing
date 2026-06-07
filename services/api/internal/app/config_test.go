@@ -1,10 +1,14 @@
 package app
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestLoadConfig_Defaults(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
 	t.Setenv("REDIS_URL", "redis://localhost:6379")
+	t.Setenv("JWT_SECRET", "test-secret")
 	t.Setenv("API_PORT", "")
 	t.Setenv("APP_ENV", "")
 
@@ -23,9 +27,39 @@ func TestLoadConfig_Defaults(t *testing.T) {
 func TestLoadConfig_MissingDatabaseURL(t *testing.T) {
 	t.Setenv("DATABASE_URL", "")
 	t.Setenv("REDIS_URL", "redis://localhost:6379")
+	t.Setenv("JWT_SECRET", "test-secret")
 
 	_, err := LoadConfig()
 	if err == nil {
 		t.Fatal("expected error for missing DATABASE_URL, got nil")
+	}
+}
+
+func TestLoadConfig_AuthDefaults(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
+	t.Setenv("REDIS_URL", "redis://localhost:6379")
+	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("ACCESS_TOKEN_TTL", "")
+	t.Setenv("REFRESH_TOKEN_TTL", "")
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.AccessTokenTTL != 15*time.Minute {
+		t.Errorf("AccessTokenTTL = %v, want 15m", cfg.AccessTokenTTL)
+	}
+	if cfg.RefreshTokenTTL != 168*time.Hour {
+		t.Errorf("RefreshTokenTTL = %v, want 168h", cfg.RefreshTokenTTL)
+	}
+}
+
+func TestLoadConfig_MissingJWTSecret(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
+	t.Setenv("REDIS_URL", "redis://localhost:6379")
+	t.Setenv("JWT_SECRET", "")
+
+	if _, err := LoadConfig(); err == nil {
+		t.Fatal("expected error for missing JWT_SECRET, got nil")
 	}
 }
