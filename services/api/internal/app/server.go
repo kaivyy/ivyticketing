@@ -15,6 +15,7 @@ import (
 	eventsmod "github.com/varin/ivyticketing/services/api/internal/modules/events"
 	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
+	publicmod "github.com/varin/ivyticketing/services/api/internal/modules/publiccatalog"
 	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
 	"github.com/varin/ivyticketing/services/api/internal/modules/system"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
@@ -68,10 +69,14 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	}
 	eventHandler := eventsmod.NewHandler(eventsmod.NewService(eventsmod.NewRepository(pool), store, auditLog), cfg.StorageUploadMaxBytes)
 	categoryHandler := categoriesmod.NewHandler(categoriesmod.NewService(categoriesmod.NewRepository(pool)))
+	publicHandler := publicmod.NewHandler(publicmod.NewService(publicmod.NewRepository(pool), store))
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Auth (mixed public/protected; mounts its own /me behind authn).
 		authHandler.RegisterRoutes(r, signer)
+
+		// Public read-only (no auth).
+		publicHandler.RegisterRoutes(r)
 
 		// Everything else requires authentication.
 		r.Group(func(r chi.Router) {
@@ -90,6 +95,12 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			})
 		})
 	})
+
+	// Serve local media files (local driver only).
+	if cfg.StorageDriver == "local" {
+		fs := http.StripPrefix("/media/", http.FileServer(http.Dir(cfg.StorageLocalPath)))
+		r.Get("/media/*", fs.ServeHTTP)
+	}
 
 	log.Info("router assembled", "web_origin", cfg.WebOrigin)
 	return r, nil
