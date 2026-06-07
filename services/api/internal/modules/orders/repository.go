@@ -21,6 +21,7 @@ type Repository interface {
 	ListOrdersByParticipant(ctx context.Context, participantID uuid.UUID) ([]db.Order, error)
 	ListOrdersByOrgEvent(ctx context.Context, arg db.ListOrdersByOrgEventParams) ([]db.Order, error)
 	CountActiveOrdersForUserCategory(ctx context.Context, arg db.CountActiveOrdersForUserCategoryParams) (int64, error)
+	ListExpiredPendingOrders(ctx context.Context, limit int32) ([]uuid.UUID, error)
 
 	// Inventory returns an inventory.Repository bound to this repo's queries (pool or tx).
 	// When called within ExecTx, both order and reservation writes use the same transaction.
@@ -80,4 +81,8 @@ func (r *sqlcRepo) ListOrdersByOrgEvent(ctx context.Context, arg db.ListOrdersBy
 
 func (r *sqlcRepo) CountActiveOrdersForUserCategory(ctx context.Context, arg db.CountActiveOrdersForUserCategoryParams) (int64, error) {
 	return r.q.CountActiveOrdersForUserCategory(ctx, arg)
+}
+
+func (r *sqlcRepo) ListExpiredPendingOrders(ctx context.Context, limit int32) ([]uuid.UUID, error) {
+	return r.q.ListExpiredPendingOrders(ctx, limit)
 }

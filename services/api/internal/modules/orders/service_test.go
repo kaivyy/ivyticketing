@@ -187,6 +187,17 @@ func (f *fakeRepo) CountActiveOrdersForUserCategory(ctx context.Context, arg db.
 	return count, nil
 }
 
+func (f *fakeRepo) ListExpiredPendingOrders(_ context.Context, limit int32) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	now := time.Now()
+	for _, o := range f.orders {
+		if o.Status == StatusPendingPayment && o.ExpiredAt.Valid && o.ExpiredAt.Time.Before(now) {
+			ids = append(ids, o.ID)
+		}
+	}
+	return ids, nil
+}
+
 // inventory.Repository methods
 
 func (f *fakeRepo) LockCategoryForUpdate(ctx context.Context, id uuid.UUID) (db.EventCategory, error) {
