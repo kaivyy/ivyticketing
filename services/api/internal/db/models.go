@@ -85,9 +85,38 @@ type FormSchema struct {
 	UpdatedAt      pgtype.Timestamptz
 }
 
+type InventoryReservation struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	EventID        uuid.UUID
+	CategoryID     uuid.UUID
+	OrderID        uuid.UUID
+	ParticipantID  uuid.UUID
+	Status         string
+	ExpiresAt      pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+}
+
 type MemberRole struct {
 	OrganizationMemberID uuid.UUID
 	RoleID               uuid.UUID
+}
+
+type Order struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	EventID        uuid.UUID
+	CategoryID     uuid.UUID
+	ParticipantID  uuid.UUID
+	OrderNumber    string
+	Status         string
+	Subtotal       int64
+	Fee            int64
+	Discount       int64
+	Total          int64
+	ExpiredAt      pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
 }
 
 type Organization struct {
