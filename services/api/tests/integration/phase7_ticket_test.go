@@ -146,3 +146,226 @@ func TestPhase7_PaidIssuesTicket(t *testing.T) {
 		t.Errorf("QR eventID = %s, want %s", ref.EventID, eventID)
 	}
 }
+
+// TestPhase7_OwnershipNotFound: ticket belonging to user A returns 404 when accessed by user B.
+func TestPhase7_OwnershipNotFound(t *testing.T) {
+	pool := testPool(t)
+	truncate(t, pool)
+	srv := newTestServer(t, pool)
+	client := &http.Client{}
+	ctx := context.Background()
+
+	ownerToken, orgID, _ := loginCreateOrg(t, client, srv.URL, "owner7b@x.com", "Phase7B Org")
+	eventID, categoryID := publishEventWithCategory(t, client, srv.URL, ownerToken, orgID, 10, 5)
+
+	// User A checks out and gets a ticket.
+	partAToken := registerAndLogin(t, client, srv.URL, "partA7b@x.com")
+	resp := postJSON(t, client, srv.URL+"/api/v1/organizations/"+orgID+"/events/"+eventID+"/categories/"+categoryID+"/checkout", map[string]any{}, partAToken)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("checkout = %d, want 201", resp.StatusCode)
+	}
+	var order struct {
+		ID string `json:"id"`
+	}
+	json.NewDecoder(resp.Body).Decode(&order)
+	resp.Body.Close()
+
+	// Seed payment and apply PAID to issue the ticket.
+	var dbOrgID, dbEventID, dbParticipantID string
+	var dbAmount int64
+	err := pool.QueryRow(ctx,
+		`SELECT organization_id::text, event_id::text, participant_id::text, total FROM orders WHERE id = $1`,
+		order.ID,
+	).Scan(&dbOrgID, &dbEventID, &dbParticipantID, &dbAmount)
+	if err != nil {
+		t.Fatalf("query order: %v", err)
+	}
+	merchantRef := "TEST-P7B-" + order.ID[:8]
+	queries := db.New(pool)
+	_, err = queries.CreatePayment(ctx, db.CreatePaymentParams{
+		OrganizationID:    mustUUID(t, dbOrgID),
+		EventID:           mustUUID(t, dbEventID),
+		OrderID:           mustUUID(t, order.ID),
+		ParticipantID:     mustUUID(t, dbParticipantID),
+		Gateway:           "duitku",
+		Method:            "qris",
+		Status:            paymentsmod.StatusPending,
+		Amount:            dbAmount,
+		Currency:          "IDR",
+		MerchantReference: merchantRef,
+		ExpiresAt:         pgtype.Timestamptz{Time: time.Now().Add(15 * time.Minute), Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("seed payment: %v", err)
+	}
+	paymentsRepo := paymentsmod.NewRepository(pool)
+	ticketIssuer := ticketsmod.NewIssuer(nil)
+	processor := paymentsmod.NewProcessor(paymentsRepo, nil, ticketIssuer)
+	paidAt := time.Now()
+	if err := processor.Apply(ctx, "duitku", gw.CallbackResult{
+		MerchantReference: merchantRef,
+		GatewayReference:  "GW-P7B-001",
+		Status:            gw.StatusPaid,
+		Amount:            dbAmount,
+		PaidAt:            &paidAt,
+	}); err != nil {
+		t.Fatalf("processor.Apply: %v", err)
+	}
+
+	// Fetch ticketID issued to user A.
+	var ticketID string
+	err = pool.QueryRow(ctx, `SELECT id::text FROM tickets WHERE order_id = $1`, order.ID).Scan(&ticketID)
+	if err != nil {
+		t.Fatalf("query ticket: %v", err)
+	}
+
+	// User B tries to access user A's ticket → 404.
+	partBToken := registerAndLogin(t, client, srv.URL, "partB7b@x.com")
+	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/api/v1/tickets/"+ticketID, nil)
+	req.Header.Set("Authorization", "Bearer "+partBToken)
+	got, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET ticket as user B: %v", err)
+	}
+	got.Body.Close()
+	if got.StatusCode != http.StatusNotFound {
+		t.Errorf("GET /tickets/%s as user B = %d, want 404", ticketID, got.StatusCode)
+	}
+}
+
+// TestPhase7_InvoiceGating: invoice endpoint returns non-200 before order is PAID, 200 after.
+func TestPhase7_InvoiceGating(t *testing.T) {
+	pool := testPool(t)
+	truncate(t, pool)
+	srv := newTestServer(t, pool)
+	client := &http.Client{}
+	ctx := context.Background()
+
+	ownerToken, orgID, _ := loginCreateOrg(t, client, srv.URL, "owner7c@x.com", "Phase7C Org")
+	eventID, categoryID := publishEventWithCategory(t, client, srv.URL, ownerToken, orgID, 10, 5)
+	partToken := registerAndLogin(t, client, srv.URL, "part7c@x.com")
+
+	// Checkout → PENDING_PAYMENT order.
+	resp := postJSON(t, client, srv.URL+"/api/v1/organizations/"+orgID+"/events/"+eventID+"/categories/"+categoryID+"/checkout", map[string]any{}, partToken)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("checkout = %d, want 201", resp.StatusCode)
+	}
+	var order struct {
+		ID string `json:"id"`
+	}
+	json.NewDecoder(resp.Body).Decode(&order)
+	resp.Body.Close()
+
+	// Invoice before PAID → non-200.
+	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/api/v1/orders/"+order.ID+"/invoice", nil)
+	req.Header.Set("Authorization", "Bearer "+partToken)
+	preResp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET invoice before PAID: %v", err)
+	}
+	preResp.Body.Close()
+	if preResp.StatusCode == http.StatusOK {
+		t.Errorf("GET invoice before PAID = 200, want non-200")
+	}
+
+	// Seed payment and apply PAID.
+	var dbOrgID, dbEventID, dbParticipantID string
+	var dbAmount int64
+	err = pool.QueryRow(ctx,
+		`SELECT organization_id::text, event_id::text, participant_id::text, total FROM orders WHERE id = $1`,
+		order.ID,
+	).Scan(&dbOrgID, &dbEventID, &dbParticipantID, &dbAmount)
+	if err != nil {
+		t.Fatalf("query order: %v", err)
+	}
+	merchantRef := "TEST-P7C-" + order.ID[:8]
+	queries := db.New(pool)
+	_, err = queries.CreatePayment(ctx, db.CreatePaymentParams{
+		OrganizationID:    mustUUID(t, dbOrgID),
+		EventID:           mustUUID(t, dbEventID),
+		OrderID:           mustUUID(t, order.ID),
+		ParticipantID:     mustUUID(t, dbParticipantID),
+		Gateway:           "duitku",
+		Method:            "qris",
+		Status:            paymentsmod.StatusPending,
+		Amount:            dbAmount,
+		Currency:          "IDR",
+		MerchantReference: merchantRef,
+		ExpiresAt:         pgtype.Timestamptz{Time: time.Now().Add(15 * time.Minute), Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("seed payment: %v", err)
+	}
+	paymentsRepo := paymentsmod.NewRepository(pool)
+	ticketIssuer := ticketsmod.NewIssuer(nil)
+	processor := paymentsmod.NewProcessor(paymentsRepo, nil, ticketIssuer)
+	paidAt := time.Now()
+	if err := processor.Apply(ctx, "duitku", gw.CallbackResult{
+		MerchantReference: merchantRef,
+		GatewayReference:  "GW-P7C-001",
+		Status:            gw.StatusPaid,
+		Amount:            dbAmount,
+		PaidAt:            &paidAt,
+	}); err != nil {
+		t.Fatalf("processor.Apply: %v", err)
+	}
+
+	// Invoice after PAID → 200.
+	req, _ = http.NewRequest(http.MethodGet, srv.URL+"/api/v1/orders/"+order.ID+"/invoice", nil)
+	req.Header.Set("Authorization", "Bearer "+partToken)
+	postResp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET invoice after PAID: %v", err)
+	}
+	postResp.Body.Close()
+	if postResp.StatusCode != http.StatusOK {
+		t.Errorf("GET invoice after PAID = %d, want 200", postResp.StatusCode)
+	}
+}
+
+// TestPhase7_OrganizerTicketViewPermission: member without ticket.view gets 403;
+// org owner (who has ticket.view from seed) gets 200.
+func TestPhase7_OrganizerTicketViewPermission(t *testing.T) {
+	pool := testPool(t)
+	truncate(t, pool)
+	srv := newTestServer(t, pool)
+	client := &http.Client{}
+
+	ownerToken, orgID, _ := loginCreateOrg(t, client, srv.URL, "owner7d@x.com", "Phase7D Org")
+	eventID, _ := publishEventWithCategory(t, client, srv.URL, ownerToken, orgID, 10, 5)
+
+	// Register a fresh staff user and add them as a member with no roles.
+	staffToken := registerAndLogin(t, client, srv.URL, "staff7d@x.com")
+	addResp := postJSON(t, client, srv.URL+"/api/v1/organizations/"+orgID+"/members",
+		map[string]any{"email": "staff7d@x.com", "roleIds": []string{}}, ownerToken)
+	if addResp.StatusCode != http.StatusCreated {
+		t.Fatalf("add member = %d, want 201", addResp.StatusCode)
+	}
+	addResp.Body.Close()
+
+	ticketsURL := srv.URL + "/api/v1/organizations/" + orgID + "/events/" + eventID + "/tickets"
+
+	// Staff without ticket.view → 403.
+	req, _ := http.NewRequest(http.MethodGet, ticketsURL, nil)
+	req.Header.Set("Authorization", "Bearer "+staffToken)
+	staffResp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET tickets as staff: %v", err)
+	}
+	staffResp.Body.Close()
+	if staffResp.StatusCode != http.StatusForbidden {
+		t.Errorf("GET tickets without ticket.view = %d, want 403", staffResp.StatusCode)
+	}
+
+	// Owner (has ticket.view via Owner role from seed) → 200.
+	req, _ = http.NewRequest(http.MethodGet, ticketsURL, nil)
+	req.Header.Set("Authorization", "Bearer "+ownerToken)
+	ownerResp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET tickets as owner: %v", err)
+	}
+	ownerResp.Body.Close()
+	if ownerResp.StatusCode != http.StatusOK {
+		t.Errorf("GET tickets with ticket.view (owner) = %d, want 200", ownerResp.StatusCode)
+	}
+}
