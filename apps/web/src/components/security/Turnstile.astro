@@ -1,0 +1,26 @@
+---
+// Renders Cloudflare Turnstile when enabled. Stores token in window.__ivyTurnstileToken.
+---
+<div id="turnstile-holder"></div>
+<script>
+  import { getSecurityConfig } from "../../lib/security";
+
+  const cfg = await getSecurityConfig();
+  if (cfg.turnstileEnabled && cfg.siteKey) {
+    const s = document.createElement("script");
+    s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+    s.async = true;
+    document.head.appendChild(s);
+
+    const holder = document.getElementById("turnstile-holder")!;
+    const widget = document.createElement("div");
+    widget.className = "cf-turnstile";
+    widget.dataset.sitekey = cfg.siteKey;
+    widget.dataset.callback = "ivyTurnstileCb";
+    holder.appendChild(widget);
+
+    (window as any).ivyTurnstileCb = (token: string) => {
+      (window as any).__ivyTurnstileToken = token;
+    };
+  }
+</script>
