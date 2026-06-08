@@ -1,6 +1,8 @@
 package orders
 
 import (
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 
 	"github.com/varin/ivyticketing/services/api/internal/platform/middleware"
@@ -16,7 +18,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 }
 
 // RegisterEventRoutes mounts event-scoped endpoints under /events/{eventId}.
-func (h *Handler) RegisterEventRoutes(r chi.Router, loader middleware.PermissionLoader) {
-	r.Post("/categories/{categoryId}/checkout", h.Checkout)
+func (h *Handler) RegisterEventRoutes(r chi.Router, loader middleware.PermissionLoader, checkoutGuard func(http.Handler) http.Handler) {
+	r.With(checkoutGuard).Post("/categories/{categoryId}/checkout", h.Checkout)
 	r.With(middleware.RequirePermission(loader, "order.view")).Get("/orders", h.ListByOrgEvent)
 }

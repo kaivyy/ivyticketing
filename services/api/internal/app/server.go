@@ -11,6 +11,7 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
+	abusemod "github.com/varin/ivyticketing/services/api/internal/modules/abuse"
 	authmod "github.com/varin/ivyticketing/services/api/internal/modules/auth"
 	categoriesmod "github.com/varin/ivyticketing/services/api/internal/modules/categories"
 	eventsmod "github.com/varin/ivyticketing/services/api/internal/modules/events"
@@ -26,10 +27,12 @@ import (
 	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
 	"github.com/varin/ivyticketing/services/api/internal/modules/system"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
+	"github.com/varin/ivyticketing/services/api/internal/platform/captcha"
 	"github.com/varin/ivyticketing/services/api/internal/platform/middleware"
 	appmw "github.com/varin/ivyticketing/services/api/internal/platform/middleware"
 	platformqueue "github.com/varin/ivyticketing/services/api/internal/platform/queue"
 	"github.com/varin/ivyticketing/services/api/internal/platform/rbac"
+	"github.com/varin/ivyticketing/services/api/internal/platform/ratelimit"
 	"github.com/varin/ivyticketing/services/api/internal/platform/security"
 	"github.com/varin/ivyticketing/services/api/internal/platform/storage"
 )
@@ -108,12 +111,33 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	paymentsReconciler := paymentsmod.NewReconciler(paymentsRepo, paymentsRegistry, paymentsProc)
 	paymentsHandler := paymentsmod.NewHandler(paymentsSvc, paymentsReconciler)
 
+	// Anti-bot / abuse (Phase 9)
+	abuseRepo := abusemod.NewRepository(pool)
+	abuseSettings := abusemod.NewSettings(abuseRepo)
+	_ = abuseSettings.Refresh(context.Background())
+	abuseSettings.StartRefresh(context.Background(), cfg.AbuseSettingsRefresh)
+	rateLimiter := ratelimit.New(redisClient)
+	abuseRate := abusemod.NewRateChecker(rateLimiter)
+	abuseBlocklist := abusemod.NewBlocklist(abuseRepo)
+	abuseReputation := abusemod.NewReputation(abuseRepo, cfg.ReputationChallengeThreshold, cfg.ReputationDenyThreshold)
+	var captchaVerifier captcha.Verifier = captcha.NewTurnstile(cfg.TurnstileSecret)
+	abuseSvc := abusemod.NewService(abuseRepo, abuseSettings, auditLog, cfg.MaxActiveQueuePerUser, cfg.TurnstileSiteKey)
+	abuseGuard := abusemod.NewGuard(abuseSettings, abuseBlocklist, abuseRate, abuseReputation, captchaVerifier, abuseSvc, abuseSvc)
+	abuseHandler := abusemod.NewHandler(abuseSvc)
+	securityConfigHandler := abusemod.NewSecurityConfigHandler(abuseSvc)
+
 	r.Route("/api/v1", func(r chi.Router) {
 		// Auth (mixed public/protected; mounts its own /me behind authn).
-		authHandler.RegisterRoutes(r, signer)
+		authHandler.RegisterRoutes(r, signer,
+			abuseGuard.Middleware(abusemod.CategoryAuthLogin),
+			abuseGuard.Middleware(abusemod.CategoryAuthRegister),
+		)
 
 		// Public read-only (no auth).
 		publicHandler.RegisterRoutes(r)
+
+		// Security config (public, no auth).
+		r.Get("/security/config", securityConfigHandler.Get)
 
 		// Everything else requires authentication.
 		r.Group(func(r chi.Router) {
@@ -123,7 +147,15 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			ordersHandler.RegisterRoutes(r)
 			paymentsHandler.RegisterRoutes(r)
 			ticketsHandler.RegisterRoutes(r)
-			queueHandler.RegisterRoutes(r)
+			queueHandler.RegisterRoutes(r, abuseGuard.Middleware(abusemod.CategoryQueueJoin))
+
+			// Super-admin abuse management.
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequirePlatformAdmin())
+				r.Route("/admin", func(r chi.Router) {
+					abuseHandler.RegisterAdminRoutes(r)
+				})
+			})
 
 			// Per-org sub-resources, authz enforced per route.
 			r.Route("/organizations/{orgId}", func(r chi.Router) {
@@ -132,7 +164,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 				eventHandler.RegisterRoutes(r, loader, func(r chi.Router) {
 					categoryHandler.RegisterRoutes(r, loader)
 					formHandler.RegisterRoutes(r, loader)
-					ordersHandler.RegisterEventRoutes(r, loader)
+					ordersHandler.RegisterEventRoutes(r, loader, abuseGuard.Middleware(abusemod.CategoryCheckout))
 					ticketsHandler.RegisterEventRoutes(r, loader)
 					registrationHandler.RegisterEventRoutes(r, loader)
 					queueHandler.RegisterOrgRoutes(r, loader)
