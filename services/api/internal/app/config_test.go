@@ -200,3 +200,31 @@ func TestLoadConfig_MissingTicketQRSecret(t *testing.T) {
 		t.Fatal("expected error for missing TICKET_QR_SECRET, got nil")
 	}
 }
+
+func TestLoadConfig_AbuseDefaults(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
+	t.Setenv("REDIS_URL", "redis://localhost:6379")
+	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("TICKET_QR_SECRET", "qr-secret")
+	t.Setenv("MAX_ACTIVE_QUEUE_PER_USER", "")
+	t.Setenv("REPUTATION_CHALLENGE_THRESHOLD", "")
+	t.Setenv("REPUTATION_DENY_THRESHOLD", "")
+	t.Setenv("ABUSE_SETTINGS_REFRESH", "")
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.MaxActiveQueuePerUser != 5 {
+		t.Errorf("MaxActiveQueuePerUser = %d, want 5", cfg.MaxActiveQueuePerUser)
+	}
+	if cfg.ReputationChallengeThreshold != 10 {
+		t.Errorf("ReputationChallengeThreshold = %d, want 10", cfg.ReputationChallengeThreshold)
+	}
+	if cfg.ReputationDenyThreshold != 25 {
+		t.Errorf("ReputationDenyThreshold = %d, want 25", cfg.ReputationDenyThreshold)
+	}
+	if cfg.AbuseSettingsRefresh != 30*time.Second {
+		t.Errorf("AbuseSettingsRefresh = %v, want 30s", cfg.AbuseSettingsRefresh)
+	}
+}

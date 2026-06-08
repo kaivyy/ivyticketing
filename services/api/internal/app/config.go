@@ -50,6 +50,13 @@ type Config struct {
 	XenditSecretKey     string
 	XenditCallbackToken string
 	XenditEnv           string
+
+	TurnstileSecret              string
+	TurnstileSiteKey             string
+	MaxActiveQueuePerUser        int
+	ReputationChallengeThreshold int
+	ReputationDenyThreshold      int
+	AbuseSettingsRefresh         time.Duration
 }
 
 func LoadConfig() (Config, error) {
@@ -160,6 +167,30 @@ func LoadConfig() (Config, error) {
 	if cfg.XenditEnabled && (cfg.XenditSecretKey == "" || cfg.XenditCallbackToken == "") {
 		return Config{}, fmt.Errorf("config: XENDIT_SECRET_KEY/XENDIT_CALLBACK_TOKEN required when XENDIT_ENABLED=true")
 	}
+
+	cfg.TurnstileSecret = os.Getenv("TURNSTILE_SECRET")
+	cfg.TurnstileSiteKey = os.Getenv("TURNSTILE_SITE_KEY")
+
+	maxQueue, err := getInt64("MAX_ACTIVE_QUEUE_PER_USER", 5)
+	if err != nil {
+		return Config{}, err
+	}
+	repChallenge, err := getInt64("REPUTATION_CHALLENGE_THRESHOLD", 10)
+	if err != nil {
+		return Config{}, err
+	}
+	repDeny, err := getInt64("REPUTATION_DENY_THRESHOLD", 25)
+	if err != nil {
+		return Config{}, err
+	}
+	abuseRefresh, err := getDuration("ABUSE_SETTINGS_REFRESH", 30*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.MaxActiveQueuePerUser = int(maxQueue)
+	cfg.ReputationChallengeThreshold = int(repChallenge)
+	cfg.ReputationDenyThreshold = int(repDeny)
+	cfg.AbuseSettingsRefresh = abuseRefresh
 
 	return cfg, nil
 }
