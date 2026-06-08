@@ -1,0 +1,34 @@
+---
+import "../styles/global.css";
+const { title = "ivyticketing" } = Astro.props;
+---
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header class="border-b border-slate-200 bg-white">
+      <nav class="mx-auto flex max-w-3xl items-center justify-between p-4">
+        <a href="/participant/dashboard" class="font-semibold">ivyticketing</a>
+        <div class="flex gap-4 text-sm">
+          <a href="/participant/orders">Pesanan</a>
+          <a href="/participant/tickets">Tiket</a>
+          <button id="logout-btn" class="text-slate-500">Keluar</button>
+        </div>
+      </nav>
+    </header>
+    <main class="mx-auto max-w-3xl p-6"><slot /></main>
+
+    <script>
+      import { getToken, logout } from "../lib/auth";
+      if (!getToken()) window.location.href = "/login";
+      document.getElementById("logout-btn")?.addEventListener("click", async () => {
+        await logout();
+        window.location.href = "/login";
+      });
+    </script>
+  </body>
+</html>
