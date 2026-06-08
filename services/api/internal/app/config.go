@@ -32,6 +32,10 @@ type Config struct {
 	OrderExpiration time.Duration
 	WorkerInterval  time.Duration
 
+	QueueReleaseInterval    time.Duration
+	QueueCheckoutWindow     time.Duration
+	QueueDefaultReleaseRate int
+
 	// Payments / webhook
 	WebhookPort            string
 	PaymentCallbackBaseURL string
@@ -115,6 +119,22 @@ func LoadConfig() (Config, error) {
 		return Config{}, err
 	}
 	cfg.WorkerInterval = workerInterval
+
+	qInterval, err := getDuration("QUEUE_RELEASE_INTERVAL", 10*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+	qWindow, err := getDuration("QUEUE_CHECKOUT_WINDOW", 5*time.Minute)
+	if err != nil {
+		return Config{}, err
+	}
+	qRate, err := getInt64("QUEUE_DEFAULT_RELEASE_RATE", 100)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.QueueReleaseInterval = qInterval
+	cfg.QueueCheckoutWindow = qWindow
+	cfg.QueueDefaultReleaseRate = int(qRate)
 
 	cfg.WebhookPort = getEnv("WEBHOOK_PORT", "8090")
 	cfg.PaymentCallbackBaseURL = os.Getenv("PAYMENT_CALLBACK_BASE_URL")

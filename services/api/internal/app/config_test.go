@@ -166,6 +166,30 @@ func TestLoadConfig_TicketQRSecret(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_QueueDefaults(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
+	t.Setenv("REDIS_URL", "redis://localhost:6379")
+	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("TICKET_QR_SECRET", "qr-secret")
+	t.Setenv("QUEUE_RELEASE_INTERVAL", "")
+	t.Setenv("QUEUE_CHECKOUT_WINDOW", "")
+	t.Setenv("QUEUE_DEFAULT_RELEASE_RATE", "")
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.QueueReleaseInterval != 10*time.Second {
+		t.Errorf("QueueReleaseInterval = %v, want 10s", cfg.QueueReleaseInterval)
+	}
+	if cfg.QueueCheckoutWindow != 5*time.Minute {
+		t.Errorf("QueueCheckoutWindow = %v, want 5m", cfg.QueueCheckoutWindow)
+	}
+	if cfg.QueueDefaultReleaseRate != 100 {
+		t.Errorf("QueueDefaultReleaseRate = %d, want 100", cfg.QueueDefaultReleaseRate)
+	}
+}
+
 func TestLoadConfig_MissingTicketQRSecret(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
 	t.Setenv("REDIS_URL", "redis://localhost:6379")
