@@ -43,6 +43,7 @@ func truncate(t *testing.T, pool *pgxpool.Pool) {
 		DELETE FROM inventory_reservations;
 		DELETE FROM payment_webhooks;
 		DELETE FROM payments;
+		DELETE FROM tickets;
 		DELETE FROM orders;
 		DELETE FROM event_categories;
 		DELETE FROM events;
@@ -80,6 +81,7 @@ func newTestServer(t *testing.T, pool *pgxpool.Pool) *httptest.Server {
 		APIPort:               "0",
 		WebOrigin:             "http://localhost:4321",
 		JWTSecret:             "integration-secret",
+		TicketQRSecret:        "test-qr-secret",
 		AccessTokenTTL:        15 * time.Minute,
 		RefreshTokenTTL:       168 * time.Hour,
 		StorageDriver:         "local",
@@ -195,6 +197,16 @@ func seedPublishedCategory(t *testing.T, pool *pgxpool.Pool, capacity, maxOrder 
 		t.Fatalf("seed category: %v", err)
 	}
 	return orgID, eventID, categoryID
+}
+
+// mustUUID parses a UUID string and fatals the test on failure.
+func mustUUID(t *testing.T, s string) uuid.UUID {
+	t.Helper()
+	id, err := uuid.Parse(s)
+	if err != nil {
+		t.Fatalf("mustUUID(%q): %v", s, err)
+	}
+	return id
 }
 
 // seedUsers bulk-inserts n users into the users table and returns their UUIDs.
