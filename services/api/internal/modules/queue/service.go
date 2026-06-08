@@ -16,15 +16,22 @@ type AuditRecorder interface {
 	Record(ctx context.Context, e audit.Entry)
 }
 
+// EventReader is a thin dependency used by JoinByEvent to look up an event's
+// organization_id without importing the full events module.
+type EventReader interface {
+	GetEventOrgID(ctx context.Context, eventID uuid.UUID) (uuid.UUID, error)
+}
+
 type Service struct {
 	repo        Repository
 	store       *Store
 	audit       AuditRecorder
+	events      EventReader
 	defaultRate int32
 }
 
-func NewService(repo Repository, store *Store, recorder AuditRecorder, defaultRate int32) *Service {
-	return &Service{repo: repo, store: store, audit: recorder, defaultRate: defaultRate}
+func NewService(repo Repository, store *Store, recorder AuditRecorder, events EventReader, defaultRate int32) *Service {
+	return &Service{repo: repo, store: store, audit: recorder, events: events, defaultRate: defaultRate}
 }
 
 // Join issues (or returns existing) a queue token for the participant. Idempotent:
@@ -103,4 +110,14 @@ func (s *Service) Status(ctx context.Context, eventID, participantID uuid.UUID) 
 		}
 	}
 	return resp, nil
+}
+
+// JoinByEvent is a convenience wrapper for the HTTP handler. It resolves the
+// event's organization_id via EventReader, then delegates to Join.
+func (s *Service) JoinByEvent(ctx context.Context, eventID, participantID uuid.UUID) (JoinResponse, error) {
+	orgID, err := s.events.GetEventOrgID(ctx, eventID)
+	if err != nil {
+		return JoinResponse{}, err
+	}
+	return s.Join(ctx, orgID, eventID, participantID)
 }
