@@ -40,7 +40,7 @@ func TestExpireOrders_Idempotent(t *testing.T) {
 		Status:     ReservationActive,
 	}
 
-	svc := NewService(repo, nil, 15*time.Minute)
+	svc := NewService(repo, nil, 15*time.Minute, nil)
 
 	// First run expires it.
 	n, err := svc.ExpireOrders(context.Background(), 100)

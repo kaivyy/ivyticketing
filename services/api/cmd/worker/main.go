@@ -34,7 +34,7 @@ func main() {
 	defer pg.Close()
 
 	auditLog := audit.NewLogger(db.New(pg.Pool), log)
-	svc := ordersmod.NewService(ordersmod.NewRepository(pg.Pool), auditLog, cfg.OrderExpiration)
+	svc := ordersmod.NewService(ordersmod.NewRepository(pg.Pool), auditLog, cfg.OrderExpiration, nil)
 
 	runner := worker.New("expire_orders", cfg.WorkerInterval, svc.ExpireJob(100), log)
 	log.Info("worker starting", "job", "expire_orders", "interval", cfg.WorkerInterval.String())

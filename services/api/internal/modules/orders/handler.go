@@ -40,7 +40,8 @@ func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_CATEGORY_ID", "invalid category id"))
 		return
 	}
-	order, err := h.svc.Checkout(r.Context(), userID, eventID, categoryID)
+	admissionToken := r.Header.Get("X-Queue-Token")
+	order, err := h.svc.Checkout(r.Context(), userID, eventID, categoryID, admissionToken)
 	if err != nil {
 		apperr.WriteError(w, r, err)
 		return

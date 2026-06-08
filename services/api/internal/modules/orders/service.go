@@ -22,13 +22,17 @@ type Service struct {
 	repo  Repository
 	audit AuditRecorder
 	ttl   time.Duration
+	gate  RegistrationGate
 }
 
-func NewService(repo Repository, recorder AuditRecorder, ttl time.Duration) *Service {
-	return &Service{repo: repo, audit: recorder, ttl: ttl}
+func NewService(repo Repository, recorder AuditRecorder, ttl time.Duration, gate RegistrationGate) *Service {
+	if gate == nil {
+		gate = noopGate{}
+	}
+	return &Service{repo: repo, audit: recorder, ttl: ttl, gate: gate}
 }
 
-func (s *Service) Checkout(ctx context.Context, participantID, eventID, categoryID uuid.UUID) (OrderResponse, error) {
+func (s *Service) Checkout(ctx context.Context, participantID, eventID, categoryID uuid.UUID, admissionToken string) (OrderResponse, error) {
 	var created db.Order
 	err := s.repo.ExecTx(ctx, func(tx Repository) error {
 		event, err := tx.GetEventByID(ctx, eventID)
@@ -51,6 +55,10 @@ func (s *Service) Checkout(ctx context.Context, participantID, eventID, category
 
 		now := time.Now()
 		if err := checkoutEligible(event, cat, now); err != nil {
+			return err
+		}
+
+		if err := s.gate.Admit(ctx, participantID, eventID, categoryID, admissionToken); err != nil {
 			return err
 		}
 
