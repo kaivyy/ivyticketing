@@ -1,0 +1,28 @@
+---
+import ParticipantLayout from "../../layouts/ParticipantLayout.astro";
+---
+<ParticipantLayout title="Tiket Saya">
+  <h1 class="text-xl font-bold mb-4">Tiket Saya</h1>
+  <div id="list" class="space-y-3"><p class="text-slate-500">Memuat…</p></div>
+
+  <script>
+    import { listMyTickets } from "../../lib/tickets";
+    const list = document.getElementById("list")!;
+    try {
+      const tickets = await listMyTickets();
+      if (tickets.length === 0) {
+        list.innerHTML = '<p class="text-slate-500">Belum ada tiket.</p>';
+      } else {
+        list.innerHTML = tickets
+          .map(
+            (t) => `<a href="/participant/tickets/${t.id}" class="block rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400">
+              <div class="flex items-center justify-between"><span class="font-medium">${t.eventTitle}</span><span class="${t.status === "VALID" ? "text-green-600" : "text-slate-500"}">${t.status}</span></div>
+              <p class="text-sm text-slate-600">${t.categoryName} · ${t.ticketNumber}</p></a>`
+          )
+          .join("");
+      }
+    } catch (e) {
+      list.innerHTML = `<p class="text-red-600">${(e as Error).message}</p>`;
+    }
+  </script>
+</ParticipantLayout>
