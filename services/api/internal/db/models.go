@@ -9,6 +9,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AbuseLog struct {
+	ID           uuid.UUID
+	SubjectType  pgtype.Text
+	SubjectValue pgtype.Text
+	Action       string
+	Category     pgtype.Text
+	Fingerprint  pgtype.Text
+	Ip           pgtype.Text
+	UserID       *uuid.UUID
+	Detail       []byte
+	CreatedAt    pgtype.Timestamptz
+}
+
 type AuditLog struct {
 	ID             uuid.UUID
 	OrganizationID *uuid.UUID
@@ -18,6 +31,16 @@ type AuditLog struct {
 	TargetID       pgtype.Text
 	Metadata       []byte
 	CreatedAt      pgtype.Timestamptz
+}
+
+type BlockedSubject struct {
+	ID           uuid.UUID
+	SubjectType  string
+	SubjectValue string
+	Reason       pgtype.Text
+	BlockedBy    *uuid.UUID
+	CreatedAt    pgtype.Timestamptz
+	ExpiresAt    pgtype.Timestamptz
 }
 
 type CategoryRegistrationSetting struct {
@@ -116,6 +139,22 @@ type InventoryReservation struct {
 	CreatedAt      pgtype.Timestamptz
 }
 
+type IpReputation struct {
+	SubjectType  string
+	SubjectValue string
+	Score        int32
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type IpRule struct {
+	ID        uuid.UUID
+	Cidr      string
+	Rule      string
+	Note      pgtype.Text
+	CreatedBy *uuid.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type MemberRole struct {
 	OrganizationMemberID uuid.UUID
 	RoleID               uuid.UUID
@@ -198,6 +237,13 @@ type Permission struct {
 	ID          uuid.UUID
 	Key         string
 	Description string
+}
+
+type PlatformSetting struct {
+	Key       string
+	Value     string
+	UpdatedBy *uuid.UUID
+	UpdatedAt pgtype.Timestamptz
 }
 
 type QueueAdmission struct {
