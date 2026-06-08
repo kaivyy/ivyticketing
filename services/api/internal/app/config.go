@@ -15,6 +15,7 @@ type Config struct {
 	RedisURL        string
 	WebOrigin       string
 	JWTSecret       string
+	TicketQRSecret  string
 	AccessTokenTTL  time.Duration
 	RefreshTokenTTL time.Duration
 
@@ -55,7 +56,8 @@ func LoadConfig() (Config, error) {
 		DatabaseURL: os.Getenv("DATABASE_URL"),
 		RedisURL:    os.Getenv("REDIS_URL"),
 		WebOrigin:   getEnv("WEB_ORIGIN", "http://localhost:4321"),
-		JWTSecret:   os.Getenv("JWT_SECRET"),
+		JWTSecret:      os.Getenv("JWT_SECRET"),
+		TicketQRSecret: os.Getenv("TICKET_QR_SECRET"),
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("config: DATABASE_URL is required")
@@ -65,6 +67,9 @@ func LoadConfig() (Config, error) {
 	}
 	if cfg.JWTSecret == "" {
 		return Config{}, fmt.Errorf("config: JWT_SECRET is required")
+	}
+	if cfg.TicketQRSecret == "" {
+		return Config{}, fmt.Errorf("config: TICKET_QR_SECRET is required")
 	}
 
 	accessTTL, err := getDuration("ACCESS_TOKEN_TTL", 15*time.Minute)

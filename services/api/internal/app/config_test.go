@@ -9,6 +9,7 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
 	t.Setenv("REDIS_URL", "redis://localhost:6379")
 	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("TICKET_QR_SECRET", "qr-secret")
 	t.Setenv("API_PORT", "")
 	t.Setenv("APP_ENV", "")
 
@@ -39,6 +40,7 @@ func TestLoadConfig_AuthDefaults(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
 	t.Setenv("REDIS_URL", "redis://localhost:6379")
 	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("TICKET_QR_SECRET", "qr-secret")
 	t.Setenv("ACCESS_TOKEN_TTL", "")
 	t.Setenv("REFRESH_TOKEN_TTL", "")
 
@@ -68,6 +70,7 @@ func TestLoadConfig_StorageDefaults(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
 	t.Setenv("REDIS_URL", "redis://localhost:6379")
 	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("TICKET_QR_SECRET", "qr-secret")
 	t.Setenv("STORAGE_DRIVER", "")
 
 	cfg, err := LoadConfig()
@@ -89,6 +92,7 @@ func TestLoadConfig_OrderDefaults(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
 	t.Setenv("REDIS_URL", "redis://localhost:6379")
 	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("TICKET_QR_SECRET", "qr-secret")
 	t.Setenv("ORDER_EXPIRATION", "")
 	t.Setenv("WORKER_INTERVAL", "")
 
@@ -120,6 +124,7 @@ func TestLoadConfig_PaymentDefaults(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://localhost:5432/x?sslmode=disable")
 	t.Setenv("REDIS_URL", "redis://localhost:6379")
 	t.Setenv("JWT_SECRET", "secret")
+	t.Setenv("TICKET_QR_SECRET", "qr-secret")
 
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -143,5 +148,31 @@ func TestLoadConfig_DuitkuEnabledRequiresCreds(t *testing.T) {
 	_, err := LoadConfig()
 	if err == nil {
 		t.Fatal("expected error when DUITKU_ENABLED=true but creds missing")
+	}
+}
+
+func TestLoadConfig_TicketQRSecret(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
+	t.Setenv("REDIS_URL", "redis://localhost:6379")
+	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("TICKET_QR_SECRET", "qr-secret")
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.TicketQRSecret != "qr-secret" {
+		t.Errorf("TicketQRSecret = %q, want %q", cfg.TicketQRSecret, "qr-secret")
+	}
+}
+
+func TestLoadConfig_MissingTicketQRSecret(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost:5432/ivyticketing?sslmode=disable")
+	t.Setenv("REDIS_URL", "redis://localhost:6379")
+	t.Setenv("JWT_SECRET", "test-secret")
+	t.Setenv("TICKET_QR_SECRET", "")
+
+	if _, err := LoadConfig(); err == nil {
+		t.Fatal("expected error for missing TICKET_QR_SECRET, got nil")
 	}
 }
