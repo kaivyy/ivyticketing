@@ -3,6 +3,7 @@ package queue
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -118,4 +119,43 @@ func (h *Handler) QueueStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	apperr.WriteJSON(w, http.StatusOK, stats)
+}
+
+func (h *Handler) SetSchedule(w http.ResponseWriter, r *http.Request) {
+	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		return
+	}
+	var req struct {
+		Seed          string  `json:"seed"`
+		SaleStartAt   *string `json:"saleStartAt"`
+		PresaleOpenAt *string `json:"presaleOpenAt"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_BODY", "invalid request body"))
+		return
+	}
+	var saleStart, presaleOpen *time.Time
+	if req.SaleStartAt != nil {
+		t, err := time.Parse(time.RFC3339, *req.SaleStartAt)
+		if err != nil {
+			apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_SALE_START", "invalid saleStartAt"))
+			return
+		}
+		saleStart = &t
+	}
+	if req.PresaleOpenAt != nil {
+		t, err := time.Parse(time.RFC3339, *req.PresaleOpenAt)
+		if err != nil {
+			apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_PRESALE_OPEN", "invalid presaleOpenAt"))
+			return
+		}
+		presaleOpen = &t
+	}
+	if err := h.svc.SetSchedule(r.Context(), eventID, req.Seed, saleStart, presaleOpen); err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

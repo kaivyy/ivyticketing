@@ -2,10 +2,14 @@ package queue
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
@@ -83,4 +87,50 @@ func (s *Service) ensureControl(ctx context.Context, eventID uuid.UUID) error {
 		// nullable fields left as zero values (pgtype.Text{}, pgtype.Timestamptz{})
 	})
 	return err
+}
+
+// SetSchedule sets the sale window and randomization seed for randomized/hybrid modes.
+// If seed is empty, a random hex seed is auto-generated and stored.
+func (s *Service) SetSchedule(ctx context.Context, eventID uuid.UUID, seed string, saleStart, presaleOpen *time.Time) error {
+	if seed == "" {
+		seed = generateSeed()
+	}
+	// Preserve existing state and rate if a control row already exists.
+	ctrl, err := s.repo.GetControl(ctx, eventID)
+	state := StateRunning
+	rate := s.defaultRate
+	if err == nil {
+		state = ctrl.State
+		rate = ctrl.ReleaseRate
+	}
+	_, err = s.repo.UpsertControl(ctx, db.UpsertQueueControlParams{
+		EventID:           eventID,
+		State:             state,
+		ReleaseRate:       rate,
+		RandomizationSeed: pgtype.Text{String: seed, Valid: true},
+		SaleStartAt:       toPGTimestamptz(saleStart),
+		PresalePoolOpenAt: toPGTimestamptz(presaleOpen),
+	})
+	if err == nil && s.audit != nil {
+		s.audit.Record(ctx, audit.Entry{
+			Action:     "QUEUE_SCHEDULE_SET",
+			TargetType: "event",
+			TargetID:   eventID.String(),
+			Metadata:   map[string]any{"seed": seed},
+		})
+	}
+	return err
+}
+
+func generateSeed() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func toPGTimestamptz(t *time.Time) pgtype.Timestamptz {
+	if t == nil {
+		return pgtype.Timestamptz{}
+	}
+	return pgtype.Timestamptz{Time: *t, Valid: true}
 }

@@ -19,4 +19,5 @@ func (h *Handler) RegisterOrgRoutes(r chi.Router, loader middleware.PermissionLo
 	g.Post("/queue/resume", h.Resume)
 	g.Put("/queue/release-rate", h.SetRate)
 	g.Get("/queue/stats", h.QueueStats)
+	g.Put("/queue/schedule", h.SetSchedule)
 }
