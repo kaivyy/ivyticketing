@@ -1,0 +1,177 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+<OrganizerLayout title="Kontrol Antrean — ivyticketing">
+  <div id="queue-controls" data-org-id={orgId} data-event-id={eventId} class="rounded-lg border border-slate-200 bg-white p-6">
+    <p class="text-slate-500">Memuat data antrean…</p>
+  </div>
+
+  <script>
+    import { authedFetch } from "../../../../../lib/api";
+
+    interface QueueStats {
+      waiting: number;
+      allowed: number;
+      releaseRate: number;
+      state: string;
+    }
+
+    const root = document.getElementById("queue-controls")!;
+    const orgId = root.dataset.orgId!;
+    const eventId = root.dataset.eventId!;
+    let timer: ReturnType<typeof setInterval> | undefined;
+
+    const base = `/organizations/${orgId}/events/${eventId}/queue`;
+
+    async function fetchStats(): Promise<QueueStats> {
+      return authedFetch<QueueStats>(`${base}/stats`);
+    }
+
+    async function pauseQueue() {
+      try {
+        await authedFetch(`${base}/pause`, { method: "POST" });
+        await render();
+      } catch (e) {
+        showError((e as Error).message);
+      }
+    }
+
+    async function resumeQueue() {
+      try {
+        await authedFetch(`${base}/resume`, { method: "POST" });
+        await render();
+      } catch (e) {
+        showError((e as Error).message);
+      }
+    }
+
+    async function saveRate() {
+      const input = document.getElementById("rate-input") as HTMLInputElement;
+      const rate = parseInt(input.value, 10);
+      if (isNaN(rate) || rate < 0) {
+        showError("Nilai release rate tidak valid.");
+        return;
+      }
+      try {
+        await authedFetch(`${base}/release-rate`, {
+          method: "PUT",
+          body: { rate },
+        });
+        clearError();
+        await render();
+      } catch (e) {
+        showError((e as Error).message);
+      }
+    }
+
+    function showError(msg: string) {
+      const el = document.getElementById("error-msg");
+      if (el) {
+        el.textContent = msg;
+        el.classList.remove("hidden");
+      }
+    }
+
+    function clearError() {
+      const el = document.getElementById("error-msg");
+      if (el) el.classList.add("hidden");
+    }
+
+    function stateLabel(state: string): string {
+      switch (state) {
+        case "RUNNING": return "Berjalan";
+        case "PAUSED": return "Dijeda";
+        case "STOPPED": return "Dihentikan";
+        default: return state;
+      }
+    }
+
+    function stateColor(state: string): string {
+      switch (state) {
+        case "RUNNING": return "text-green-600";
+        case "PAUSED": return "text-amber-600";
+        case "STOPPED": return "text-red-600";
+        default: return "text-slate-600";
+      }
+    }
+
+    function render(stats?: QueueStats) {
+      const s = stats;
+      if (!s) {
+        root.innerHTML = `<p class="text-slate-500">Gagal memuat data antrean.</p>`;
+        return;
+      }
+
+      root.innerHTML = `
+        <div class="space-y-6">
+          <div class="flex items-center justify-between">
+            <h1 class="text-xl font-bold">Kontrol Antrean</h1>
+            <span class="${stateColor(s.state)} font-semibold">${stateLabel(s.state)}</span>
+          </div>
+
+          <div id="error-msg" class="hidden rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700"></div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="rounded border border-slate-200 bg-slate-50 p-4 text-center">
+              <p class="text-2xl font-bold">${s.waiting}</p>
+              <p class="text-sm text-slate-500">Menunggu</p>
+            </div>
+            <div class="rounded border border-slate-200 bg-slate-50 p-4 text-center">
+              <p class="text-2xl font-bold">${s.allowed}</p>
+              <p class="text-sm text-slate-500">Diizinkan</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-slate-600">Release Rate:</span>
+            <span class="font-mono font-semibold">${s.releaseRate} per menit</span>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <input
+              id="rate-input"
+              type="number"
+              min="0"
+              value="${s.releaseRate}"
+              class="w-24 rounded border border-slate-300 px-3 py-1.5 text-sm"
+            />
+            <button id="save-rate-btn" class="rounded bg-slate-700 px-3 py-1.5 text-sm text-white hover:bg-slate-800">
+              Simpan
+            </button>
+          </div>
+
+          <div class="flex gap-3">
+            ${s.state === "PAUSED"
+              ? `<button id="resume-btn" class="rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700">Lanjutkan Antrean</button>`
+              : `<button id="pause-btn" class="rounded bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700">Jeda Antrean</button>`
+            }
+          </div>
+
+          <p id="updated-at" class="text-xs text-slate-400">Terakhir diperbarui: ${new Date().toLocaleTimeString("id-ID")}</p>
+        </div>
+      `;
+
+      document.getElementById("save-rate-btn")?.addEventListener("click", saveRate);
+      document.getElementById("pause-btn")?.addEventListener("click", pauseQueue);
+      document.getElementById("resume-btn")?.addEventListener("click", resumeQueue);
+    }
+
+    async function poll() {
+      try {
+        clearError();
+        render(await fetchStats());
+      } catch {
+        root.innerHTML = `<p class="text-slate-500">Gagal memuat data antrean. Mencoba lagi…</p>`;
+      }
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) poll();
+    });
+
+    poll();
+    timer = setInterval(poll, 5000);
+  </script>
+</OrganizerLayout>
