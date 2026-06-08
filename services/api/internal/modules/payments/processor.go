@@ -21,15 +21,23 @@ type AuditRecorder interface {
 	Record(ctx context.Context, e audit.Entry)
 }
 
+// TicketIssuer issues a ticket for a just-PAID order, using the SAME tx querier.
+// Implemented by *tickets.Issuer. Must be idempotent.
+// Declared here so payments does not import tickets.
+type TicketIssuer interface {
+	IssueForOrder(ctx context.Context, q *db.Queries, order db.Order) error
+}
+
 // Processor is the idempotent callback handler used by both the HTTP webhook
 // receiver and the manual reconcile path.
 type Processor struct {
-	repo  Repository
-	audit AuditRecorder
+	repo   Repository
+	audit  AuditRecorder
+	issuer TicketIssuer
 }
 
-func NewProcessor(repo Repository, recorder AuditRecorder) *Processor {
-	return &Processor{repo: repo, audit: recorder}
+func NewProcessor(repo Repository, recorder AuditRecorder, issuer TicketIssuer) *Processor {
+	return &Processor{repo: repo, audit: recorder, issuer: issuer}
 }
 
 // ProcessRaw stores the raw webhook first, then processes it.
@@ -213,6 +221,11 @@ func (p *Processor) applyPaid(ctx context.Context, tx Repository, webhookID uuid
 		}
 		if err := tx.CompleteReservationsForOrder(ctx, order.ID); err != nil {
 			return err
+		}
+		if p.issuer != nil {
+			if err := p.issuer.IssueForOrder(ctx, tx.Querier(), order); err != nil {
+				return err
+			}
 		}
 	} else {
 		note = "ORDER_ALREADY_" + order.Status
