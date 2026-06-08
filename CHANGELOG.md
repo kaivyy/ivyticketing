@@ -4,6 +4,58 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
+## [Phase 7] — 2026-06-08
+
+Tickets module: atomic ticket issuance on payment, HMAC-signed QR tokens, participant dashboard + organizer ticket list, minimal web auth foundation.
+
+### Added
+
+**Tickets**
+- New `tickets` package: `CreateTicket`, `GetTicketByID`, `GetTicketByOrderID`, `ListTicketsByParticipant`, `ListTicketsByEvent`
+- `tickets/qr` package: HMAC-SHA256 signed token (`v.base64url(payload).base64url(sig)`), payload contains only UUIDs + version (no PII)
+- `qr.Sign` and `qr.Verify` — stateless; DB not required for signature check
+- Ticket state machine: `VALID` (issued), `USED` (Phase 15 scan), `CANCELLED` (reserved for refund)
+
+**Atomic issuance**
+- `TicketIssuer` interface wired into `payments.Processor.applyPaid` — ticket `INSERT` runs inside the same transaction as `MarkPaymentPaid` + `UpdateOrderStatus` + `CompleteReservations`
+- PAID ⟺ ticket exists: issuer error triggers full rollback; order stays `PENDING_PAYMENT`
+- Idempotent: `UNIQUE (order_id)` + `ON CONFLICT DO NOTHING` — duplicate callbacks produce exactly one ticket
+- Verified by `TestProcessor_ApplyPaid_IssuerError_RollsBack`
+
+**Participant endpoints**
+- `GET /api/v1/tickets` — list my tickets
+- `GET /api/v1/tickets/{ticketId}` — ticket detail + QR token
+- `GET /api/v1/tickets/{ticketId}/qr` — QR token only
+- `GET /api/v1/orders/{orderId}/ticket` — ticket for order
+- `GET /api/v1/orders/{orderId}/invoice` — invoice JSON (PAID orders only; `INVOICE_NOT_AVAILABLE` otherwise)
+- Ownership: participant resources filtered by `participant_id = caller`; mismatch → 404
+
+**Organizer endpoints**
+- `GET /api/v1/organizations/{orgId}/events/{eventId}/tickets` — list event tickets (requires `ticket.view`)
+
+**Database** (goose migrations 00018–00019)
+- Migration `00018_create_tickets`: `tickets` table (`id`, `order_id` UNIQUE, `participant_id`, `event_id`, `category_id`, `qr_token`, `qr_version`, `status`, timestamps)
+- Migration `00019_seed_ticket_view`: permission `ticket.view` assigned to Owner, Manager, Customer Service role templates
+
+**Frontend** (`apps/web`)
+- Participant dashboard: login, dashboard overview, orders list/detail, tickets list/detail
+- Minimal auth: access token in `sessionStorage` + HttpOnly refresh cookie; silent refresh on 401
+- Client-side QR rendering via `qrcode` library (`<canvas>`)
+- Invoice print via browser `@media print` CSS (no server-side PDF)
+
+**Config**
+- `TICKET_QR_SECRET` (required, separate from `JWT_SECRET`)
+
+**Docs**: TICKET_FLOW, QR_TICKET, PARTICIPANT_DASHBOARD, PHASE7_DECISIONS
+
+### Deferred
+
+- QR verify/scan endpoint → Phase 15 (Scanner PWA)
+- PDF invoice backend → future phase
+- Ticket cancellation/refund → future phase (status reserved)
+
+---
+
 ## [Phase 6] — 2026-06-07
 
 Payment Gateway V1: Duitku + Xendit (QRIS/VA/e-wallet), idempotent callback processing, separate webhook binary.
