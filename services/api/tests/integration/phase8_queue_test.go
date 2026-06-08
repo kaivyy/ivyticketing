@@ -54,7 +54,7 @@ func buildQueueSvc(t *testing.T, pool *pgxpool.Pool, rdb *goredis.Client) *queue
 	t.Helper()
 	repo := queuemod.NewRepository(pool)
 	store := queuemod.NewStore(pq.New(rdb))
-	return queuemod.NewService(repo, store, nil, nil, 10)
+	return queuemod.NewService(repo, store, nil, nil, 10, nil)
 }
 
 // ---------------------------------------------------------------------------

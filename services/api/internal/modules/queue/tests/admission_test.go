@@ -59,7 +59,7 @@ func TestExpireDue_RequeuesToken(t *testing.T) {
 	repo := &admissionFakeRepo{
 		expiredAdms: []db.QueueAdmission{adm},
 	}
-	svc := queue.NewService(repo, nil, nil, nil, 10)
+	svc := queue.NewService(repo, nil, nil, nil, 10, nil)
 
 	count, err := svc.ExpireDue(context.Background(), 10)
 	if err != nil {
@@ -91,7 +91,7 @@ func TestExpireDue_RequeuesToken(t *testing.T) {
 
 func TestExpireDue_EmptyList(t *testing.T) {
 	repo := &admissionFakeRepo{}
-	svc := queue.NewService(repo, nil, nil, nil, 10)
+	svc := queue.NewService(repo, nil, nil, nil, 10, nil)
 
 	count, err := svc.ExpireDue(context.Background(), 10)
 	if err != nil {
@@ -105,7 +105,7 @@ func TestExpireDue_EmptyList(t *testing.T) {
 func TestExpireDue_MultipleAdmissions(t *testing.T) {
 	adms := []db.QueueAdmission{makeExpiredAdmission(), makeExpiredAdmission(), makeExpiredAdmission()}
 	repo := &admissionFakeRepo{expiredAdms: adms}
-	svc := queue.NewService(repo, nil, nil, nil, 10)
+	svc := queue.NewService(repo, nil, nil, nil, 10, nil)
 
 	count, err := svc.ExpireDue(context.Background(), 10)
 	if err != nil {
@@ -125,7 +125,7 @@ func TestExpireDue_MultipleAdmissions(t *testing.T) {
 func TestExpireDue_LimitRespected(t *testing.T) {
 	adms := []db.QueueAdmission{makeExpiredAdmission(), makeExpiredAdmission(), makeExpiredAdmission()}
 	repo := &admissionFakeRepo{expiredAdms: adms}
-	svc := queue.NewService(repo, nil, nil, nil, 10)
+	svc := queue.NewService(repo, nil, nil, nil, 10, nil)
 
 	count, err := svc.ExpireDue(context.Background(), 2)
 	if err != nil {

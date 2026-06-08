@@ -87,7 +87,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	queueStore := queuemod.NewStore(queueAdapter)
 	queueRepo := queuemod.NewRepository(pool)
 	queueEventReader := queuemod.NewDBEventReader(db.New(pool))
-	queueSvc := queuemod.NewService(queueRepo, queueStore, auditLog, queueEventReader, int32(cfg.QueueDefaultReleaseRate))
+	queueSvc := queuemod.NewService(queueRepo, queueStore, auditLog, queueEventReader, int32(cfg.QueueDefaultReleaseRate), registrationSvc)
 	queueHandler := queuemod.NewHandler(queueSvc)
 
 	registrationGate := registrationmod.NewGate(registrationSvc, queueSvc)

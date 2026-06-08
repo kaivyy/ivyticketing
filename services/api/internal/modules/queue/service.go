@@ -22,27 +22,66 @@ type EventReader interface {
 	GetEventOrgID(ctx context.Context, eventID uuid.UUID) (uuid.UUID, error)
 }
 
+// EventModeResolver resolves the registration mode for an event.
+// Implemented by registration.Service.
+type EventModeResolver interface {
+	ResolveEventMode(ctx context.Context, eventID uuid.UUID) (string, error)
+}
+
 type Service struct {
 	repo        Repository
 	store       *Store
 	audit       AuditRecorder
 	events      EventReader
+	resolver    EventModeResolver
 	defaultRate int32
 }
 
-func NewService(repo Repository, store *Store, recorder AuditRecorder, events EventReader, defaultRate int32) *Service {
-	return &Service{repo: repo, store: store, audit: recorder, events: events, defaultRate: defaultRate}
+func NewService(repo Repository, store *Store, recorder AuditRecorder, events EventReader, defaultRate int32, resolver EventModeResolver) *Service {
+	return &Service{repo: repo, store: store, audit: recorder, events: events, resolver: resolver, defaultRate: defaultRate}
 }
 
 // Join issues (or returns existing) a queue token for the participant. Idempotent:
 // refresh/reconnect/mobile-sleep safe — same token returned on repeated calls.
 func (s *Service) Join(ctx context.Context, orgID, eventID, participantID uuid.UUID) (JoinResponse, error) {
+	pool := PoolFifo
 	score := FifoScore(time.Now())
+
+	// Determine mode for pool/score selection.
+	mode := "WAR_QUEUE" // default
+	if s.resolver != nil {
+		m, err := s.resolver.ResolveEventMode(ctx, eventID)
+		if err != nil {
+			return JoinResponse{}, err
+		}
+		mode = m
+	}
+
+	switch mode {
+	case "RANDOMIZED_QUEUE", "HYBRID_QUEUE":
+		ctrl, err := s.repo.GetControl(ctx, eventID)
+		if err == nil && ctrl.SaleStartAt.Valid && time.Now().Before(ctrl.SaleStartAt.Time) {
+			// presale window: use seeded random pool
+			seed := ""
+			if ctrl.RandomizationSeed.Valid {
+				seed = ctrl.RandomizationSeed.String
+			}
+			pool = PoolPresale
+			score = PresaleScore(seed, participantID)
+		}
+		// after sale start: FIFO (defaults above)
+	case "WAR_QUEUE":
+		// FIFO always (defaults above)
+	default:
+		// NORMAL, CLOSED, etc. — not a queue mode
+		return JoinResponse{}, ErrNotEnabled
+	}
+
 	tok, err := s.repo.CreateToken(ctx, db.CreateQueueTokenParams{
 		OrganizationID: orgID,
 		EventID:        eventID,
 		ParticipantID:  participantID,
-		Pool:           PoolFifo,
+		Pool:           pool,
 		Score:          score,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {

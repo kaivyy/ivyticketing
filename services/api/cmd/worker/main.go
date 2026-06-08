@@ -52,6 +52,7 @@ func main() {
 		auditLog,
 		queuemod.NewDBEventReader(db.New(pg.Pool)),
 		int32(cfg.QueueDefaultReleaseRate),
+		nil,
 	)
 
 	releaseRunner := worker.New("queue_release", cfg.QueueReleaseInterval, queueSvc.ReleaseJob(cfg.QueueCheckoutWindow), log)

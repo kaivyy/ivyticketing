@@ -113,7 +113,7 @@ func makeTokens(n int) []db.QueueToken {
 
 func TestRelease_PromotesN(t *testing.T) {
 	repo := &fakeRepo{tokens: makeTokens(5)}
-	svc := queue.NewService(repo, nil, nil, nil, 10)
+	svc := queue.NewService(repo, nil, nil, nil, 10, nil)
 
 	eventID := uuid.New()
 	promoted, err := svc.Release(context.Background(), eventID, 3, 10*time.Minute)
@@ -142,7 +142,7 @@ func TestRelease_PromotesN(t *testing.T) {
 
 func TestRelease_ZeroN(t *testing.T) {
 	repo := &fakeRepo{tokens: makeTokens(5)}
-	svc := queue.NewService(repo, nil, nil, nil, 10)
+	svc := queue.NewService(repo, nil, nil, nil, 10, nil)
 
 	promoted, err := svc.Release(context.Background(), uuid.New(), 0, 10*time.Minute)
 	if err != nil {
@@ -156,7 +156,7 @@ func TestRelease_ZeroN(t *testing.T) {
 func TestRelease_AlreadyPromoted_Skipped(t *testing.T) {
 	// All MarkAllowed calls return ErrNoRows (concurrent promotion simulation).
 	repo := &fakeRepo{tokens: makeTokens(3), markAlwaysSkip: true}
-	svc := queue.NewService(repo, nil, nil, nil, 10)
+	svc := queue.NewService(repo, nil, nil, nil, 10, nil)
 
 	promoted, err := svc.Release(context.Background(), uuid.New(), 3, 10*time.Minute)
 	if err != nil {
