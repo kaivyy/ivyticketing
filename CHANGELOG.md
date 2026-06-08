@@ -4,6 +4,73 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
+## [Phase 9] — 2026-06-08
+
+Anti-bot system: guard middleware chain (blocklist → rate limit → reputation → captcha → queue cap), Redis token-bucket rate limiter, Cloudflare Turnstile adapter, IP reputation scorer, runtime DB-toggled feature flags, super-admin abuse endpoints, and frontend Turnstile widget.
+
+### Added
+
+**Abuse Module**
+- Settings cache: reads `platform_settings` from DB on startup; background ticker refreshes every `ABUSE_SETTINGS_REFRESH` (default 30s); fail-safe defaults (all guards on)
+- Blocklist: `blocked_subjects` table; per-IP and per-user block/unblock; fail-safe on DB error
+- IP allow/deny rules: `ip_rules` table; allow wins over deny; CIDR support
+- Reputation scorer: `ip_reputation` table; score bumped on abuse signals; challenge/deny thresholds configurable via env
+- Guard middleware chain: blocklist → rate limit → reputation → Turnstile → queue cap; injected via middleware params (modules do not import abuse package)
+- Guard applied to: queue-join, auth login/register, checkout
+
+**Rate Limiter** (`platform/ratelimit`)
+- Redis fixed-window token bucket (INCR + EXPIRE on first hit)
+- Per-category limits: `queue_join` (10/IP, 5/user), `checkout` (20/IP, 10/user), `auth_login` (10/IP, 5/user), `auth_register` (5/IP), `default` (120/IP)
+- Key format: `ratelimit:{category}:ip:{ip}` and `ratelimit:{category}:user:{userID}`
+- Fail-open on Redis error
+
+**Captcha** (`platform/captcha`)
+- Turnstile adapter: verifies `CF-Turnstile-Response` against Cloudflare siteverify API
+- Fake adapter for test/dev environments
+- Fail-open on Cloudflare API error
+
+**RequirePlatformAdmin Middleware**
+- Platform-level super-admin flag on `users` table; separate from org roles
+- Required for all `/api/v1/admin/abuse/*` endpoints
+
+**Super-Admin Endpoints** (`/api/v1/admin/abuse/`)
+- `GET/PUT /settings` — read and toggle guard feature flags live (no redeploy)
+- `POST /block` and `/unblock` — block/unblock user or IP
+- `POST /ip-rules` and `DELETE /ip-rules/{id}` — add/remove IP allow/deny rules
+- `GET /log` — paginated abuse event log with filters
+- `POST /reputation/reset` — manually reset IP reputation score
+
+**Public Endpoint**
+- `GET /api/v1/security/config` — returns `captcha_enabled` and `turnstile_site_key` for frontend consumption
+
+**Frontend** (`apps/web`)
+- Turnstile widget on queue-join, login, register, and checkout pages; gated by security config response; passes token in request header
+
+**Database** (goose migrations 00026–00030)
+- Migration `00026_create_platform_settings`: `platform_settings` key/value table
+- Migration `00027_create_blocked_subjects`: `blocked_subjects` (type, subject_id, reason, timestamps)
+- Migration `00028_create_ip_rules`: `ip_rules` (cidr, rule_type, note, timestamps)
+- Migration `00029_create_abuse_log`: `abuse_log` (subject_type, subject_id, action, metadata, timestamps)
+- Migration `00030_create_ip_reputation`: `ip_reputation` (ip, score, last_seen, timestamps)
+
+**Config**
+- `TURNSTILE_SECRET` — Cloudflare Turnstile secret key (required when captcha enabled)
+- `TURNSTILE_SITE_KEY` — Cloudflare Turnstile site key (served to frontend)
+- `MAX_ACTIVE_QUEUE_PER_USER` (default 3) — queue cap per user
+- `REPUTATION_CHALLENGE_THRESHOLD` (default 10) — score at which captcha is required
+- `REPUTATION_DENY_THRESHOLD` (default 25) — score at which request is blocked
+- `ABUSE_SETTINGS_REFRESH` (default 30s) — interval for reloading platform_settings from DB
+
+**Docs**: ANTIBOT, RATE_LIMITING, ABUSE_OPERATIONS, PHASE9_DECISIONS
+
+### Deferred
+
+- Cloudflare WAF edge config (WAF rules, IP reputation feed, bot fight mode) — deployment-layer complement, out of application code
+- External IP reputation feed (AbuseIPDB etc.) — behavior-score model sufficient for initial scale
+- Client-side JS fingerprinting — server-side UA+IP+Accept-Language hash covers current needs
+
+---
+
 ## [Phase 8] — 2026-06-08
 
 Queue / War Ticket System: registration mode foundation, persistent queue tokens with dual-store (Postgres + Redis), seeded pseudo-random scoring, release engine with admission windows, expiry requeue worker, anti-bot guard stub, waiting room frontend, and organizer controls.
