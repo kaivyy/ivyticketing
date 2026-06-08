@@ -4,6 +4,105 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
+## [Phase 8] — 2026-06-08
+
+Queue / War Ticket System: registration mode foundation, persistent queue tokens with dual-store (Postgres + Redis), seeded pseudo-random scoring, release engine with admission windows, expiry requeue worker, anti-bot guard stub, waiting room frontend, and organizer controls.
+
+### Added
+
+**Registration Mode Foundation**
+- 9-mode enum: `NORMAL`, `WAR_QUEUE`, `RANDOMIZED_QUEUE`, `HYBRID_QUEUE`, `BALLOT`, `INVITATION_ONLY`, `PRIORITY_ACCESS`, `WAITLIST_ONLY`, `CLOSED`
+- Resolver with category-overrides-event logic: category override > event mode > NORMAL default
+- Per-event settings: `PUT /registration` (default mode, feature flags), `GET /registration`
+- Per-category settings: `PUT /registration/category` (mode override, override enabled flag)
+- `registration.manage` permission (migration 00021, assigned to Owner + Manager templates)
+
+**RegistrationGate Seam**
+- `RegistrationGate` interface defined in orders package (dependency inversion: orders does not import registration)
+- `noopGate{}` default preserves Phase 5 NORMAL behaviour when no gate is wired (regression-safe)
+- Gate resolves mode at checkout time: NORMAL lets through, CLOSED returns `REGISTRATION_CLOSED`, queue modes delegate to `QueueAdmitter.CheckAdmission`
+- Deferred modes (BALLOT/INVITATION_ONLY/PRIORITY_ACCESS/WAITLIST_ONLY) return `REGISTRATION_MODE_NOT_AVAILABLE`
+- `X-Queue-Token` header read from checkout request, passed through to admission check (stateless, REST-compatible)
+
+**Queue Module**
+- Three queue modes: `WAR_QUEUE` (pure FIFO), `RANDOMIZED_QUEUE` (presale seeded random + post-sale FIFO), `HYBRID_QUEUE` (same ordering as RANDOMIZED)
+- Persistent tokens: `UNIQUE (event_id, participant_id)` with `ON CONFLICT DO NOTHING` -- idempotent join, safe for refresh/reconnect/mobile sleep
+- Token state machine: `WAITING` → `ALLOWED` → `COMPLETED`, with `BLOCKED` reserved for Phase 9
+- Admission lifecycle: `ACTIVE` → `CONSUMED` (on checkout) / `EXPIRED` (on timeout)
+
+**Scoring**
+- `FifoScore(now) = now.UnixNano()` -- monotonic wall-clock join ordering
+- `PresaleScore(seed, participantID) = SHA256(seed || participantID) >> 1` -- deterministic, seeded, non-negative, reproducible
+- Pool ordering: `ORDER BY pool DESC, score ASC` -- PRESALE pool sorts before FIFO
+
+**Release Engine**
+- Worker-driven job (`ReleaseJob`) runs every `QUEUE_RELEASE_INTERVAL` (default 10s)
+- Pure-rate promotion: `ListWaiting ORDER BY pool DESC, score ASC LIMIT rate` → `MarkAllowed` + `CreateAdmission`
+- Idempotent: `MarkAllowed WHERE status='WAITING'` no-ops if already promoted concurrently
+- Paused events skipped; `rate <= 0` events skipped
+- `QUEUE_DEFAULT_RELEASE_RATE` default: 100 tokens/tick
+
+**Admission Expiry Worker**
+- `AdmissionExpiryJob` runs every `QUEUE_RELEASE_INTERVAL`, scans `ACTIVE` admissions past `checkout_expires_at`
+- Expired admission → token requeued to **back of WAITING line** with new FIFO score (decision Q10)
+- `QUEUE_CHECKOUT_WINDOW` default: 5 minutes
+
+**Redis Sorted-Set Adapter** (`platform/queue`)
+- `queue:{eventID}:waiting` -- sorted set of participant UUIDs scored by join score
+- `queue:{eventID}:allowed` -- sorted set scored by checkout expiration Unix timestamp
+- Atomic move operations: `MoveToAllowed`, `MoveToWaiting` (pipeline: `ZREM` + `ZADD`)
+- Best-effort side effect after Postgres writes; position degrades gracefully if Redis is down
+- Fully rebuildable from Postgres `WAITING` tokens
+
+**Participant Endpoints**
+- `POST /events/{eventId}/queue/join` -- join the queue (idempotent, returns token + position)
+- `GET /events/{eventId}/queue/status` -- status, position, ETA, admission token (if ALLOWED), checkout expiry
+- Both pass through `EntryGuard` middleware (anti-bot stub, Phase 9 fills)
+
+**Admin Controls** (require `queue.manage`, migration 00025)
+- `POST .../queue/pause` -- pause release engine
+- `POST .../queue/resume` -- resume release engine
+- `PUT .../queue/release-rate` -- adjust per-tick release rate live
+- `GET .../queue/stats` -- waiting/allowed counts, release rate, state
+- `PUT .../queue/schedule` -- set randomization seed, sale start, presale pool open
+
+**Anti-Bot Guard**
+- `EntryGuard` middleware at join entry point -- current no-op pass-through; Phase 9 implements Turnstile + rate limit + duplicate detection
+
+**Frontend Waiting Room** (`apps/web`)
+- `pages/events/[eventId]/queue.astro`: auto-poll 4s, visibility-change re-poll on tab focus, position/ETA display, ALLOWED redirect with admission token
+- `components/queue/WaitingRoom.astro`: shared waiting room component
+- `pages/organizations/[orgId]/events/[eventId]/queue-controls.astro`: organizer pause/resume, rate slider, live stats
+
+**Database** (goose migrations 00020-00025)
+- Migration `00020_create_registration_settings`: `event_registration_settings`, `category_registration_settings`
+- Migration `00021_seed_registration_permissions`: `registration.manage` permission
+- Migration `00022_create_queue_tokens`: `queue_tokens` table with `UNIQUE (event_id, participant_id)`
+- Migration `00023_create_queue_admissions`: `queue_admissions` table with FK to `queue_tokens`
+- Migration `00024_create_queue_control`: `queue_control` per-event control row
+- Migration `00025_seed_queue_manage`: `queue.manage` permission (Owner + Manager templates)
+
+**Config**
+- `QUEUE_RELEASE_INTERVAL` (default 10s)
+- `QUEUE_DEFAULT_RELEASE_RATE` (default 100)
+- `QUEUE_CHECKOUT_WINDOW` (default 5m)
+
+**Load Test**
+- `tests/load/queue-war.js`: k6 scaffold with 10k/50k/100k VU stages, join + status poll loop
+
+**Docs**: REGISTRATION_MODES, QUEUE_MODES, QUEUE_OPERATIONS, PHASE8_DECISIONS
+
+### Deferred
+
+- Anti-bot full implementation → Phase 9 (Turnstile + rate limit + duplicate detection)
+- Ballot mode → Phase 10
+- INVITATION_ONLY, PRIORITY_ACCESS, WAITLIST_ONLY, community/corporate modes → Phase 11
+- WebSocket realtime position updates → future phase
+- Redis rebuild script → future phase
+- Per-organization default settings → future phase
+
+---
+
 ## [Phase 7] — 2026-06-08
 
 Tickets module: atomic ticket issuance on payment, HMAC-signed QR tokens, participant dashboard + organizer ticket list, minimal web auth foundation.
