@@ -209,6 +209,26 @@ type SchemaHealth struct {
 	CheckedAt pgtype.Timestamptz
 }
 
+type Ticket struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	EventID        uuid.UUID
+	CategoryID     uuid.UUID
+	OrderID        uuid.UUID
+	ParticipantID  uuid.UUID
+	TicketNumber   string
+	Status         string
+	HolderName     string
+	HolderEmail    string
+	EventTitle     string
+	CategoryName   string
+	QrVersion      int32
+	IssuedAt       pgtype.Timestamptz
+	UsedAt         pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type User struct {
 	ID              uuid.UUID
 	Email           string
