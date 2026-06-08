@@ -200,6 +200,42 @@ type Permission struct {
 	Description string
 }
 
+type QueueAdmission struct {
+	ID                uuid.UUID
+	TokenID           uuid.UUID
+	EventID           uuid.UUID
+	ParticipantID     uuid.UUID
+	CheckoutExpiresAt pgtype.Timestamptz
+	Status            string
+	CreatedAt         pgtype.Timestamptz
+}
+
+type QueueControl struct {
+	EventID           uuid.UUID
+	State             string
+	ReleaseRate       int32
+	RandomizationSeed pgtype.Text
+	SaleStartAt       pgtype.Timestamptz
+	PresalePoolOpenAt pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+}
+
+type QueueToken struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	EventID        uuid.UUID
+	ParticipantID  uuid.UUID
+	Status         string
+	Pool           string
+	Score          int64
+	JoinedAt       pgtype.Timestamptz
+	AllowedAt      pgtype.Timestamptz
+	ExpiredAt      pgtype.Timestamptz
+	CompletedAt    pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type RefreshToken struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
