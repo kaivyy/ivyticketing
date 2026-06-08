@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/varin/ivyticketing/services/api/internal/app"
 )
@@ -89,7 +90,19 @@ func newTestServer(t *testing.T, pool *pgxpool.Pool) *httptest.Server {
 		StoragePublicBaseURL:  "http://localhost:8080",
 		StorageUploadMaxBytes: 5242880,
 	}
-	h, err := app.NewRouter(cfg, newNopLogger(), pool, stubChecker{}, stubChecker{})
+
+	redisURL := os.Getenv("REDIS_TEST_URL")
+	if redisURL == "" {
+		redisURL = "redis://localhost:6379"
+	}
+	rdbOpt, err := goredis.ParseURL(redisURL)
+	if err != nil {
+		t.Fatalf("parse redis url: %v", err)
+	}
+	rdbClient := goredis.NewClient(rdbOpt)
+	t.Cleanup(func() { rdbClient.Close() })
+
+	h, err := app.NewRouter(cfg, newNopLogger(), pool, stubChecker{}, stubChecker{}, rdbClient)
 	if err != nil {
 		t.Fatalf("new router: %v", err)
 	}

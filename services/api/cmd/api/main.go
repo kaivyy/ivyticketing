@@ -34,7 +34,7 @@ func main() {
 	}
 	defer rdb.Close()
 
-	handler, err := app.NewRouter(cfg, log, pg.Pool, pg, rdb)
+	handler, err := app.NewRouter(cfg, log, pg.Pool, pg, rdb, rdb.Client)
 	if err != nil {
 		log.Error("router init failed", "error", err)
 		os.Exit(1)

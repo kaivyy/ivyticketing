@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/jackc/pgx/v5/pgxpool"
+	goredis "github.com/redis/go-redis/v9"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
 	authmod "github.com/varin/ivyticketing/services/api/internal/modules/auth"
@@ -16,6 +17,7 @@ import (
 	formsmod "github.com/varin/ivyticketing/services/api/internal/modules/forms"
 	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
 	ordersmod "github.com/varin/ivyticketing/services/api/internal/modules/orders"
+	queuemod "github.com/varin/ivyticketing/services/api/internal/modules/queue"
 	registrationmod "github.com/varin/ivyticketing/services/api/internal/modules/registration"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
 	paymentsmod "github.com/varin/ivyticketing/services/api/internal/modules/payments"
@@ -26,12 +28,13 @@ import (
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 	"github.com/varin/ivyticketing/services/api/internal/platform/middleware"
 	appmw "github.com/varin/ivyticketing/services/api/internal/platform/middleware"
+	platformqueue "github.com/varin/ivyticketing/services/api/internal/platform/queue"
 	"github.com/varin/ivyticketing/services/api/internal/platform/rbac"
 	"github.com/varin/ivyticketing/services/api/internal/platform/security"
 	"github.com/varin/ivyticketing/services/api/internal/platform/storage"
 )
 
-func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.Checker) (http.Handler, error) {
+func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.Checker, redisClient *goredis.Client) (http.Handler, error) {
 	r := chi.NewRouter()
 	r.Use(appmw.RequestID)
 	r.Use(cors.Handler(cors.Options{
@@ -77,8 +80,17 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	formHandler := formsmod.NewHandler(formsmod.NewService(formsmod.NewRepository(pool)))
 	registrationRepo := registrationmod.NewRepository(pool)
 	registrationSvc := registrationmod.NewService(registrationRepo)
-	registrationGate := registrationmod.NewGate(registrationSvc, nil) // queue admitter wired in Part 3
 	registrationHandler := registrationmod.NewHandler(registrationSvc)
+
+	// platform/queue adapter
+	queueAdapter := platformqueue.New(redisClient)
+	queueStore := queuemod.NewStore(queueAdapter)
+	queueRepo := queuemod.NewRepository(pool)
+	queueEventReader := queuemod.NewDBEventReader(db.New(pool))
+	queueSvc := queuemod.NewService(queueRepo, queueStore, auditLog, queueEventReader, int32(cfg.QueueDefaultReleaseRate))
+	queueHandler := queuemod.NewHandler(queueSvc)
+
+	registrationGate := registrationmod.NewGate(registrationSvc, queueSvc)
 
 	ordersHandler := ordersmod.NewHandler(ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration, registrationGate))
 	publicHandler := publicmod.NewHandler(publicmod.NewService(publicmod.NewRepository(pool), store))
@@ -111,6 +123,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			ordersHandler.RegisterRoutes(r)
 			paymentsHandler.RegisterRoutes(r)
 			ticketsHandler.RegisterRoutes(r)
+			queueHandler.RegisterRoutes(r)
 
 			// Per-org sub-resources, authz enforced per route.
 			r.Route("/organizations/{orgId}", func(r chi.Router) {
