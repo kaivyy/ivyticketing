@@ -222,6 +222,31 @@ func mustUUID(t *testing.T, s string) uuid.UUID {
 	return id
 }
 
+// makePlatformAdmin promotes a user to platform admin directly via SQL.
+func makePlatformAdmin(t *testing.T, pool *pgxpool.Pool, userID string) {
+	t.Helper()
+	_, err := pool.Exec(context.Background(),
+		`UPDATE users SET is_platform_admin = true WHERE id = $1`, userID)
+	if err != nil {
+		t.Fatalf("makePlatformAdmin: %v", err)
+	}
+}
+
+// truncateAbuse clears abuse-related tables between tests.
+func truncateAbuse(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	_, err := pool.Exec(context.Background(), `
+		DELETE FROM abuse_log;
+		DELETE FROM blocked_subjects;
+		DELETE FROM ip_rules;
+		DELETE FROM ip_reputation;
+		UPDATE platform_settings SET value = 'false' WHERE key = 'turnstile_enabled';
+	`)
+	if err != nil {
+		t.Fatalf("truncateAbuse: %v", err)
+	}
+}
+
 // seedUsers bulk-inserts n users into the users table and returns their UUIDs.
 func seedUsers(t *testing.T, pool *pgxpool.Pool, n int) []uuid.UUID {
 	t.Helper()
