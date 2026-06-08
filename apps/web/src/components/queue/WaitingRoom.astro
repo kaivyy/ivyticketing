@@ -1,0 +1,63 @@
+---
+const { eventId } = Astro.props;
+---
+<div id="waiting-room" data-event-id={eventId} class="rounded-lg border border-slate-200 bg-white p-6 text-center">
+  <p class="text-slate-500">Menyiapkan antrean…</p>
+</div>
+<script>
+  import { joinQueue, getQueueStatus } from "../../lib/queue";
+  const root = document.getElementById("waiting-room")!;
+  const eventId = root.dataset.eventId!;
+  let timer: ReturnType<typeof setInterval> | undefined;
+
+  function render(s: { status: string; position: number; estimatedWaitSeconds: number; systemState: string; admissionToken?: string }) {
+    if (s.systemState === "PAUSED") {
+      root.innerHTML = `<p class="text-amber-600 font-medium">Antrean dijeda sementara. Posisimu tetap aman.</p>`;
+      return;
+    }
+    if (s.status === "ALLOWED" && s.admissionToken) {
+      sessionStorage.setItem("ivy_admission_" + eventId, s.admissionToken);
+      if (timer) clearInterval(timer);
+      root.innerHTML = `<p class="text-green-600 font-semibold mb-3">Giliranmu! Selesaikan checkout sebelum waktu habis.</p>
+        <a href="/events/${eventId}/checkout?admission=${s.admissionToken}" class="inline-block rounded bg-slate-900 px-4 py-2 text-white text-sm">Lanjut Checkout →</a>`;
+      return;
+    }
+    if (s.status === "EXPIRED") {
+      root.innerHTML = `<p class="text-red-600">Waktu checkout habis. Kamu dikembalikan ke antrean.</p>`;
+      return;
+    }
+    if (s.status === "COMPLETED") {
+      root.innerHTML = `<p class="text-green-600">Checkout selesai. Terima kasih!</p>`;
+      if (timer) clearInterval(timer);
+      return;
+    }
+    const pos = s.position + 1;
+    const mins = s.estimatedWaitSeconds > 0 ? Math.max(1, Math.ceil(s.estimatedWaitSeconds / 60)) : "?";
+    root.innerHTML = `
+      <p class="text-2xl font-bold mb-1">#${pos}</p>
+      <p class="text-slate-600 text-sm mb-3">Posisi antreanmu • Perkiraan tunggu ~${mins} menit</p>
+      <p class="text-xs text-slate-400">Jangan tutup halaman ini. Posisimu tersimpan.</p>`;
+  }
+
+  async function poll() {
+    try {
+      render(await getQueueStatus(eventId));
+    } catch {
+      root.querySelector("p:last-child")?.insertAdjacentHTML("afterend",
+        `<p class="text-xs text-slate-400 mt-1">Menghubungkan ulang…</p>`);
+    }
+  }
+
+  async function start() {
+    try { await joinQueue(eventId); } catch { /* already queued */ }
+    await poll();
+    timer = setInterval(poll, 4000);
+  }
+
+  // Mobile sleep / tab-hide safe: re-poll immediately on visibility
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) poll();
+  });
+
+  start();
+</script>

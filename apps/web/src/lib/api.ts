@@ -22,11 +22,19 @@ export async function fetchReadiness(): Promise<ReadyResponse | null> {
   }
 }
 
-export async function authedFetch<T>(path: string): Promise<T> {
+export async function authedFetch<T>(
+  path: string,
+  opts?: { method?: string; body?: unknown }
+): Promise<T> {
   const doFetch = () =>
     fetch(`${BASE}/api/v1${path}`, {
-      headers: { Authorization: `Bearer ${getToken() ?? ""}` },
+      method: opts?.method ?? "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken() ?? ""}`,
+      },
       credentials: "include",
+      body: opts?.body != null ? JSON.stringify(opts.body) : undefined,
     });
 
   let res = await doFetch();
