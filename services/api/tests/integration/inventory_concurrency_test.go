@@ -22,7 +22,7 @@ func TestInventoryConcurrency_NoOversell(t *testing.T) {
 	_ = orgID
 	participants := seedUsers(t, pool, requests)
 
-	svc := ordersmod.NewService(ordersmod.NewRepository(pool), nil, 15*time.Minute)
+	svc := ordersmod.NewService(ordersmod.NewRepository(pool), nil, 15*time.Minute, nil)
 
 	var success, soldOut, other int64
 	var wg sync.WaitGroup
@@ -33,7 +33,7 @@ func TestInventoryConcurrency_NoOversell(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			_, err := svc.Checkout(context.Background(), participants[i], eventID, categoryID)
+			_, err := svc.Checkout(context.Background(), participants[i], eventID, categoryID, "")
 			switch {
 			case err == nil:
 				atomic.AddInt64(&success, 1)

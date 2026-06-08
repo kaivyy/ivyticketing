@@ -16,6 +16,7 @@ import (
 	formsmod "github.com/varin/ivyticketing/services/api/internal/modules/forms"
 	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
 	ordersmod "github.com/varin/ivyticketing/services/api/internal/modules/orders"
+	registrationmod "github.com/varin/ivyticketing/services/api/internal/modules/registration"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
 	paymentsmod "github.com/varin/ivyticketing/services/api/internal/modules/payments"
 	ticketsmod "github.com/varin/ivyticketing/services/api/internal/modules/tickets"
@@ -74,7 +75,12 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	eventHandler := eventsmod.NewHandler(eventsmod.NewService(eventsmod.NewRepository(pool), store, auditLog), cfg.StorageUploadMaxBytes)
 	categoryHandler := categoriesmod.NewHandler(categoriesmod.NewService(categoriesmod.NewRepository(pool)))
 	formHandler := formsmod.NewHandler(formsmod.NewService(formsmod.NewRepository(pool)))
-	ordersHandler := ordersmod.NewHandler(ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration, nil))
+	registrationRepo := registrationmod.NewRepository(pool)
+	registrationSvc := registrationmod.NewService(registrationRepo)
+	registrationGate := registrationmod.NewGate(registrationSvc, nil) // queue admitter wired in Part 3
+	registrationHandler := registrationmod.NewHandler(registrationSvc)
+
+	ordersHandler := ordersmod.NewHandler(ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration, registrationGate))
 	publicHandler := publicmod.NewHandler(publicmod.NewService(publicmod.NewRepository(pool), store))
 
 	qrSigner := ticketsmod.NewQRSigner(cfg.TicketQRSecret)
@@ -115,6 +121,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 					formHandler.RegisterRoutes(r, loader)
 					ordersHandler.RegisterEventRoutes(r, loader)
 					ticketsHandler.RegisterEventRoutes(r, loader)
+					registrationHandler.RegisterEventRoutes(r, loader)
 				})
 				paymentsHandler.RegisterOrgRoutes(r, loader)
 			})

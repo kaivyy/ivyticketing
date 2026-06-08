@@ -17,7 +17,7 @@ func TestOrderCreation_UniqueOrderNumbers(t *testing.T) {
 	_, eventID, categoryID := seedPublishedCategory(t, pool, 500, 1)
 	participants := seedUsers(t, pool, 300)
 
-	svc := ordersmod.NewService(ordersmod.NewRepository(pool), nil, 15*time.Minute)
+	svc := ordersmod.NewService(ordersmod.NewRepository(pool), nil, 15*time.Minute, nil)
 
 	const n = 300
 	var wg sync.WaitGroup
@@ -28,7 +28,7 @@ func TestOrderCreation_UniqueOrderNumbers(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			svc.Checkout(context.Background(), participants[i], eventID, categoryID)
+			svc.Checkout(context.Background(), participants[i], eventID, categoryID, "")
 		}()
 	}
 	close(start)
