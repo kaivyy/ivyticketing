@@ -18,6 +18,9 @@ var ErrDuplicateDedupe = errors.New("duplicate dedupe key")
 // Repository defines all data-access operations needed by the payments module.
 type Repository interface {
 	ExecTx(ctx context.Context, fn func(Repository) error) error
+	// Querier returns the underlying sqlc querier (tx-bound inside ExecTx).
+	// Used to run the ticket issuer in the same transaction as the PAID transition.
+	Querier() *db.Queries
 
 	// Payment CRUD
 	CreatePayment(ctx context.Context, arg db.CreatePaymentParams) (db.Payment, error)
@@ -51,6 +54,8 @@ type sqlcRepo struct {
 func NewRepository(pool *pgxpool.Pool) Repository {
 	return &sqlcRepo{pool: pool, q: db.New(pool)}
 }
+
+func (r *sqlcRepo) Querier() *db.Queries { return r.q }
 
 func (r *sqlcRepo) ExecTx(ctx context.Context, fn func(Repository) error) error {
 	tx, err := r.pool.Begin(ctx)
