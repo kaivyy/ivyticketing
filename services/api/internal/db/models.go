@@ -20,6 +20,14 @@ type AuditLog struct {
 	CreatedAt      pgtype.Timestamptz
 }
 
+type CategoryRegistrationSetting struct {
+	CategoryID       uuid.UUID
+	RegistrationMode pgtype.Text
+	OverrideEnabled  bool
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+}
+
 type Event struct {
 	ID              uuid.UUID
 	OrganizationID  uuid.UUID
@@ -56,6 +64,17 @@ type EventCategory struct {
 	MaxOrderPerUser      int32
 	CreatedAt            pgtype.Timestamptz
 	UpdatedAt            pgtype.Timestamptz
+}
+
+type EventRegistrationSetting struct {
+	EventID         uuid.UUID
+	DefaultMode     string
+	QueueEnabled    bool
+	BallotEnabled   bool
+	PriorityEnabled bool
+	WaitlistEnabled bool
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
 }
 
 type FormField struct {
