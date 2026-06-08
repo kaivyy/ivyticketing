@@ -1,0 +1,16 @@
+---
+import ParticipantLayout from "../../layouts/ParticipantLayout.astro";
+---
+<ParticipantLayout title="Dashboard">
+  <h1 class="text-xl font-bold mb-4">Dashboard</h1>
+  <div class="grid grid-cols-2 gap-4">
+    <a href="/participant/orders" class="rounded-lg border border-slate-200 bg-white p-6 hover:border-slate-400">
+      <h2 class="font-semibold">Pesanan Saya</h2>
+      <p class="text-sm text-slate-600">Lihat status &amp; invoice</p>
+    </a>
+    <a href="/participant/tickets" class="rounded-lg border border-slate-200 bg-white p-6 hover:border-slate-400">
+      <h2 class="font-semibold">Tiket Saya</h2>
+      <p class="text-sm text-slate-600">Lihat tiket &amp; QR</p>
+    </a>
+  </div>
+</ParticipantLayout>

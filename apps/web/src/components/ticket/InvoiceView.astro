@@ -1,0 +1,19 @@
+---
+const { invoice } = Astro.props;
+const fmt = (n: number) => `Rp${n.toLocaleString("id-ID")}`;
+---
+<div class="rounded-lg border border-slate-200 bg-white p-6 print:border-0">
+  <div class="flex items-center justify-between">
+    <h2 class="text-lg font-bold">Invoice</h2>
+    <button onclick="window.print()" class="rounded border px-3 py-1 text-sm print:hidden">Cetak / PDF</button>
+  </div>
+  <p class="text-sm text-slate-600">{invoice.orderNumber} · {invoice.status}</p>
+  <dl class="mt-4 space-y-1 text-sm">
+    <div class="flex justify-between"><dt>Event</dt><dd>{invoice.eventTitle}</dd></div>
+    <div class="flex justify-between"><dt>Kategori</dt><dd>{invoice.categoryName}</dd></div>
+    <div class="flex justify-between"><dt>Subtotal</dt><dd>{fmt(invoice.subtotal)}</dd></div>
+    <div class="flex justify-between"><dt>Biaya</dt><dd>{fmt(invoice.fee)}</dd></div>
+    <div class="flex justify-between"><dt>Diskon</dt><dd>-{fmt(invoice.discount)}</dd></div>
+    <div class="flex justify-between font-semibold"><dt>Total</dt><dd>{fmt(invoice.total)}</dd></div>
+  </dl>
+</div>

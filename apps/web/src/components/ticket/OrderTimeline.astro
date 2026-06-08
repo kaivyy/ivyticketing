@@ -1,0 +1,16 @@
+---
+const { order } = Astro.props;
+const steps = [
+  { label: "Pesanan dibuat", done: true },
+  { label: "Menunggu pembayaran", done: order.status !== "DRAFT" },
+  { label: "Lunas", done: order.status === "PAID" },
+];
+---
+<ol class="space-y-2">
+  {steps.map((s) => (
+    <li class="flex items-center gap-2">
+      <span class={s.done ? "text-green-600" : "text-slate-300"}>●</span>
+      <span class={s.done ? "" : "text-slate-400"}>{s.label}</span>
+    </li>
+  ))}
+</ol>

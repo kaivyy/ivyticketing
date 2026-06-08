@@ -1,0 +1,20 @@
+---
+import ParticipantLayout from "../../layouts/ParticipantLayout.astro";
+---
+<ParticipantLayout title="Pesanan Saya">
+  <h1 class="text-xl font-bold mb-4">Pesanan Saya</h1>
+  <div id="list" class="space-y-3"><p class="text-slate-500">Memuat…</p></div>
+  <script>
+    import { listMyOrders } from "../../lib/invoice";
+    const list = document.getElementById("list")!;
+    try {
+      const orders = await listMyOrders();
+      list.innerHTML = orders.length
+        ? orders.map((o) => `<a href="/participant/orders/${o.id}" class="block rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400">
+            <div class="flex justify-between"><span class="font-medium">${o.orderNumber}</span><span>${o.status}</span></div></a>`).join("")
+        : '<p class="text-slate-500">Belum ada pesanan.</p>';
+    } catch (e) {
+      list.innerHTML = `<p class="text-red-600">${(e as Error).message}</p>`;
+    }
+  </script>
+</ParticipantLayout>
