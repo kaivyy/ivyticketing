@@ -37,7 +37,7 @@ func main() {
 	defer pg.Close()
 
 	auditLog := audit.NewLogger(db.New(pg.Pool), log)
-	svc := ordersmod.NewService(ordersmod.NewRepository(pg.Pool), auditLog, cfg.OrderExpiration, nil)
+	svc := ordersmod.NewService(ordersmod.NewRepository(pg.Pool), auditLog, cfg.OrderExpiration, nil, nil)
 
 	rdb, err := redis.Connect(ctx, cfg.RedisURL)
 	if err != nil {

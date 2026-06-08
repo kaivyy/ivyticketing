@@ -34,6 +34,11 @@ func (s *Service) CheckAdmission(ctx context.Context, participantID, eventID uui
 	return nil
 }
 
+// OnCheckoutComplete implements orders.CheckoutHook. Called best-effort after checkout.
+func (s *Service) OnCheckoutComplete(ctx context.Context, participantID, eventID uuid.UUID) error {
+	return s.ConsumeOnCheckout(ctx, participantID, eventID)
+}
+
 // ConsumeOnCheckout marks the admission consumed and the token completed.
 // Called best-effort after a successful checkout.
 func (s *Service) ConsumeOnCheckout(ctx context.Context, participantID, eventID uuid.UUID) error {

@@ -17,7 +17,7 @@ func TestExpirationWorker_ReleasesAndIsIdempotent(t *testing.T) {
 	users := seedUsers(t, pool, 1)
 
 	// TTL = 0 so the order is immediately expired.
-	svc := ordersmod.NewService(ordersmod.NewRepository(pool), nil, 0, nil)
+	svc := ordersmod.NewService(ordersmod.NewRepository(pool), nil, 0, nil, nil)
 	order, err := svc.Checkout(context.Background(), users[0], eventID, categoryID, "")
 	if err != nil {
 		t.Fatalf("checkout: %v", err)

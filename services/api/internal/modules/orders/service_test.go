@@ -272,7 +272,7 @@ func TestCheckout_Success(t *testing.T) {
 	participantID := uuid.New()
 	eventID, categoryID := repo.seed(orgID, 10, 2)
 
-	svc := NewService(repo, nil, 15*time.Minute, nil)
+	svc := NewService(repo, nil, 15*time.Minute, nil, nil)
 	resp, err := svc.Checkout(ctx, participantID, eventID, categoryID, "")
 	require.NoError(t, err)
 	assert.Equal(t, StatusPendingPayment, resp.Status)
@@ -298,7 +298,7 @@ func TestCheckout_SoldOut(t *testing.T) {
 	p2 := uuid.New()
 	eventID, categoryID := repo.seed(orgID, 1, 1)
 
-	svc := NewService(repo, nil, 15*time.Minute, nil)
+	svc := NewService(repo, nil, 15*time.Minute, nil, nil)
 	_, err := svc.Checkout(ctx, p1, eventID, categoryID, "")
 	require.NoError(t, err)
 
@@ -313,7 +313,7 @@ func TestCheckout_MaxOrderExceeded(t *testing.T) {
 	participantID := uuid.New()
 	eventID, categoryID := repo.seed(orgID, 10, 1)
 
-	svc := NewService(repo, nil, 15*time.Minute, nil)
+	svc := NewService(repo, nil, 15*time.Minute, nil, nil)
 	_, err := svc.Checkout(ctx, participantID, eventID, categoryID, "")
 	require.NoError(t, err)
 
@@ -328,7 +328,7 @@ func TestCheckout_EventNotPublished(t *testing.T) {
 	participantID := uuid.New()
 	eventID, categoryID := repo.seedDraft(orgID)
 
-	svc := NewService(repo, nil, 15*time.Minute, nil)
+	svc := NewService(repo, nil, 15*time.Minute, nil, nil)
 	_, err := svc.Checkout(ctx, participantID, eventID, categoryID, "")
 	assert.ErrorIs(t, err, ErrEventNotPublished)
 }
@@ -340,7 +340,7 @@ func TestCancel_ReleasesReservation(t *testing.T) {
 	participantID := uuid.New()
 	eventID, categoryID := repo.seed(orgID, 10, 2)
 
-	svc := NewService(repo, nil, 15*time.Minute, nil)
+	svc := NewService(repo, nil, 15*time.Minute, nil, nil)
 	resp, err := svc.Checkout(ctx, participantID, eventID, categoryID, "")
 	require.NoError(t, err)
 
@@ -368,7 +368,7 @@ func TestCancel_NotOwner(t *testing.T) {
 	otherUser := uuid.New()
 	eventID, categoryID := repo.seed(orgID, 10, 2)
 
-	svc := NewService(repo, nil, 15*time.Minute, nil)
+	svc := NewService(repo, nil, 15*time.Minute, nil, nil)
 	resp, err := svc.Checkout(ctx, participantID, eventID, categoryID, "")
 	require.NoError(t, err)
 
@@ -384,7 +384,7 @@ func TestGet_NotOwnerIsNotFound(t *testing.T) {
 	otherUser := uuid.New()
 	eventID, categoryID := repo.seed(orgID, 10, 2)
 
-	svc := NewService(repo, nil, 15*time.Minute, nil)
+	svc := NewService(repo, nil, 15*time.Minute, nil, nil)
 	resp, err := svc.Checkout(ctx, participantID, eventID, categoryID, "")
 	require.NoError(t, err)
 

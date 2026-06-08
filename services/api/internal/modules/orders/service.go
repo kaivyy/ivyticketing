@@ -23,13 +23,14 @@ type Service struct {
 	audit AuditRecorder
 	ttl   time.Duration
 	gate  RegistrationGate
+	hook  CheckoutHook
 }
 
-func NewService(repo Repository, recorder AuditRecorder, ttl time.Duration, gate RegistrationGate) *Service {
+func NewService(repo Repository, recorder AuditRecorder, ttl time.Duration, gate RegistrationGate, hook CheckoutHook) *Service {
 	if gate == nil {
 		gate = noopGate{}
 	}
-	return &Service{repo: repo, audit: recorder, ttl: ttl, gate: gate}
+	return &Service{repo: repo, audit: recorder, ttl: ttl, gate: gate, hook: hook}
 }
 
 func (s *Service) Checkout(ctx context.Context, participantID, eventID, categoryID uuid.UUID, admissionToken string) (OrderResponse, error) {
@@ -102,6 +103,9 @@ func (s *Service) Checkout(ctx context.Context, participantID, eventID, category
 		return OrderResponse{}, err
 	}
 
+	if s.hook != nil {
+		_ = s.hook.OnCheckoutComplete(ctx, participantID, created.EventID)
+	}
 	s.record(ctx, created, "ORDER_CREATED")
 	s.recordReservation(ctx, created, "RESERVATION_CREATED")
 	return toResponse(created), nil

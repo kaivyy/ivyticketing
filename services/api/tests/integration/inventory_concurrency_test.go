@@ -22,7 +22,7 @@ func TestInventoryConcurrency_NoOversell(t *testing.T) {
 	_ = orgID
 	participants := seedUsers(t, pool, requests)
 
-	svc := ordersmod.NewService(ordersmod.NewRepository(pool), nil, 15*time.Minute, nil)
+	svc := ordersmod.NewService(ordersmod.NewRepository(pool), nil, 15*time.Minute, nil, nil)
 
 	var success, soldOut, other int64
 	var wg sync.WaitGroup
