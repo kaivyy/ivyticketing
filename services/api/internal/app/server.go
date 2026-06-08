@@ -135,6 +135,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 					ordersHandler.RegisterEventRoutes(r, loader)
 					ticketsHandler.RegisterEventRoutes(r, loader)
 					registrationHandler.RegisterEventRoutes(r, loader)
+					queueHandler.RegisterOrgRoutes(r, loader)
 				})
 				paymentsHandler.RegisterOrgRoutes(r, loader)
 			})
