@@ -7,5 +7,6 @@ import (
 )
 
 var (
-	ErrInvalidMode = apperr.New(http.StatusBadRequest, "INVALID_REGISTRATION_MODE", "unknown registration mode")
+	ErrInvalidMode      = apperr.New(http.StatusBadRequest, "INVALID_REGISTRATION_MODE", "unknown registration mode")
+	ErrCategoryNotFound = apperr.New(http.StatusNotFound, "CATEGORY_NOT_FOUND", "category not found")
 )

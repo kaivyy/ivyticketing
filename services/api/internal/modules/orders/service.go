@@ -33,6 +33,10 @@ func NewService(repo Repository, recorder AuditRecorder, ttl time.Duration, gate
 }
 
 func (s *Service) Checkout(ctx context.Context, participantID, eventID, categoryID uuid.UUID, admissionToken string) (OrderResponse, error) {
+	if err := s.gate.Admit(ctx, participantID, eventID, categoryID, admissionToken); err != nil {
+		return OrderResponse{}, err
+	}
+
 	var created db.Order
 	err := s.repo.ExecTx(ctx, func(tx Repository) error {
 		event, err := tx.GetEventByID(ctx, eventID)
@@ -55,10 +59,6 @@ func (s *Service) Checkout(ctx context.Context, participantID, eventID, category
 
 		now := time.Now()
 		if err := checkoutEligible(event, cat, now); err != nil {
-			return err
-		}
-
-		if err := s.gate.Admit(ctx, participantID, eventID, categoryID, admissionToken); err != nil {
 			return err
 		}
 

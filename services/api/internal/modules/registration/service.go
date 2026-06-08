@@ -69,7 +69,15 @@ func (s *Service) SetEventSettings(ctx context.Context, eventID uuid.UUID, req E
 	return err
 }
 
-func (s *Service) SetCategorySettings(ctx context.Context, categoryID uuid.UUID, req CategorySettingsRequest) error {
+func (s *Service) SetCategorySettings(ctx context.Context, eventID, categoryID uuid.UUID, req CategorySettingsRequest) error {
+	cat, err := s.repo.GetCategoryByID(ctx, categoryID)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && cat.EventID != eventID) {
+		return ErrCategoryNotFound
+	}
+	if err != nil {
+		return err
+	}
+
 	var mode pgtype.Text
 	if req.RegistrationMode != nil {
 		if !Valid(Mode(*req.RegistrationMode)) {
@@ -77,7 +85,7 @@ func (s *Service) SetCategorySettings(ctx context.Context, categoryID uuid.UUID,
 		}
 		mode = pgtype.Text{String: *req.RegistrationMode, Valid: true}
 	}
-	_, err := s.repo.UpsertCategorySettings(ctx, db.UpsertCategoryRegistrationSettingsParams{
+	_, err = s.repo.UpsertCategorySettings(ctx, db.UpsertCategoryRegistrationSettingsParams{
 		CategoryID:       categoryID,
 		RegistrationMode: mode,
 		OverrideEnabled:  req.OverrideEnabled,

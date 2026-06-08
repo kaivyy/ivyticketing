@@ -28,7 +28,6 @@ func NewGate(svc *Service, queue QueueAdmitter) *Gate {
 var (
 	ErrModeNotAvailable = apperr.New(http.StatusConflict, "REGISTRATION_MODE_NOT_AVAILABLE", "this registration mode is not available yet")
 	ErrClosed           = apperr.New(http.StatusConflict, "REGISTRATION_CLOSED", "registration is closed")
-	ErrAdmissionReq     = apperr.New(http.StatusForbidden, "ADMISSION_REQUIRED", "queue admission required for checkout")
 )
 
 func (g *Gate) Admit(ctx context.Context, participantID, eventID, categoryID uuid.UUID, admissionToken string) error {
