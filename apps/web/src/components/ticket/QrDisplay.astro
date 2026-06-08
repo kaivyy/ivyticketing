@@ -1,0 +1,11 @@
+---
+const { token } = Astro.props;
+---
+<canvas data-qr-token={token} class="qr-canvas mx-auto" width="220" height="220"></canvas>
+<script>
+  import QRCode from "qrcode";
+  document.querySelectorAll<HTMLCanvasElement>(".qr-canvas").forEach((c) => {
+    const token = c.dataset.qrToken;
+    if (token) QRCode.toCanvas(c, token, { width: 220 });
+  });
+</script>

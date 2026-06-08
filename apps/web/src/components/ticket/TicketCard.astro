@@ -1,0 +1,11 @@
+---
+const { ticket } = Astro.props;
+const statusColor = ticket.status === "VALID" ? "text-green-600" : "text-slate-500";
+---
+<a href={`/participant/tickets/${ticket.id}`} class="block rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400">
+  <div class="flex items-center justify-between">
+    <span class="font-medium">{ticket.eventTitle}</span>
+    <span class={statusColor}>{ticket.status}</span>
+  </div>
+  <p class="text-sm text-slate-600">{ticket.categoryName} · {ticket.ticketNumber}</p>
+</a>
