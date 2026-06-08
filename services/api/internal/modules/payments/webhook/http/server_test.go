@@ -12,7 +12,7 @@ import (
 
 func TestWebhookServer_Healthz(t *testing.T) {
 	reg := gw.NewRegistry()
-	proc := payments.NewProcessor(nil, nil)
+	proc := payments.NewProcessor(nil, nil, nil)
 	srv := NewServer(proc, reg)
 	h := srv.Router()
 
@@ -27,7 +27,7 @@ func TestWebhookServer_Healthz(t *testing.T) {
 
 func TestWebhookServer_UnknownGateway(t *testing.T) {
 	reg := gw.NewRegistry()
-	proc := payments.NewProcessor(nil, nil)
+	proc := payments.NewProcessor(nil, nil, nil)
 	srv := NewServer(proc, reg)
 	h := srv.Router()
 

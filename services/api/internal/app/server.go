@@ -18,6 +18,7 @@ import (
 	ordersmod "github.com/varin/ivyticketing/services/api/internal/modules/orders"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
 	paymentsmod "github.com/varin/ivyticketing/services/api/internal/modules/payments"
+	ticketsmod "github.com/varin/ivyticketing/services/api/internal/modules/tickets"
 	publicmod "github.com/varin/ivyticketing/services/api/internal/modules/publiccatalog"
 	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
 	"github.com/varin/ivyticketing/services/api/internal/modules/system"
@@ -76,9 +77,15 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	ordersHandler := ordersmod.NewHandler(ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration))
 	publicHandler := publicmod.NewHandler(publicmod.NewService(publicmod.NewRepository(pool), store))
 
+	qrSigner := ticketsmod.NewQRSigner(cfg.TicketQRSecret)
+	ticketsRepo := ticketsmod.NewRepository(pool)
+	ticketIssuer := ticketsmod.NewIssuer(auditLog)
+	ticketsSvc := ticketsmod.NewService(ticketsRepo, qrSigner, auditLog)
+	ticketsHandler := ticketsmod.NewHandler(ticketsSvc)
+
 	paymentsRegistry := BuildPaymentRegistry(cfg)
 	paymentsRepo := paymentsmod.NewRepository(pool)
-	paymentsProc := paymentsmod.NewProcessor(paymentsRepo, auditLog)
+	paymentsProc := paymentsmod.NewProcessor(paymentsRepo, auditLog, ticketIssuer)
 	paymentsSvc := paymentsmod.NewService(paymentsRepo, paymentsRegistry, auditLog, cfg.PaymentDefaultExpiry)
 	paymentsReconciler := paymentsmod.NewReconciler(paymentsRepo, paymentsRegistry, paymentsProc)
 	paymentsHandler := paymentsmod.NewHandler(paymentsSvc, paymentsReconciler)
@@ -97,6 +104,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			orgHandler.RegisterRoutes(r)
 			ordersHandler.RegisterRoutes(r)
 			paymentsHandler.RegisterRoutes(r)
+			ticketsHandler.RegisterRoutes(r)
 
 			// Per-org sub-resources, authz enforced per route.
 			r.Route("/organizations/{orgId}", func(r chi.Router) {
@@ -106,6 +114,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 					categoryHandler.RegisterRoutes(r, loader)
 					formHandler.RegisterRoutes(r, loader)
 					ordersHandler.RegisterEventRoutes(r, loader)
+					ticketsHandler.RegisterEventRoutes(r, loader)
 				})
 				paymentsHandler.RegisterOrgRoutes(r, loader)
 			})

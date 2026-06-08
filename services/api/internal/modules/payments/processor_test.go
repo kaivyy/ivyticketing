@@ -40,6 +40,8 @@ func (f *fakeRepo) ExecTx(_ context.Context, fn func(Repository) error) error {
 	return fn(f)
 }
 
+func (f *fakeRepo) Querier() *db.Queries { return nil }
+
 func (f *fakeRepo) CreatePayment(_ context.Context, arg db.CreatePaymentParams) (db.Payment, error) {
 	p := db.Payment{
 		ID:                uuid.New(),
@@ -226,7 +228,7 @@ func TestProcessCallback_PaidTransitionsOrderOnce(t *testing.T) {
 	_ = pay
 	repo.addOrder(orderID, OrderPendingPayment)
 
-	proc := NewProcessor(repo, nil)
+	proc := NewProcessor(repo, nil, nil)
 	ctx := context.Background()
 
 	paidAt := time.Now()
@@ -261,7 +263,7 @@ func TestProcessCallback_AmountMismatchRejected(t *testing.T) {
 	repo.addPayment(orderID, "PAY-REF-002", 50000, StatusPending)
 	repo.addOrder(orderID, OrderPendingPayment)
 
-	proc := NewProcessor(repo, nil)
+	proc := NewProcessor(repo, nil, nil)
 	ctx := context.Background()
 
 	res := gw.CallbackResult{
@@ -280,7 +282,7 @@ func TestProcessCallback_AmountMismatchRejected(t *testing.T) {
 // returns ErrPaymentNotFound.
 func TestProcessCallback_PaymentNotFound(t *testing.T) {
 	repo := newFakeRepo()
-	proc := NewProcessor(repo, nil)
+	proc := NewProcessor(repo, nil, nil)
 	ctx := context.Background()
 
 	res := gw.CallbackResult{
@@ -302,7 +304,7 @@ func TestProcessCallback_OrderAlreadyExpired(t *testing.T) {
 	repo.addPayment(orderID, "PAY-REF-003", 50000, StatusPending)
 	repo.addOrder(orderID, "EXPIRED") // order already expired
 
-	proc := NewProcessor(repo, nil)
+	proc := NewProcessor(repo, nil, nil)
 	ctx := context.Background()
 
 	paidAt := time.Now()

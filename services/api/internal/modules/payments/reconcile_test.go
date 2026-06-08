@@ -42,7 +42,7 @@ func TestReconcile_PendingToPaid(t *testing.T) {
 	reg := gw.NewRegistry()
 	reg.Register(fg)
 
-	proc := NewProcessor(repo, nil)
+	proc := NewProcessor(repo, nil, nil)
 	rec := NewReconciler(repo, reg, proc)
 
 	ctx := context.Background()
@@ -71,7 +71,7 @@ func TestReconcile_PendingToPaid(t *testing.T) {
 func TestReconcile_PaymentNotFound(t *testing.T) {
 	repo := newFakeRepo()
 	reg := gw.NewRegistry()
-	proc := NewProcessor(repo, nil)
+	proc := NewProcessor(repo, nil, nil)
 	rec := NewReconciler(repo, reg, proc)
 
 	err := rec.Reconcile(context.Background(), uuid.New())
@@ -87,7 +87,7 @@ func TestReconcile_GatewayNotAvailable(t *testing.T) {
 
 	// Empty registry
 	reg := gw.NewRegistry()
-	proc := NewProcessor(repo, nil)
+	proc := NewProcessor(repo, nil, nil)
 	rec := NewReconciler(repo, reg, proc)
 
 	// Look up the payment by its ID

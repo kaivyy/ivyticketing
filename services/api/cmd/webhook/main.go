@@ -10,6 +10,7 @@ import (
 	"github.com/varin/ivyticketing/services/api/internal/app"
 	"github.com/varin/ivyticketing/services/api/internal/db"
 	paymentsmod "github.com/varin/ivyticketing/services/api/internal/modules/payments"
+	ticketsmod "github.com/varin/ivyticketing/services/api/internal/modules/tickets"
 	webhookhttp "github.com/varin/ivyticketing/services/api/internal/modules/payments/webhook/http"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 	"github.com/varin/ivyticketing/services/api/internal/platform/database"
@@ -37,7 +38,8 @@ func main() {
 	auditLog := audit.NewLogger(db.New(pg.Pool), log)
 	registry := app.BuildPaymentRegistry(cfg)
 	repo := paymentsmod.NewRepository(pg.Pool)
-	proc := paymentsmod.NewProcessor(repo, auditLog)
+	ticketIssuer := ticketsmod.NewIssuer(auditLog)
+	proc := paymentsmod.NewProcessor(repo, auditLog, ticketIssuer)
 
 	srv := webhookhttp.NewServer(proc, registry)
 	addr := ":" + cfg.WebhookPort
