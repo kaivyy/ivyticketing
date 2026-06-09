@@ -13,6 +13,7 @@ type Repository interface {
 	ListPublishedEventsByOrgSlug(ctx context.Context, slug string) ([]db.Event, error)
 	GetPublishedEventByOrgAndSlug(ctx context.Context, arg db.GetPublishedEventByOrgAndSlugParams) (db.Event, error)
 	ListCategoriesByEventForPublic(ctx context.Context, eventID uuid.UUID) ([]db.EventCategory, error)
+	ListCategoriesByEventForPublicWithMode(ctx context.Context, eventID uuid.UUID) ([]db.EventCategoryWithMode, error)
 }
 
 type sqlcRepo struct {
@@ -32,4 +33,7 @@ func (r *sqlcRepo) GetPublishedEventByOrgAndSlug(ctx context.Context, arg db.Get
 }
 func (r *sqlcRepo) ListCategoriesByEventForPublic(ctx context.Context, eventID uuid.UUID) ([]db.EventCategory, error) {
 	return r.q.ListCategoriesByEventForPublic(ctx, eventID)
+}
+func (r *sqlcRepo) ListCategoriesByEventForPublicWithMode(ctx context.Context, eventID uuid.UUID) ([]db.EventCategoryWithMode, error) {
+	return r.q.ListCategoriesByEventForPublicWithMode(ctx, eventID)
 }

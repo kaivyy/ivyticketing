@@ -193,6 +193,10 @@ func toBallotEntryResponse(e db.BallotEntry) BallotEntryResponse {
 		t := e.ConvertedAt.Time
 		resp.ConvertedAt = &t
 	}
+	if e.AccessGrantID != nil {
+		s := e.AccessGrantID.String()
+		resp.AccessGrantID = &s
+	}
 	return resp
 }
 

@@ -7,6 +7,8 @@ export interface BallotEntry {
   waitlist_rank?: number;
   payment_deadline?: string; // ISO-8601
   converted_at?: string;
+  // Populated for WINNER entries — must be passed as X-Queue-Token at checkout.
+  access_grant_id?: string;
 }
 
 export function applyBallot(

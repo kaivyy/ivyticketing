@@ -102,7 +102,7 @@ const { eventId, categoryId, drawId } = Astro.props;
         extra = `
           <p class="text-red-600 text-sm mt-2">Batas waktu pembayaran telah lewat.</p>`;
       } else {
-        const checkoutUrl = `/events/${eventId}/checkout?categoryId=${categoryId}&drawId=${entry.draw_id}&source=ballot`;
+        const checkoutUrl = `/events/${eventId}/checkout?categoryId=${categoryId}&grantToken=${entry.access_grant_id}`;
         extra = `
           <p class="text-sm text-amber-700 mt-2">
             Batas waktu: <span id="ballot-countdown" class="font-medium"></span>

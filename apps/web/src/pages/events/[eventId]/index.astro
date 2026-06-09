@@ -39,18 +39,42 @@ const eventSlug = Astro.url.searchParams.get("eventSlug") ?? "";
     const closes = new Date(cat.registrationClosesAt);
     const isOpen = now >= opens && now <= closes;
     const isClosed = now > closes;
+    const mode = (cat.registrationMode ?? "NORMAL").toUpperCase();
 
-    // NOTE: Public catalog does not expose registrationMode.
-    // All categories link to checkout (open-sale / NORMAL path).
-    // Mode-aware routing (QUEUE / BALLOT / ACCESS_CODE / PRIORITY)
-    // requires registrationMode in the catalog response (future work).
     let cta = "";
-    if (isClosed) {
+    if (mode === "CLOSED") {
+      cta = `<span class="text-slate-400 text-sm">Pendaftaran Ditutup</span>`;
+    } else if (isClosed) {
       cta = `<span class="text-slate-400 text-sm">Pendaftaran ditutup</span>`;
     } else if (!isOpen) {
       cta = `<span class="text-slate-400 text-sm">Buka ${fmtDate(cat.registrationOpensAt)}</span>`;
+    } else if (mode === "WAR_QUEUE" || mode === "RANDOMIZED_QUEUE" || mode === "HYBRID_QUEUE") {
+      cta = `<a href="/events/${eventId}/queue?categoryId=${cat.id}"
+               class="rounded bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-700">
+               Masuk Antrean
+             </a>`;
+    } else if (mode === "BALLOT") {
+      cta = `<a href="/events/${eventId}/ballot?categoryId=${cat.id}"
+               class="rounded bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-700">
+               Ikut Ballot
+             </a>`;
+    } else if (mode === "INVITATION_ONLY") {
+      cta = `<a href="/events/${eventId}/access?categoryId=${cat.id}"
+               class="rounded bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-700">
+               Masukkan Kode Akses
+             </a>`;
+    } else if (mode === "PRIORITY_ACCESS") {
+      cta = `<a href="/events/${eventId}/access/priority-window?categoryId=${cat.id}"
+               class="rounded bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-700">
+               Akses Prioritas
+             </a>`;
+    } else if (mode === "WAITLIST_ONLY") {
+      cta = `<a href="/events/${eventId}/access?categoryId=${cat.id}"
+               class="rounded bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-700">
+               Masuk Waitlist
+             </a>`;
     } else {
-      // Default: checkout (NORMAL). Will be replaced once catalog exposes registrationMode.
+      // NORMAL or unknown — direct checkout
       cta = `<a href="/events/${eventId}/checkout?categoryId=${cat.id}"
                class="rounded bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-700">
                Daftar Sekarang

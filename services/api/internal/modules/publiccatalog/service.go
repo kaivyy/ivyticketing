@@ -48,14 +48,14 @@ func (s *Service) GetEvent(ctx context.Context, orgSlug, eventSlug string) (Even
 	} else if err != nil {
 		return EventResponse{}, err
 	}
-	cats, err := s.repo.ListCategoriesByEventForPublic(ctx, e.ID)
+	cats, err := s.repo.ListCategoriesByEventForPublicWithMode(ctx, e.ID)
 	if err != nil {
 		return EventResponse{}, err
 	}
 	return s.toEventResponse(e, cats), nil
 }
 
-func (s *Service) toEventResponse(e db.Event, cats []db.EventCategory) EventResponse {
+func (s *Service) toEventResponse(e db.Event, cats []db.EventCategoryWithMode) EventResponse {
 	r := EventResponse{
 		ID: e.ID, Name: e.Name, Slug: e.Slug, EventType: e.EventType,
 		Description: e.Description.String,
@@ -69,10 +69,15 @@ func (s *Service) toEventResponse(e db.Event, cats []db.EventCategory) EventResp
 		r.LogoURL = s.store.PublicURL(e.LogoObjectKey.String)
 	}
 	for _, c := range cats {
+		mode := "NORMAL"
+		if c.RegistrationMode.Valid && c.RegistrationMode.String != "" {
+			mode = c.RegistrationMode.String
+		}
 		r.Categories = append(r.Categories, CategoryResponse{
 			ID: c.ID, Name: c.Name, Price: c.Price,
 			RegistrationOpensAt:  c.RegistrationOpensAt.Time,
 			RegistrationClosesAt: c.RegistrationClosesAt.Time,
+			RegistrationMode:     mode,
 		})
 	}
 	return r

@@ -49,4 +49,7 @@ type BallotEntryResponse struct {
 	WaitlistRank    *int32     `json:"waitlist_rank,omitempty"`
 	PaymentDeadline *time.Time `json:"payment_deadline,omitempty"`
 	ConvertedAt     *time.Time `json:"converted_at,omitempty"`
+	// AccessGrantID is the admission token a WINNER must pass as X-Queue-Token
+	// when creating a checkout order. Nil for non-winners.
+	AccessGrantID *string `json:"access_grant_id,omitempty"`
 }

@@ -6,6 +6,7 @@ export interface PublicCategory {
   price: number;
   registrationOpensAt: string;
   registrationClosesAt: string;
+  registrationMode: string;
 }
 
 export interface PublicEvent {

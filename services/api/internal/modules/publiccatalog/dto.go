@@ -26,4 +26,5 @@ type CategoryResponse struct {
 	Price                int64     `json:"price"`
 	RegistrationOpensAt  time.Time `json:"registrationOpensAt"`
 	RegistrationClosesAt time.Time `json:"registrationClosesAt"`
+	RegistrationMode     string    `json:"registrationMode"`
 }

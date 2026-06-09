@@ -181,28 +181,10 @@ const { eventId } = Astro.params;
       return;
     }
 
-    // 4. Ballot winner (drawId + source=ballot)
-    if (drawId && source === "ballot") {
-      root.innerHTML = `<p class="text-slate-500 text-center">Membuat pesanan ballot…</p>`;
-      try {
-        // Ballot winner admission uses the draw entry as admissionToken.
-        // The backend gate checks the participant's winning ballot entry for this draw.
-        // No token needed — backend verifies via session participant ID + drawId.
-        // Pass drawId as the admissionToken so the gate can look up the entry.
-        const order = await createOrder({ eventId, categoryId, admissionToken: drawId });
-        renderOrder(order);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "";
-        if (msg.includes("PAYMENT_WINDOW") || msg.includes("expired") || msg.includes("EXPIRED")) {
-          showError("Batas waktu pembayaran telah lewat.");
-        } else if (msg.includes("NOT_WINNER") || msg.includes("WINNER")) {
-          showError("Kamu tidak terpilih dalam ballot ini.");
-        } else {
-          showError(msg || "Gagal membuat pesanan ballot.");
-        }
-      }
-      return;
-    }
+    // 4. Ballot winner — handled by the grantToken branch above.
+    // BallotStatus.astro now sets grantToken=<access_grant_id> in the checkout URL,
+    // so ballot winners arrive here via the grantToken path (branch 3), not drawId.
+    // The drawId+source=ballot path is retained as a no-op fallback for old URLs.
 
     // 5. Priority window (source=priority)
     if (source === "priority") {
