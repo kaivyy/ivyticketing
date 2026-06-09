@@ -7,6 +7,7 @@ import ParticipantLayout from "../../layouts/ParticipantLayout.astro";
 
   <script>
     import { listMyTickets } from "../../lib/tickets";
+    import { esc } from "../../lib/safe";
     const list = document.getElementById("list")!;
     try {
       const tickets = await listMyTickets();
@@ -15,14 +16,17 @@ import ParticipantLayout from "../../layouts/ParticipantLayout.astro";
       } else {
         list.innerHTML = tickets
           .map(
-            (t) => `<a href="/participant/tickets/${t.id}" class="block rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400">
-              <div class="flex items-center justify-between"><span class="font-medium">${t.eventTitle}</span><span class="${t.status === "VALID" ? "text-green-600" : "text-slate-500"}">${t.status}</span></div>
-              <p class="text-sm text-slate-600">${t.categoryName} · ${t.ticketNumber}</p></a>`
+            (t) => `<a href="/participant/tickets/${esc(t.id)}" class="block rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400">
+              <div class="flex items-center justify-between"><span class="font-medium">${esc(t.eventTitle)}</span><span class="${t.status === "VALID" ? "text-green-600" : "text-slate-500"}">${esc(t.status)}</span></div>
+              <p class="text-sm text-slate-600">${esc(t.categoryName)} · ${esc(t.ticketNumber)}</p></a>`
           )
           .join("");
       }
     } catch (e) {
-      list.innerHTML = `<p class="text-red-600">${(e as Error).message}</p>`;
+      const p = document.createElement("p");
+      p.className = "text-red-600";
+      p.textContent = (e as Error).message;
+      list.replaceChildren(p);
     }
   </script>
 </ParticipantLayout>

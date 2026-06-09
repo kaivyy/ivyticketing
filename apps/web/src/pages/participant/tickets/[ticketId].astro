@@ -8,6 +8,7 @@ import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
 
   <script>
     import { getTicket } from "../../../lib/tickets";
+    import { esc } from "../../../lib/safe";
     import QRCode from "qrcode";
 
     const id = window.location.pathname.split("/").pop()!;
@@ -16,15 +17,18 @@ import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
       const t = await getTicket(id);
       detail.innerHTML = `
         <div class="rounded-lg border border-slate-200 bg-white p-6 text-center">
-          <h1 class="text-lg font-bold">${t.eventTitle}</h1>
-          <p class="text-slate-600">${t.categoryName} · ${t.ticketNumber}</p>
-          <p class="mt-1 text-sm ${t.status === "VALID" ? "text-green-600" : "text-slate-500"}">${t.status}</p>
+          <h1 class="text-lg font-bold">${esc(t.eventTitle)}</h1>
+          <p class="text-slate-600">${esc(t.categoryName)} · ${esc(t.ticketNumber)}</p>
+          <p class="mt-1 text-sm ${t.status === "VALID" ? "text-green-600" : "text-slate-500"}">${esc(t.status)}</p>
           <canvas id="qr" class="mx-auto mt-4" width="220" height="220"></canvas>
-          <p class="mt-4 text-sm text-slate-600">${t.holderName}</p>
+          <p class="mt-4 text-sm text-slate-600">${esc(t.holderName)}</p>
         </div>`;
       await QRCode.toCanvas(document.getElementById("qr"), t.qrToken, { width: 220 });
     } catch (e) {
-      detail.innerHTML = `<p class="text-red-600">${(e as Error).message}</p>`;
+      const p = document.createElement("p");
+      p.className = "text-red-600";
+      p.textContent = (e as Error).message;
+      detail.replaceChildren(p);
     }
   </script>
 </ParticipantLayout>
