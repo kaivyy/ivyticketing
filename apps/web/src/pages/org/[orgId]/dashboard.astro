@@ -20,20 +20,16 @@ const { orgId } = Astro.params;
       </a>
 
       <a
-        href="#"
-        class="rounded-lg border border-slate-200 bg-white p-5 opacity-60 cursor-not-allowed"
-        aria-disabled="true"
-        tabindex="-1"
+        href={`/org/${orgId}/members`}
+        class="rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-400 transition-colors"
       >
         <p class="font-semibold text-slate-900 mb-1">Anggota</p>
         <p class="text-sm text-slate-500">Segera tersedia.</p>
       </a>
 
       <a
-        href="#"
-        class="rounded-lg border border-slate-200 bg-white p-5 opacity-60 cursor-not-allowed"
-        aria-disabled="true"
-        tabindex="-1"
+        href={`/org/${orgId}/settings`}
+        class="rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-400 transition-colors"
       >
         <p class="font-semibold text-slate-900 mb-1">Pengaturan</p>
         <p class="text-sm text-slate-500">Segera tersedia.</p>

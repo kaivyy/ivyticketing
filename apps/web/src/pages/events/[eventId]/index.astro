@@ -21,6 +21,7 @@ const eventSlug = Astro.url.searchParams.get("eventSlug") ?? "";
 <script>
   import { fetchPublicEvent } from "../../../lib/events";
   import type { PublicEvent, PublicCategory } from "../../../lib/events";
+  import { esc } from "../../../lib/safe";
 
   const root = document.getElementById("event-detail")!;
   const eventId   = root.dataset.eventId   ?? "";
@@ -69,8 +70,7 @@ const eventSlug = Astro.url.searchParams.get("eventSlug") ?? "";
                Akses Prioritas
              </a>`;
     } else if (mode === "WAITLIST_ONLY") {
-      // TODO: WAITLIST_ONLY needs dedicated page — access.astro only handles code redemption
-      cta = `<a href="/events/${eventId}/access?categoryId=${cat.id}"
+      cta = `<a href="/events/${eventId}/waitlist?categoryId=${cat.id}"
                class="rounded bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-700">
                Masuk Waitlist
              </a>`;
@@ -85,7 +85,7 @@ const eventSlug = Astro.url.searchParams.get("eventSlug") ?? "";
     return `
       <div class="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
         <div>
-          <p class="font-medium text-slate-800">${cat.name}</p>
+          <p class="font-medium text-slate-800">${esc(cat.name)}</p>
           <p class="text-sm text-slate-500">${fmt(cat.price)}</p>
         </div>
         <div class="shrink-0 ml-4">${cta}</div>
@@ -98,16 +98,16 @@ const eventSlug = Astro.url.searchParams.get("eventSlug") ?? "";
 
     root.innerHTML = `
       ${ev.bannerUrl
-        ? `<img src="${ev.bannerUrl}" alt="${ev.name}" class="w-full h-48 object-cover rounded-lg mb-6">`
+        ? `<img src="${esc(ev.bannerUrl)}" alt="${esc(ev.name)}" class="w-full h-48 object-cover rounded-lg mb-6">`
         : ""}
-      <h1 class="text-2xl font-bold text-slate-900 mb-1">${ev.name}</h1>
+      <h1 class="text-2xl font-bold text-slate-900 mb-1">${esc(ev.name)}</h1>
       <div class="flex flex-wrap gap-4 text-sm text-slate-500 mb-4">
         ${ev.startsAt ? `<span>${fmtDate(ev.startsAt)}${ev.endsAt && ev.endsAt !== ev.startsAt ? " – " + fmtDate(ev.endsAt) : ""}</span>` : ""}
-        ${ev.venueName ? `<span>${ev.venueName}</span>` : ""}
-        ${ev.eventType ? `<span class="capitalize">${ev.eventType.toLowerCase()}</span>` : ""}
+        ${ev.venueName ? `<span>${esc(ev.venueName)}</span>` : ""}
+        ${ev.eventType ? `<span class="capitalize">${esc(ev.eventType.toLowerCase())}</span>` : ""}
       </div>
       ${ev.description
-        ? `<p class="text-slate-700 text-sm leading-relaxed mb-6 whitespace-pre-line">${ev.description}</p>`
+        ? `<p class="text-slate-700 text-sm leading-relaxed mb-6 whitespace-pre-line">${esc(ev.description)}</p>`
         : ""}
       <section>
         <h2 class="text-base font-semibold text-slate-800 mb-3">Kategori Tiket</h2>
@@ -129,10 +129,13 @@ const eventSlug = Astro.url.searchParams.get("eventSlug") ?? "";
     try {
       render(await fetchPublicEvent(orgSlug, eventSlug));
     } catch (e: unknown) {
-      root.innerHTML = `
-        <div class="text-center py-12">
-          <p class="text-red-600">${e instanceof Error ? e.message : "Gagal memuat event."}</p>
-        </div>`;
+      const wrap = document.createElement("div");
+      wrap.className = "text-center py-12";
+      const p = document.createElement("p");
+      p.className = "text-red-600";
+      p.textContent = e instanceof Error ? e.message : "Gagal memuat event.";
+      wrap.appendChild(p);
+      root.replaceChildren(wrap);
     }
   }
 

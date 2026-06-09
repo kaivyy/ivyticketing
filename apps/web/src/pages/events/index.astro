@@ -34,6 +34,7 @@ import Button from "../../components/ui/Button.astro";
 <script>
   import { fetchPublicEvents } from "../../lib/events";
   import type { PublicEvent } from "../../lib/events";
+  import { esc } from "../../lib/safe";
 
   const form = document.getElementById("search-form") as HTMLFormElement;
   const input = document.getElementById("org-slug-input") as HTMLInputElement;
@@ -73,16 +74,16 @@ import Button from "../../components/ui/Button.astro";
       `?orgSlug=${encodeURIComponent(orgSlug)}&eventSlug=${encodeURIComponent(ev.slug)}`;
 
     const dateStr = ev.startsAt ? fmtDate(ev.startsAt) : "Tanggal belum ditentukan";
-    const venue = ev.venueName ? `<p class="text-xs text-slate-500 mt-0.5">${ev.venueName}</p>` : "";
+    const venue = ev.venueName ? `<p class="text-xs text-slate-500 mt-0.5">${esc(ev.venueName)}</p>` : "";
     const banner = ev.bannerUrl
-      ? `<img src="${ev.bannerUrl}" alt="" class="h-32 w-full rounded-t object-cover" loading="lazy" />`
+      ? `<img src="${esc(ev.bannerUrl)}" alt="" class="h-32 w-full rounded-t object-cover" loading="lazy" />`
       : `<div class="h-32 w-full rounded-t bg-slate-200"></div>`;
 
     return `
       <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         ${banner}
         <div class="p-4 space-y-2">
-          <p class="font-semibold text-slate-900 leading-tight">${ev.name}</p>
+          <p class="font-semibold text-slate-900 leading-tight">${esc(ev.name)}</p>
           <p class="text-xs text-slate-600">${dateStr}</p>
           ${venue}
           <p class="text-xs text-slate-400">Organizer: ${orgSlug}</p>

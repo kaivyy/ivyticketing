@@ -1,0 +1,163 @@
+---
+export const prerender = false;
+import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
+
+const { eventId } = Astro.params;
+const categoryId = Astro.url.searchParams.get("categoryId") ?? "";
+---
+<ParticipantLayout title="Waitlist — ivyticketing">
+  <div class="max-w-md mx-auto mt-12 px-4">
+    <h1 class="text-xl font-bold mb-2 text-center">Waitlist Kategori</h1>
+    <p class="text-slate-500 text-sm text-center mb-8">
+      Bergabung dengan waitlist untuk mendapat notifikasi saat slot tersedia.
+    </p>
+
+    {eventId && categoryId
+      ? (
+        <div
+          id="waitlist-root"
+          data-event-id={eventId}
+          data-category-id={categoryId}
+        >
+          <p class="text-slate-400 text-sm text-center">Memeriksa status waitlist…</p>
+        </div>
+
+        <script>
+          import { joinWaitlist, getWaitlistPosition } from "../../../lib/access";
+
+          const root = document.getElementById("waitlist-root")!;
+          const eventId = root.dataset.eventId!;
+          const categoryId = root.dataset.categoryId!;
+
+          function renderPosition(data: { position: number; status: string }) {
+            root.innerHTML = "";
+
+            if (data.status === "PROMOTED") {
+              const wrap = document.createElement("div");
+              wrap.className = "rounded-lg border border-green-200 bg-green-50 p-6 text-center space-y-4";
+              const msg = document.createElement("p");
+              msg.className = "text-green-700 font-semibold";
+              msg.textContent = "Selamat! Anda dipromosikan. Silakan lanjutkan ke checkout.";
+              wrap.appendChild(msg);
+              const link = document.createElement("a");
+              link.href = `/events/${eventId}/checkout?categoryId=${categoryId}`;
+              link.className = "inline-flex items-center rounded-lg bg-slate-900 px-5 py-2 text-sm font-medium text-white hover:bg-slate-700";
+              link.textContent = "Lanjut ke Checkout →";
+              wrap.appendChild(link);
+              root.appendChild(wrap);
+            } else if (data.status === "EXPIRED") {
+              const wrap = document.createElement("div");
+              wrap.className = "rounded-lg border border-red-200 bg-red-50 p-6 text-center";
+              const p = document.createElement("p");
+              p.className = "text-red-600 text-sm";
+              p.textContent = "Waktu pendaftaran Anda telah berakhir. Silakan coba lagi.";
+              wrap.appendChild(p);
+              root.appendChild(wrap);
+            } else if (data.status === "NOT_ELIGIBLE") {
+              const wrap = document.createElement("div");
+              wrap.className = "rounded-lg border border-slate-200 bg-slate-50 p-6 text-center";
+              const p = document.createElement("p");
+              p.className = "text-slate-500 text-sm";
+              p.textContent = "Anda tidak memenuhi syarat untuk waitlist ini.";
+              wrap.appendChild(p);
+              root.appendChild(wrap);
+            } else {
+              // WAITING
+              const wrap = document.createElement("div");
+              wrap.className = "rounded-lg border border-slate-200 bg-white p-6 text-center space-y-2";
+              const posLine = document.createElement("p");
+              posLine.className = "text-slate-700 font-medium";
+              const label = document.createTextNode("Posisi antrean Anda: ");
+              const strong = document.createElement("strong");
+              strong.className = "text-slate-900 text-lg";
+              strong.textContent = `#${data.position}`;
+              posLine.append(label, strong);
+              const hint = document.createElement("p");
+              hint.className = "text-slate-500 text-sm";
+              hint.textContent = "Kami akan memberi tahu Anda saat giliran tiba. Halaman ini memperbarui posisi setiap 30 detik.";
+              wrap.append(posLine, hint);
+              root.appendChild(wrap);
+            }
+          }
+
+          function renderError(message: string) {
+            root.innerHTML = "";
+            const wrap = document.createElement("div");
+            wrap.className = "rounded-lg border border-red-200 bg-red-50 p-4";
+            const p = document.createElement("p");
+            p.className = "text-sm text-red-700";
+            p.textContent = message;
+            wrap.appendChild(p);
+            root.appendChild(wrap);
+          }
+
+          function renderJoinPrompt() {
+            root.innerHTML = "";
+            const wrap = document.createElement("div");
+            wrap.className = "text-center space-y-4";
+            const desc = document.createElement("p");
+            desc.className = "text-slate-600 text-sm";
+            desc.textContent = "Anda belum terdaftar di waitlist ini. Klik tombol di bawah untuk bergabung.";
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "rounded bg-slate-900 px-6 py-2 text-white text-sm hover:bg-slate-700 disabled:opacity-50";
+            btn.textContent = "Bergabung dengan Waitlist";
+            btn.addEventListener("click", async () => {
+              btn.disabled = true;
+              btn.textContent = "Mendaftar…";
+              try {
+                const result = await joinWaitlist(eventId, categoryId);
+                renderPosition(result);
+                startPolling();
+              } catch (e) {
+                renderError((e as Error).message || "Gagal bergabung dengan waitlist.");
+              }
+            });
+            wrap.append(desc, btn);
+            root.appendChild(wrap);
+          }
+
+          let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+          function startPolling() {
+            if (pollInterval) return;
+            pollInterval = setInterval(async () => {
+              try {
+                const data = await getWaitlistPosition(eventId, categoryId);
+                renderPosition(data);
+                if (data.status === "PROMOTED" || data.status === "EXPIRED") {
+                  clearInterval(pollInterval!);
+                  pollInterval = null;
+                }
+              } catch {
+                // silently ignore poll errors — stale UI is acceptable
+              }
+            }, 30_000);
+          }
+
+          async function init() {
+            try {
+              const data = await getWaitlistPosition(eventId, categoryId);
+              renderPosition(data);
+              if (data.status === "WAITING") {
+                startPolling();
+              }
+            } catch (e) {
+              // 404 or NOT_ELIGIBLE means not yet joined
+              const msg = (e as Error).message ?? "";
+              if (msg.includes("404") || msg.includes("not found") || msg.includes("NOT_ELIGIBLE")) {
+                renderJoinPrompt();
+              } else {
+                // Any other error: show join prompt anyway, worst case join call will fail
+                renderJoinPrompt();
+              }
+            }
+          }
+
+          init();
+        </script>
+      )
+      : <p class="text-center text-red-600">Parameter tidak lengkap.</p>
+    }
+  </div>
+</ParticipantLayout>

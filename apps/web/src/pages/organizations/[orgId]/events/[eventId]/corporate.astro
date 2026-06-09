@@ -16,6 +16,7 @@ const { orgId, eventId } = Astro.params;
       bulkUploadMembers,
       getInvoice,
     } from "../../../../../lib/corporate";
+    import { esc } from "../../../../../lib/safe";
 
     const root = document.getElementById("corporate-root")!;
     const orgId = root.dataset.orgId!;
@@ -39,7 +40,7 @@ const { orgId, eventId } = Astro.params;
         SUSPENDED: "bg-red-100 text-red-800",
       };
       const cls = colors[status] ?? "bg-slate-100 text-slate-700";
-      return `<span class="rounded px-2 py-0.5 text-xs font-medium ${cls}">${status}</span>`;
+      return `<span class="rounded px-2 py-0.5 text-xs font-medium ${cls}">${esc(status)}</span>`;
     }
 
     // ── accounts list ─────────────────────────────────────────────────────────
@@ -58,17 +59,17 @@ const { orgId, eventId } = Astro.params;
             (a) => `
           <div class="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-4 py-3">
             <div>
-              <p class="font-medium">${a.name}</p>
-              <p class="text-xs text-slate-500">${a.billingEmail}</p>
+              <p class="font-medium">${esc(a.name)}</p>
+              <p class="text-xs text-slate-500">${esc(a.billingEmail)}</p>
             </div>
             <div class="flex items-center gap-3">
               ${statusBadge(a.status)}
               ${
                 a.status === "PENDING"
-                  ? `<button data-approve="${a.id}" class="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700">Setujui</button>`
+                  ? `<button data-approve="${esc(a.id)}" class="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700">Setujui</button>`
                   : ""
               }
-              <button data-invoice="${a.id}" class="rounded border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:bg-slate-100">Invoice</button>
+              <button data-invoice="${esc(a.id)}" class="rounded border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:bg-slate-100">Invoice</button>
             </div>
           </div>`
           )
@@ -96,7 +97,10 @@ const { orgId, eventId } = Astro.params;
           });
         });
       } catch (e) {
-        container.innerHTML = `<p class="text-sm text-red-600">${(e as Error).message}</p>`;
+        const p = document.createElement("p");
+        p.className = "text-sm text-red-600";
+        p.textContent = (e as Error).message;
+        container.replaceChildren(p);
       }
     }
 
@@ -106,8 +110,8 @@ const { orgId, eventId } = Astro.params;
       const panel = document.getElementById("invoice-panel")!;
       panel.innerHTML = `
         <div class="rounded border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 class="mb-3 font-semibold text-slate-800">Invoice — ${inv.account.name}</h3>
-          <p class="mb-1 text-sm text-slate-500">${inv.account.billing_email}</p>
+          <h3 class="mb-3 font-semibold text-slate-800">Invoice — ${esc(inv.account.name)}</h3>
+          <p class="mb-1 text-sm text-slate-500">${esc(inv.account.billing_email)}</p>
           <table class="mt-4 w-full text-sm">
             <thead>
               <tr class="border-b border-slate-200 text-left text-slate-500">
@@ -122,10 +126,10 @@ const { orgId, eventId } = Astro.params;
                 .map(
                   (li) => `
                 <tr class="border-b border-slate-100">
-                  <td class="py-1">${li.description}</td>
+                  <td class="py-1">${esc(li.description)}</td>
                   <td class="py-1 text-right">${li.quantity}</td>
-                  <td class="py-1 text-right">${li.unit_price.toLocaleString("id-ID")} ${inv.currency}</td>
-                  <td class="py-1 text-right font-medium">${li.total.toLocaleString("id-ID")} ${inv.currency}</td>
+                  <td class="py-1 text-right">${li.unit_price.toLocaleString("id-ID")} ${esc(inv.currency)}</td>
+                  <td class="py-1 text-right font-medium">${li.total.toLocaleString("id-ID")} ${esc(inv.currency)}</td>
                 </tr>`
                 )
                 .join("")}
@@ -133,7 +137,7 @@ const { orgId, eventId } = Astro.params;
             <tfoot>
               <tr>
                 <td colspan="3" class="pt-2 text-right font-semibold">Total</td>
-                <td class="pt-2 text-right font-bold">${inv.total.toLocaleString("id-ID")} ${inv.currency}</td>
+                <td class="pt-2 text-right font-bold">${inv.total.toLocaleString("id-ID")} ${esc(inv.currency)}</td>
               </tr>
             </tfoot>
           </table>
