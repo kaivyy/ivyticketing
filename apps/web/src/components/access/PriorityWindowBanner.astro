@@ -1,0 +1,56 @@
+---
+interface Props {
+  eventId: string
+  categoryId: string
+  windowOpensAt?: string
+  windowClosesAt?: string
+  isEligible?: boolean
+}
+const { eventId, categoryId, windowOpensAt, windowClosesAt, isEligible } = Astro.props
+---
+
+{isEligible && (
+  <div class="bg-amber-50 border border-amber-200 rounded p-4 mb-4">
+    {windowOpensAt && new Date(windowOpensAt) > new Date() ? (
+      <p class="text-amber-800">
+        Priority access opens in
+        <span class="font-semibold" data-countdown={windowOpensAt}></span>
+      </p>
+    ) : (
+      <div>
+        <p class="text-amber-800 font-semibold mb-2">Priority Access Active</p>
+        {windowClosesAt && (
+          <p class="text-amber-700 text-sm mb-2">
+            Closes in <span class="font-medium" data-countdown={windowClosesAt}></span>
+          </p>
+        )}
+        <a
+          href={`/events/${eventId}/access/priority-window?categoryId=${categoryId}`}
+          class="bg-amber-600 text-white px-4 py-2 rounded inline-block hover:bg-amber-700 transition-colors"
+        >
+          Register Now
+        </a>
+      </div>
+    )}
+  </div>
+)}
+
+<script>
+  document.querySelectorAll("[data-countdown]").forEach((el) => {
+    const target = new Date(el.getAttribute("data-countdown") ?? "")
+    if (isNaN(target.getTime())) return
+    const tick = () => {
+      const diff = target.getTime() - Date.now()
+      if (diff <= 0) {
+        el.textContent = "now"
+        return
+      }
+      const h = Math.floor(diff / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      el.textContent = `${h}h ${m}m ${s}s`
+      setTimeout(tick, 1000)
+    }
+    tick()
+  })
+</script>

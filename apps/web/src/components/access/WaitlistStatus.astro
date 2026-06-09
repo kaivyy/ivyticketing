@@ -1,0 +1,52 @@
+---
+interface Props {
+  eventId: string
+  categoryId: string
+  token: string
+}
+const { eventId, categoryId, token } = Astro.props
+---
+
+<div id="waitlist-status" class="border border-gray-200 rounded p-4">
+  <p class="text-gray-500 text-sm">Checking waitlist position...</p>
+</div>
+
+<script define:vars={{ eventId, categoryId, token }}>
+  const API_URL = (typeof import !== "undefined" && import.meta?.env?.PUBLIC_API_URL) ?? "http://localhost:8080"
+
+  async function loadPosition() {
+    const el = document.getElementById("waitlist-status")
+    if (!el) return
+    try {
+      const res = await fetch(
+        `${API_URL}/api/v1/events/${eventId}/categories/${categoryId}/waitlist/my-position`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (!res.ok) {
+        el.innerHTML = `<p class="text-gray-500 text-sm">You are not on the waitlist.</p>`
+        return
+      }
+      const data = await res.json()
+      if (data.status === "PROMOTED") {
+        el.innerHTML = `
+          <p class="text-green-700 font-semibold">
+            You've been promoted! Check your email for your registration link.
+          </p>`
+      } else {
+        el.innerHTML = `
+          <div>
+            <p class="text-gray-700">
+              Waitlist position: <strong class="text-gray-900">#${data.position}</strong>
+            </p>
+            <p class="text-gray-500 text-sm mt-1">Status: ${data.status}</p>
+          </div>`
+      }
+    } catch {
+      // silently ignore network errors — stale UI is acceptable
+    }
+  }
+
+  loadPosition()
+  // Refresh position every 60 seconds
+  setInterval(loadPosition, 60_000)
+</script>
