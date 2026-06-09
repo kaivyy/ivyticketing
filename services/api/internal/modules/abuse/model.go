@@ -21,6 +21,7 @@ const (
 	CategoryAuthLogin    = "auth_login"
 	CategoryAuthRegister = "auth_register"
 	CategoryBallotApply  = "ballot_apply"
+	CategoryAccessRedeem = "access_redeem"
 	CategoryDefault      = "default"
 )
 
@@ -67,6 +68,8 @@ func categoryLimits(category string) RateLimit {
 		return RateLimit{PerIP: 5, PerUser: 0}
 	case CategoryBallotApply:
 		return RateLimit{PerIP: 10, PerUser: 3}
+	case CategoryAccessRedeem:
+		return RateLimit{PerIP: 20, PerUser: 5}
 	default:
 		return RateLimit{PerIP: 120, PerUser: 0}
 	}

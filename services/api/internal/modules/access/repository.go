@@ -44,6 +44,11 @@ type Repository interface {
 	IncrementCodeUseCount(ctx context.Context, id uuid.UUID) (db.AccessCode, error)
 	RevokeAccessCode(ctx context.Context, id uuid.UUID) error
 	ListActiveGrantsForParticipant(ctx context.Context, arg db.ListActiveGrantsForParticipantParams) ([]db.AccessGrant, error)
+
+	// Eligibility queries (also satisfies EligibilityRepo)
+	CountPaidOrdersByUserInOrg(ctx context.Context, userID, orgID uuid.UUID) (int64, error)
+	GetUserMembershipID(ctx context.Context, userID uuid.UUID) (string, error)
+	HasPaidOrderForEvent(ctx context.Context, userID, eventID uuid.UUID) (bool, error)
 }
 
 type sqlcRepo struct{ q *db.Queries }

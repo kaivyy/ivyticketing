@@ -109,6 +109,17 @@ func (r *fakeAccessRepo) ListActiveGrantsForParticipant(_ context.Context, _ db.
 	return nil, nil
 }
 
+// Eligibility stubs
+func (r *fakeAccessRepo) CountPaidOrdersByUserInOrg(_ context.Context, _, _ uuid.UUID) (int64, error) {
+	return 0, nil
+}
+func (r *fakeAccessRepo) GetUserMembershipID(_ context.Context, _ uuid.UUID) (string, error) {
+	return "", nil
+}
+func (r *fakeAccessRepo) HasPaidOrderForEvent(_ context.Context, _, _ uuid.UUID) (bool, error) {
+	return false, nil
+}
+
 func TestReserveSlot_PoolFull_ReturnsErrPoolExhausted(t *testing.T) {
 	repo := &fakeAccessRepo{reserveErr: pgx.ErrNoRows}
 	pm := access.NewPoolManager(repo)

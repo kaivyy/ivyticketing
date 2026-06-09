@@ -104,6 +104,11 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	// Ballot module (Phase 10 Part 2)
 	accessRepo := accessmod.NewRepository(pool)
 	poolMgr := accessmod.NewPoolManager(accessRepo)
+	eligibilityChecker := accessmod.NewEligibilityChecker(accessRepo)
+	poolSvc := accessmod.NewPoolService(accessRepo)
+	corporateSvc := accessmod.NewCorporateService(accessRepo)
+	codeSvc := accessmod.NewCodeService(accessRepo, eligibilityChecker)
+	accessHandler := accessmod.NewHandler(codeSvc, poolSvc, corporateSvc)
 	waitlistRepo := waitlistmod.NewRepository(pool)
 	waitlistSvc := waitlistmod.NewService(waitlistRepo, poolMgr)
 	ballotRepo := ballotmod.NewRepository(pool)
@@ -177,6 +182,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			ticketsHandler.RegisterRoutes(r)
 			queueHandler.RegisterRoutes(r, abuseGuard.Middleware(abusemod.CategoryQueueJoin))
 			ballotHandler.RegisterParticipantRoutes(r, abuseGuard.Middleware(abusemod.CategoryBallotApply))
+			accessHandler.RegisterParticipantRoutes(r)
 
 			// Super-admin abuse management.
 			r.Group(func(r chi.Router) {
@@ -198,6 +204,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 					registrationHandler.RegisterEventRoutes(r, loader)
 					queueHandler.RegisterOrgRoutes(r, loader)
 				ballotHandler.RegisterOrganizerRoutes(r)
+				accessHandler.RegisterOrganizerRoutes(r)
 				})
 				paymentsHandler.RegisterOrgRoutes(r, loader)
 			})
