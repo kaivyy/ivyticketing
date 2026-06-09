@@ -3,12 +3,16 @@ package abuse
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/varin/ivyticketing/services/api/internal/db"
 	"github.com/varin/ivyticketing/services/api/internal/platform/authctx"
 	"github.com/varin/ivyticketing/services/api/internal/platform/captcha"
 	apperr "github.com/varin/ivyticketing/services/api/internal/platform/errors"
+	"github.com/varin/ivyticketing/services/api/internal/platform/ratelimit"
 )
 
 // AbuseLogger records abuse events (implemented by Service).
@@ -19,6 +23,11 @@ type AbuseLogger interface {
 // QueueCapChecker enforces the cross-event active queue cap (implemented by Service).
 type QueueCapChecker interface {
 	WithinQueueCap(ctx context.Context, userID uuid.UUID) (bool, error)
+}
+
+// ipBlocker is the narrow repo surface Guard needs to write a temporary IP block.
+type ipBlocker interface {
+	UpsertBlockedSubject(ctx context.Context, arg db.UpsertBlockedSubjectParams) (db.BlockedSubject, error)
 }
 
 // AbuseEvent carries context for a single abuse log entry.
@@ -42,6 +51,8 @@ type Guard struct {
 	captcha   captcha.Verifier
 	logger    AbuseLogger
 	cap       QueueCapChecker
+	lim       *ratelimit.Limiter // Redis INCR/EXPIRE for brute-force tracking
+	blockRepo ipBlocker          // writes temporary IP blocks to DB
 }
 
 // NewGuard constructs a Guard with all dependencies injected.
@@ -63,6 +74,14 @@ func NewGuard(
 		logger:    logger,
 		cap:       qcap,
 	}
+}
+
+// WithBruteForce attaches a Redis limiter and blocklist writer used for
+// code brute-force detection and temporary IP blocking.
+func (g *Guard) WithBruteForce(lim *ratelimit.Limiter, repo ipBlocker) *Guard {
+	g.lim = lim
+	g.blockRepo = repo
+	return g
 }
 
 // Middleware returns the guard chain for an endpoint category.
@@ -151,6 +170,49 @@ func (g *Guard) Middleware(category string) func(http.Handler) http.Handler {
 	}
 }
 
+// TrackCodeFailure increments the brute-force counter for ip. When the count
+// reaches CodeBruteForceMaxTries within the window, the IP is auto-blocked.
+// Fail-open: no-ops when Redis or blockRepo is unavailable.
+func (g *Guard) TrackCodeFailure(ctx context.Context, ip string) {
+	if !g.settings.IsEnabled(SettingCodeBruteForceBlock) {
+		return
+	}
+	if g.lim == nil {
+		return
+	}
+	window := time.Duration(g.settings.GetInt(SettingCodeBruteForceWindow)) * time.Second
+	maxTries := g.settings.GetInt(SettingCodeBruteForceMaxTries)
+	blockDur := time.Duration(g.settings.GetInt(SettingCodeBruteForceBlockDur)) * time.Second
+
+	count, err := g.lim.IncrExpire(ctx, "code_fail:"+ip, window)
+	if err != nil {
+		return // fail-open
+	}
+	if int(count) >= maxTries && g.blockRepo != nil {
+		g.blockIPTemporary(ctx, ip, blockDur)
+		g.logEvent(ctx, ActionCodeBruteForceBlock, CategoryAccessRedeem, "", ip, nil)
+	}
+}
+
+// BumpReputation increments the IP reputation score by delta when reputation is enabled.
+func (g *Guard) BumpReputation(ctx context.Context, ip string, delta int) {
+	g.bump(ctx, ip, delta, "code_fail")
+}
+
+// blockIPTemporary writes a time-limited block entry for the IP into the DB.
+func (g *Guard) blockIPTemporary(ctx context.Context, ip string, dur time.Duration) {
+	if g.blockRepo == nil {
+		return
+	}
+	expiresAt := pgtype.Timestamptz{Time: timeNow().Add(dur), Valid: true}
+	_, _ = g.blockRepo.UpsertBlockedSubject(ctx, db.UpsertBlockedSubjectParams{
+		SubjectType:  SubjectIP,
+		SubjectValue: ip,
+		Reason:       pgtype.Text{String: "code_brute_force", Valid: true},
+		ExpiresAt:    expiresAt,
+	})
+}
+
 // logEvent emits an AbuseEvent, preferring user subject over IP when available.
 func (g *Guard) logEvent(ctx context.Context, action, category, fp, ip string, userPtr *uuid.UUID) {
 	if g.logger == nil {
@@ -177,3 +239,6 @@ func (g *Guard) bump(ctx context.Context, ip string, delta int, reason string) {
 		g.rep.Bump(ctx, SubjectIP, ip, delta, reason)
 	}
 }
+
+// timeNow is a package-level variable to allow testing.
+var timeNow = func() time.Time { return time.Now() }

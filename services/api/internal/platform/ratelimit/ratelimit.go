@@ -31,3 +31,19 @@ func (l *Limiter) Allow(ctx context.Context, key string, limit int, window time.
 	}
 	return n <= int64(limit), nil
 }
+
+// IncrExpire increments key and sets expiry on first increment. Returns the
+// new counter value. Fail-open: returns (0, err) on Redis error.
+func (l *Limiter) IncrExpire(ctx context.Context, key string, window time.Duration) (int64, error) {
+	if l == nil || l.c == nil {
+		return 0, nil
+	}
+	n, err := l.c.Incr(ctx, key).Result()
+	if err != nil {
+		return 0, err
+	}
+	if n == 1 {
+		_ = l.c.Expire(ctx, key, window).Err()
+	}
+	return n, nil
+}

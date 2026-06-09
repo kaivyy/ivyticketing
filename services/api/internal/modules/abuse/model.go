@@ -8,10 +8,14 @@ const (
 
 // Setting keys (platform_settings).
 const (
-	SettingTurnstileEnabled    = "turnstile_enabled"
-	SettingRateLimitEnabled    = "rate_limit_enabled"
-	SettingIPReputationEnabled = "ip_reputation_enabled"
-	SettingBlocklistEnabled    = "blocklist_enabled"
+	SettingTurnstileEnabled        = "turnstile_enabled"
+	SettingRateLimitEnabled        = "rate_limit_enabled"
+	SettingIPReputationEnabled     = "ip_reputation_enabled"
+	SettingBlocklistEnabled        = "blocklist_enabled"
+	SettingCodeBruteForceBlock     = "code_brute_force_block"
+	SettingCodeBruteForceWindow    = "code_brute_force_window"    // seconds
+	SettingCodeBruteForceMaxTries  = "code_brute_force_max_tries"
+	SettingCodeBruteForceBlockDur  = "code_brute_force_block_dur" // seconds
 )
 
 // Endpoint categories.
@@ -32,8 +36,9 @@ const (
 	ActionCaptchaFail    = "CAPTCHA_FAIL"
 	ActionDuplicateQueue = "DUPLICATE_QUEUE"
 	ActionReputationDeny = "REPUTATION_DENY"
-	ActionBlockSet       = "BLOCK_SET"
-	ActionUnblock        = "UNBLOCK"
+	ActionBlockSet              = "BLOCK_SET"
+	ActionUnblock               = "UNBLOCK"
+	ActionCodeBruteForceBlock   = "CODE_BRUTE_FORCE_BLOCK"
 )
 
 // Reputation bump deltas.

@@ -2,6 +2,7 @@ package abuse
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
@@ -20,6 +21,14 @@ var failSafeDefaults = map[string]bool{
 	SettingBlocklistEnabled:    true,
 	SettingIPReputationEnabled: true,
 	SettingTurnstileEnabled:    false,
+	SettingCodeBruteForceBlock: true,
+}
+
+// numericDefaults: default integer values for numeric settings (returned when key is absent).
+var numericDefaults = map[string]int{
+	SettingCodeBruteForceWindow:   60,  // seconds
+	SettingCodeBruteForceMaxTries: 3,
+	SettingCodeBruteForceBlockDur: 600, // seconds
 }
 
 // Settings is an in-memory cache of platform_settings, refreshed periodically.
@@ -66,6 +75,22 @@ func (s *Settings) Get(key string) string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.vals[key]
+}
+
+// GetInt returns the integer value for key. Falls back to numericDefaults, then 0.
+func (s *Settings) GetInt(key string) int {
+	s.mu.RLock()
+	v, ok := s.vals[key]
+	s.mu.RUnlock()
+	if ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	if d, ok := numericDefaults[key]; ok {
+		return d
+	}
+	return 0
 }
 
 // StartRefresh launches a background ticker refreshing the cache until ctx is done.

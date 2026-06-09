@@ -2,6 +2,7 @@ package access
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
+	"github.com/varin/ivyticketing/services/api/internal/modules/abuse"
 	waitlistmod "github.com/varin/ivyticketing/services/api/internal/modules/waitlist"
 	"github.com/varin/ivyticketing/services/api/internal/platform/authctx"
 	apperr "github.com/varin/ivyticketing/services/api/internal/platform/errors"
@@ -21,6 +23,7 @@ type Handler struct {
 	priority     *PriorityChecker
 	waitlistRepo waitlistmod.Repository
 	waitlistSvc  *waitlistmod.Service
+	guard        *abuse.Guard
 }
 
 func NewHandler(codes *CodeService, pools *PoolService, corp *CorporateService) *Handler {
@@ -33,6 +36,33 @@ func (h *Handler) WithPriorityAndWaitlist(pc *PriorityChecker, wlRepo waitlistmo
 	h.waitlistRepo = wlRepo
 	h.waitlistSvc = wlSvc
 	return h
+}
+
+// WithGuard attaches the abuse guard used for brute-force tracking and reputation bumps.
+func (h *Handler) WithGuard(g *abuse.Guard) *Handler {
+	h.guard = g
+	return h
+}
+
+// clientIP extracts the real client IP from the request, preferring X-Forwarded-For.
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// take only the first (leftmost) address
+		for i := 0; i < len(xff); i++ {
+			if xff[i] == ',' {
+				return xff[:i]
+			}
+		}
+		return xff
+	}
+	// strip port from RemoteAddr
+	addr := r.RemoteAddr
+	for i := len(addr) - 1; i >= 0; i-- {
+		if addr[i] == ':' {
+			return addr[:i]
+		}
+	}
+	return addr
 }
 
 func caller(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
@@ -67,6 +97,13 @@ func (h *Handler) Redeem(w http.ResponseWriter, r *http.Request) {
 	}
 	grant, err := h.codes.Redeem(r.Context(), uid, eventID, categoryID, req.Code)
 	if err != nil {
+		if errors.Is(err, ErrCodeNotFound) || errors.Is(err, ErrCodeExhausted) {
+			if h.guard != nil {
+				ip := clientIP(r)
+				h.guard.BumpReputation(r.Context(), ip, 2)
+				h.guard.TrackCodeFailure(r.Context(), ip)
+			}
+		}
 		apperr.WriteError(w, r, err)
 		return
 	}
