@@ -22,6 +22,25 @@ type AbuseLog struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
+type AccessCode struct {
+	ID              uuid.UUID
+	OrganizationID  uuid.UUID
+	EventID         uuid.UUID
+	CategoryID      *uuid.UUID
+	CodeType        string
+	CodeValueHash   string
+	IsSingleUse     bool
+	MaxUses         int32
+	UseCount        int32
+	ValidFrom       pgtype.Timestamptz
+	ValidUntil      pgtype.Timestamptz
+	PoolID          *uuid.UUID
+	EligibilityRule []byte
+	CreatedBy       uuid.UUID
+	CreatedAt       pgtype.Timestamptz
+	Metadata        []byte
+}
+
 type AccessGrant struct {
 	ID            uuid.UUID
 	PoolID        *uuid.UUID

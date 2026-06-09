@@ -123,6 +123,69 @@ func (q *Queries) CountPaidOrdersByUserInOrg(ctx context.Context, arg CountPaidO
 	return count, err
 }
 
+const createAccessCode = `-- name: CreateAccessCode :one
+INSERT INTO access_codes
+    (organization_id, event_id, category_id, code_type, code_value_hash,
+     is_single_use, max_uses, valid_from, valid_until, pool_id,
+     eligibility_rule, created_by, metadata)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+RETURNING id, organization_id, event_id, category_id, code_type, code_value_hash, is_single_use, max_uses, use_count, valid_from, valid_until, pool_id, eligibility_rule, created_by, created_at, metadata
+`
+
+type CreateAccessCodeParams struct {
+	OrganizationID  uuid.UUID
+	EventID         uuid.UUID
+	CategoryID      *uuid.UUID
+	CodeType        string
+	CodeValueHash   string
+	IsSingleUse     bool
+	MaxUses         int32
+	ValidFrom       pgtype.Timestamptz
+	ValidUntil      pgtype.Timestamptz
+	PoolID          *uuid.UUID
+	EligibilityRule []byte
+	CreatedBy       uuid.UUID
+	Metadata        []byte
+}
+
+func (q *Queries) CreateAccessCode(ctx context.Context, arg CreateAccessCodeParams) (AccessCode, error) {
+	row := q.db.QueryRow(ctx, createAccessCode,
+		arg.OrganizationID,
+		arg.EventID,
+		arg.CategoryID,
+		arg.CodeType,
+		arg.CodeValueHash,
+		arg.IsSingleUse,
+		arg.MaxUses,
+		arg.ValidFrom,
+		arg.ValidUntil,
+		arg.PoolID,
+		arg.EligibilityRule,
+		arg.CreatedBy,
+		arg.Metadata,
+	)
+	var i AccessCode
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.EventID,
+		&i.CategoryID,
+		&i.CodeType,
+		&i.CodeValueHash,
+		&i.IsSingleUse,
+		&i.MaxUses,
+		&i.UseCount,
+		&i.ValidFrom,
+		&i.ValidUntil,
+		&i.PoolID,
+		&i.EligibilityRule,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.Metadata,
+	)
+	return i, err
+}
+
 const createAccessGrant = `-- name: CreateAccessGrant :one
 INSERT INTO access_grants
     (pool_id, participant_id, event_id, category_id, code_id, expires_at)
@@ -270,6 +333,40 @@ UPDATE access_grants SET status = 'EXPIRED' WHERE id = $1
 func (q *Queries) ExpireGrant(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, expireGrant, id)
 	return err
+}
+
+const getAccessCodeByHash = `-- name: GetAccessCodeByHash :one
+SELECT id, organization_id, event_id, category_id, code_type, code_value_hash, is_single_use, max_uses, use_count, valid_from, valid_until, pool_id, eligibility_rule, created_by, created_at, metadata FROM access_codes
+WHERE event_id = $1 AND code_value_hash = $2
+`
+
+type GetAccessCodeByHashParams struct {
+	EventID       uuid.UUID
+	CodeValueHash string
+}
+
+func (q *Queries) GetAccessCodeByHash(ctx context.Context, arg GetAccessCodeByHashParams) (AccessCode, error) {
+	row := q.db.QueryRow(ctx, getAccessCodeByHash, arg.EventID, arg.CodeValueHash)
+	var i AccessCode
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.EventID,
+		&i.CategoryID,
+		&i.CodeType,
+		&i.CodeValueHash,
+		&i.IsSingleUse,
+		&i.MaxUses,
+		&i.UseCount,
+		&i.ValidFrom,
+		&i.ValidUntil,
+		&i.PoolID,
+		&i.EligibilityRule,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.Metadata,
+	)
+	return i, err
 }
 
 const getAccessGrant = `-- name: GetAccessGrant :one
@@ -433,6 +530,131 @@ func (q *Queries) HasPaidOrderForEvent(ctx context.Context, arg HasPaidOrderForE
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const incrementCodeUseCount = `-- name: IncrementCodeUseCount :one
+UPDATE access_codes
+SET use_count = use_count + 1
+WHERE id = $1 AND use_count < max_uses
+RETURNING id, organization_id, event_id, category_id, code_type, code_value_hash, is_single_use, max_uses, use_count, valid_from, valid_until, pool_id, eligibility_rule, created_by, created_at, metadata
+`
+
+func (q *Queries) IncrementCodeUseCount(ctx context.Context, id uuid.UUID) (AccessCode, error) {
+	row := q.db.QueryRow(ctx, incrementCodeUseCount, id)
+	var i AccessCode
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.EventID,
+		&i.CategoryID,
+		&i.CodeType,
+		&i.CodeValueHash,
+		&i.IsSingleUse,
+		&i.MaxUses,
+		&i.UseCount,
+		&i.ValidFrom,
+		&i.ValidUntil,
+		&i.PoolID,
+		&i.EligibilityRule,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.Metadata,
+	)
+	return i, err
+}
+
+const listAccessCodesByEvent = `-- name: ListAccessCodesByEvent :many
+SELECT id, organization_id, event_id, category_id, code_type, code_value_hash, is_single_use, max_uses, use_count, valid_from, valid_until, pool_id, eligibility_rule, created_by, created_at, metadata FROM access_codes
+WHERE event_id = $1
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListAccessCodesByEventParams struct {
+	EventID uuid.UUID
+	Limit   int32
+	Offset  int32
+}
+
+func (q *Queries) ListAccessCodesByEvent(ctx context.Context, arg ListAccessCodesByEventParams) ([]AccessCode, error) {
+	rows, err := q.db.Query(ctx, listAccessCodesByEvent, arg.EventID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AccessCode
+	for rows.Next() {
+		var i AccessCode
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
+			&i.EventID,
+			&i.CategoryID,
+			&i.CodeType,
+			&i.CodeValueHash,
+			&i.IsSingleUse,
+			&i.MaxUses,
+			&i.UseCount,
+			&i.ValidFrom,
+			&i.ValidUntil,
+			&i.PoolID,
+			&i.EligibilityRule,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.Metadata,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listActiveGrantsForParticipant = `-- name: ListActiveGrantsForParticipant :many
+SELECT id, pool_id, participant_id, event_id, category_id, code_id, status, granted_at, expires_at, consumed_at, order_id, created_at FROM access_grants
+WHERE participant_id = $1 AND event_id = $2 AND status = 'ACTIVE'
+ORDER BY granted_at DESC
+`
+
+type ListActiveGrantsForParticipantParams struct {
+	ParticipantID uuid.UUID
+	EventID       uuid.UUID
+}
+
+func (q *Queries) ListActiveGrantsForParticipant(ctx context.Context, arg ListActiveGrantsForParticipantParams) ([]AccessGrant, error) {
+	rows, err := q.db.Query(ctx, listActiveGrantsForParticipant, arg.ParticipantID, arg.EventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AccessGrant
+	for rows.Next() {
+		var i AccessGrant
+		if err := rows.Scan(
+			&i.ID,
+			&i.PoolID,
+			&i.ParticipantID,
+			&i.EventID,
+			&i.CategoryID,
+			&i.CodeID,
+			&i.Status,
+			&i.GrantedAt,
+			&i.ExpiresAt,
+			&i.ConsumedAt,
+			&i.OrderID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listCorporateAccounts = `-- name: ListCorporateAccounts :many
@@ -650,6 +872,15 @@ func (q *Queries) ReservePoolSlot(ctx context.Context, id uuid.UUID) (AccessPool
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const revokeAccessCode = `-- name: RevokeAccessCode :exec
+UPDATE access_codes SET valid_until = now() WHERE id = $1
+`
+
+func (q *Queries) RevokeAccessCode(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, revokeAccessCode, id)
+	return err
 }
 
 const transferPoolSlots = `-- name: TransferPoolSlots :one

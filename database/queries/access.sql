@@ -123,3 +123,35 @@ SELECT COALESCE(membership_id, '') FROM users WHERE id = $1;
 SELECT EXISTS(
     SELECT 1 FROM orders WHERE participant_id = $1 AND event_id = $2 AND status = 'PAID'
 ) AS exists;
+
+-- name: CreateAccessCode :one
+INSERT INTO access_codes
+    (organization_id, event_id, category_id, code_type, code_value_hash,
+     is_single_use, max_uses, valid_from, valid_until, pool_id,
+     eligibility_rule, created_by, metadata)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+RETURNING *;
+
+-- name: GetAccessCodeByHash :one
+SELECT * FROM access_codes
+WHERE event_id = $1 AND code_value_hash = $2;
+
+-- name: ListAccessCodesByEvent :many
+SELECT * FROM access_codes
+WHERE event_id = $1
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $3;
+
+-- name: IncrementCodeUseCount :one
+UPDATE access_codes
+SET use_count = use_count + 1
+WHERE id = $1 AND use_count < max_uses
+RETURNING *;
+
+-- name: RevokeAccessCode :exec
+UPDATE access_codes SET valid_until = now() WHERE id = $1;
+
+-- name: ListActiveGrantsForParticipant :many
+SELECT * FROM access_grants
+WHERE participant_id = $1 AND event_id = $2 AND status = 'ACTIVE'
+ORDER BY granted_at DESC;
