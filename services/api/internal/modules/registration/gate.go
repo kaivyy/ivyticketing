@@ -28,6 +28,12 @@ type LifecycleChecker interface {
 	IsWindowOpen(ctx context.Context, categoryID uuid.UUID, mode Mode) (bool, WindowClosedReason, error)
 }
 
+// AccessGrantChecker validates that a participant holds a valid AccessGrant
+// for the given category. grantToken is the grant UUID passed as admissionToken.
+type AccessGrantChecker interface {
+	CheckGrant(ctx context.Context, participantID, categoryID uuid.UUID, grantToken string) error
+}
+
 // WindowClosedReason is an opaque string reason why a window is closed.
 type WindowClosedReason = string
 
@@ -35,14 +41,15 @@ var ErrRegistrationWindowClosed = apperr.New(http.StatusConflict, "REGISTRATION_
 
 // Gate implements orders.RegistrationGate.
 type Gate struct {
-	svc       *Service
-	queue     QueueAdmitter    // may be nil until Part 3
-	lifecycle LifecycleChecker // may be nil — fail-open
-	ballot    BallotAdmitter   // may be nil until Phase 10 Part 3
+	svc         *Service
+	queue       QueueAdmitter    // may be nil until Part 3
+	lifecycle   LifecycleChecker // may be nil — fail-open
+	ballot      BallotAdmitter   // may be nil until Phase 10 Part 3
+	accessGrant AccessGrantChecker // Phase 11 — may be nil
 }
 
-func NewGate(svc *Service, queue QueueAdmitter, lifecycle LifecycleChecker, ballot BallotAdmitter) *Gate {
-	return &Gate{svc: svc, queue: queue, lifecycle: lifecycle, ballot: ballot}
+func NewGate(svc *Service, queue QueueAdmitter, lifecycle LifecycleChecker, ballot BallotAdmitter, accessGrant AccessGrantChecker) *Gate {
+	return &Gate{svc: svc, queue: queue, lifecycle: lifecycle, ballot: ballot, accessGrant: accessGrant}
 }
 
 var (
@@ -82,8 +89,12 @@ func (g *Gate) Admit(ctx context.Context, participantID, eventID, categoryID uui
 			return ErrModeNotAvailable
 		}
 		return g.ballot.CheckBallotAdmission(ctx, participantID, categoryID, admissionToken)
+	case ModeInvitationOnly, ModeWaitlistOnly, ModePriorityAccess:
+		if g.accessGrant == nil {
+			return ErrModeNotAvailable
+		}
+		return g.accessGrant.CheckGrant(ctx, participantID, categoryID, admissionToken)
 	default:
-		// INVITATION_ONLY / PRIORITY_ACCESS / WAITLIST_ONLY — Phase 11
 		return ErrModeNotAvailable
 	}
 }
