@@ -12,6 +12,73 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addPoolMember = `-- name: AddPoolMember :one
+INSERT INTO access_pool_members (pool_id, user_id, email, eligibility_meta)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (pool_id, email) DO NOTHING
+RETURNING id, pool_id, user_id, email, member_status, eligibility_meta, access_grant_id, invited_at, registered_at, revoked_at
+`
+
+type AddPoolMemberParams struct {
+	PoolID          uuid.UUID
+	UserID          *uuid.UUID
+	Email           string
+	EligibilityMeta []byte
+}
+
+func (q *Queries) AddPoolMember(ctx context.Context, arg AddPoolMemberParams) (AccessPoolMember, error) {
+	row := q.db.QueryRow(ctx, addPoolMember,
+		arg.PoolID,
+		arg.UserID,
+		arg.Email,
+		arg.EligibilityMeta,
+	)
+	var i AccessPoolMember
+	err := row.Scan(
+		&i.ID,
+		&i.PoolID,
+		&i.UserID,
+		&i.Email,
+		&i.MemberStatus,
+		&i.EligibilityMeta,
+		&i.AccessGrantID,
+		&i.InvitedAt,
+		&i.RegisteredAt,
+		&i.RevokedAt,
+	)
+	return i, err
+}
+
+const approveCorporateAccount = `-- name: ApproveCorporateAccount :one
+UPDATE corporate_accounts
+SET status = 'ACTIVE', approved_at = now(), approved_by = $2
+WHERE id = $1 AND status = 'PENDING'
+RETURNING id, organization_id, name, billing_email, invoice_required, status, approved_at, approved_by, created_by, created_at
+`
+
+type ApproveCorporateAccountParams struct {
+	ID         uuid.UUID
+	ApprovedBy *uuid.UUID
+}
+
+func (q *Queries) ApproveCorporateAccount(ctx context.Context, arg ApproveCorporateAccountParams) (CorporateAccount, error) {
+	row := q.db.QueryRow(ctx, approveCorporateAccount, arg.ID, arg.ApprovedBy)
+	var i CorporateAccount
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.Name,
+		&i.BillingEmail,
+		&i.InvoiceRequired,
+		&i.Status,
+		&i.ApprovedAt,
+		&i.ApprovedBy,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const consumeGrant = `-- name: ConsumeGrant :exec
 UPDATE access_grants
 SET status = 'CONSUMED', consumed_at = now(), order_id = $2
@@ -37,6 +104,23 @@ WHERE id = $1
 func (q *Queries) ConsumePoolSlot(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, consumePoolSlot, id)
 	return err
+}
+
+const countPaidOrdersByUserInOrg = `-- name: CountPaidOrdersByUserInOrg :one
+SELECT count(*) FROM orders
+WHERE participant_id = $1 AND organization_id = $2 AND status = 'PAID'
+`
+
+type CountPaidOrdersByUserInOrgParams struct {
+	ParticipantID  uuid.UUID
+	OrganizationID uuid.UUID
+}
+
+func (q *Queries) CountPaidOrdersByUserInOrg(ctx context.Context, arg CountPaidOrdersByUserInOrgParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countPaidOrdersByUserInOrg, arg.ParticipantID, arg.OrganizationID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const createAccessGrant = `-- name: CreateAccessGrant :one
@@ -141,6 +225,44 @@ func (q *Queries) CreateAccessPool(ctx context.Context, arg CreateAccessPoolPara
 	return i, err
 }
 
+const createCorporateAccount = `-- name: CreateCorporateAccount :one
+INSERT INTO corporate_accounts (organization_id, name, billing_email, invoice_required, created_by)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, organization_id, name, billing_email, invoice_required, status, approved_at, approved_by, created_by, created_at
+`
+
+type CreateCorporateAccountParams struct {
+	OrganizationID  uuid.UUID
+	Name            string
+	BillingEmail    string
+	InvoiceRequired bool
+	CreatedBy       uuid.UUID
+}
+
+func (q *Queries) CreateCorporateAccount(ctx context.Context, arg CreateCorporateAccountParams) (CorporateAccount, error) {
+	row := q.db.QueryRow(ctx, createCorporateAccount,
+		arg.OrganizationID,
+		arg.Name,
+		arg.BillingEmail,
+		arg.InvoiceRequired,
+		arg.CreatedBy,
+	)
+	var i CorporateAccount
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.Name,
+		&i.BillingEmail,
+		&i.InvoiceRequired,
+		&i.Status,
+		&i.ApprovedAt,
+		&i.ApprovedBy,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const expireGrant = `-- name: ExpireGrant :exec
 UPDATE access_grants SET status = 'EXPIRED' WHERE id = $1
 `
@@ -235,6 +357,125 @@ func (q *Queries) GetActiveGrantForParticipant(ctx context.Context, arg GetActiv
 	return i, err
 }
 
+const getCorporateAccount = `-- name: GetCorporateAccount :one
+SELECT id, organization_id, name, billing_email, invoice_required, status, approved_at, approved_by, created_by, created_at FROM corporate_accounts WHERE id = $1
+`
+
+func (q *Queries) GetCorporateAccount(ctx context.Context, id uuid.UUID) (CorporateAccount, error) {
+	row := q.db.QueryRow(ctx, getCorporateAccount, id)
+	var i CorporateAccount
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.Name,
+		&i.BillingEmail,
+		&i.InvoiceRequired,
+		&i.Status,
+		&i.ApprovedAt,
+		&i.ApprovedBy,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getPoolMemberByEmail = `-- name: GetPoolMemberByEmail :one
+SELECT id, pool_id, user_id, email, member_status, eligibility_meta, access_grant_id, invited_at, registered_at, revoked_at FROM access_pool_members WHERE pool_id = $1 AND email = $2
+`
+
+type GetPoolMemberByEmailParams struct {
+	PoolID uuid.UUID
+	Email  string
+}
+
+func (q *Queries) GetPoolMemberByEmail(ctx context.Context, arg GetPoolMemberByEmailParams) (AccessPoolMember, error) {
+	row := q.db.QueryRow(ctx, getPoolMemberByEmail, arg.PoolID, arg.Email)
+	var i AccessPoolMember
+	err := row.Scan(
+		&i.ID,
+		&i.PoolID,
+		&i.UserID,
+		&i.Email,
+		&i.MemberStatus,
+		&i.EligibilityMeta,
+		&i.AccessGrantID,
+		&i.InvitedAt,
+		&i.RegisteredAt,
+		&i.RevokedAt,
+	)
+	return i, err
+}
+
+const getUserMembershipID = `-- name: GetUserMembershipID :one
+SELECT COALESCE(membership_id, '') FROM users WHERE id = $1
+`
+
+func (q *Queries) GetUserMembershipID(ctx context.Context, id uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getUserMembershipID, id)
+	var membership_id string
+	err := row.Scan(&membership_id)
+	return membership_id, err
+}
+
+const hasPaidOrderForEvent = `-- name: HasPaidOrderForEvent :one
+SELECT EXISTS(
+    SELECT 1 FROM orders WHERE participant_id = $1 AND event_id = $2 AND status = 'PAID'
+) AS exists
+`
+
+type HasPaidOrderForEventParams struct {
+	ParticipantID uuid.UUID
+	EventID       uuid.UUID
+}
+
+func (q *Queries) HasPaidOrderForEvent(ctx context.Context, arg HasPaidOrderForEventParams) (bool, error) {
+	row := q.db.QueryRow(ctx, hasPaidOrderForEvent, arg.ParticipantID, arg.EventID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const listCorporateAccounts = `-- name: ListCorporateAccounts :many
+SELECT id, organization_id, name, billing_email, invoice_required, status, approved_at, approved_by, created_by, created_at FROM corporate_accounts WHERE organization_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3
+`
+
+type ListCorporateAccountsParams struct {
+	OrganizationID uuid.UUID
+	Limit          int32
+	Offset         int32
+}
+
+func (q *Queries) ListCorporateAccounts(ctx context.Context, arg ListCorporateAccountsParams) ([]CorporateAccount, error) {
+	rows, err := q.db.Query(ctx, listCorporateAccounts, arg.OrganizationID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CorporateAccount
+	for rows.Next() {
+		var i CorporateAccount
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
+			&i.Name,
+			&i.BillingEmail,
+			&i.InvoiceRequired,
+			&i.Status,
+			&i.ApprovedAt,
+			&i.ApprovedBy,
+			&i.CreatedBy,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listExpiredActiveGrants = `-- name: ListExpiredActiveGrants :many
 SELECT id, pool_id, participant_id, event_id, category_id, code_id, status, granted_at, expires_at, consumed_at, order_id, created_at FROM access_grants
 WHERE status = 'ACTIVE' AND expires_at < now()
@@ -262,6 +503,100 @@ func (q *Queries) ListExpiredActiveGrants(ctx context.Context, limit int32) ([]A
 			&i.ExpiresAt,
 			&i.ConsumedAt,
 			&i.OrderID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPoolMembers = `-- name: ListPoolMembers :many
+SELECT id, pool_id, user_id, email, member_status, eligibility_meta, access_grant_id, invited_at, registered_at, revoked_at FROM access_pool_members
+WHERE pool_id = $1 AND member_status != 'REVOKED'
+ORDER BY invited_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListPoolMembersParams struct {
+	PoolID uuid.UUID
+	Limit  int32
+	Offset int32
+}
+
+func (q *Queries) ListPoolMembers(ctx context.Context, arg ListPoolMembersParams) ([]AccessPoolMember, error) {
+	rows, err := q.db.Query(ctx, listPoolMembers, arg.PoolID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AccessPoolMember
+	for rows.Next() {
+		var i AccessPoolMember
+		if err := rows.Scan(
+			&i.ID,
+			&i.PoolID,
+			&i.UserID,
+			&i.Email,
+			&i.MemberStatus,
+			&i.EligibilityMeta,
+			&i.AccessGrantID,
+			&i.InvitedAt,
+			&i.RegisteredAt,
+			&i.RevokedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisiblePoolsByCategory = `-- name: ListVisiblePoolsByCategory :many
+SELECT id, organization_id, event_id, category_id, pool_type, name, total_slots, reserved_slots, used_slots, released_slots, owner_account_id, is_visible_to_participants, eligibility_rule, valid_from, valid_until, created_by, created_at FROM access_pools
+WHERE event_id = $1 AND category_id = $2
+  AND is_visible_to_participants = true
+  AND (valid_until IS NULL OR valid_until > now())
+`
+
+type ListVisiblePoolsByCategoryParams struct {
+	EventID    uuid.UUID
+	CategoryID uuid.UUID
+}
+
+func (q *Queries) ListVisiblePoolsByCategory(ctx context.Context, arg ListVisiblePoolsByCategoryParams) ([]AccessPool, error) {
+	rows, err := q.db.Query(ctx, listVisiblePoolsByCategory, arg.EventID, arg.CategoryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AccessPool
+	for rows.Next() {
+		var i AccessPool
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
+			&i.EventID,
+			&i.CategoryID,
+			&i.PoolType,
+			&i.Name,
+			&i.TotalSlots,
+			&i.ReservedSlots,
+			&i.UsedSlots,
+			&i.ReleasedSlots,
+			&i.OwnerAccountID,
+			&i.IsVisibleToParticipants,
+			&i.EligibilityRule,
+			&i.ValidFrom,
+			&i.ValidUntil,
+			&i.CreatedBy,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -313,6 +648,122 @@ func (q *Queries) ReservePoolSlot(ctx context.Context, id uuid.UUID) (AccessPool
 		&i.ValidUntil,
 		&i.CreatedBy,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const transferPoolSlots = `-- name: TransferPoolSlots :one
+UPDATE access_pools SET total_slots = total_slots + $2 WHERE id = $1
+  AND ($2 > 0 OR (total_slots + $2 >= reserved_slots + used_slots))
+RETURNING id, organization_id, event_id, category_id, pool_type, name, total_slots, reserved_slots, used_slots, released_slots, owner_account_id, is_visible_to_participants, eligibility_rule, valid_from, valid_until, created_by, created_at
+`
+
+type TransferPoolSlotsParams struct {
+	ID         uuid.UUID
+	TotalSlots int32
+}
+
+func (q *Queries) TransferPoolSlots(ctx context.Context, arg TransferPoolSlotsParams) (AccessPool, error) {
+	row := q.db.QueryRow(ctx, transferPoolSlots, arg.ID, arg.TotalSlots)
+	var i AccessPool
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.EventID,
+		&i.CategoryID,
+		&i.PoolType,
+		&i.Name,
+		&i.TotalSlots,
+		&i.ReservedSlots,
+		&i.UsedSlots,
+		&i.ReleasedSlots,
+		&i.OwnerAccountID,
+		&i.IsVisibleToParticipants,
+		&i.EligibilityRule,
+		&i.ValidFrom,
+		&i.ValidUntil,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateAccessPoolColumns = `-- name: UpdateAccessPoolColumns :one
+UPDATE access_pools
+SET is_visible_to_participants = COALESCE($2, is_visible_to_participants),
+    eligibility_rule = COALESCE($3, eligibility_rule),
+    owner_account_id = COALESCE($4, owner_account_id)
+WHERE id = $1
+RETURNING id, organization_id, event_id, category_id, pool_type, name, total_slots, reserved_slots, used_slots, released_slots, owner_account_id, is_visible_to_participants, eligibility_rule, valid_from, valid_until, created_by, created_at
+`
+
+type UpdateAccessPoolColumnsParams struct {
+	ID                      uuid.UUID
+	IsVisibleToParticipants bool
+	EligibilityRule         []byte
+	OwnerAccountID          *uuid.UUID
+}
+
+func (q *Queries) UpdateAccessPoolColumns(ctx context.Context, arg UpdateAccessPoolColumnsParams) (AccessPool, error) {
+	row := q.db.QueryRow(ctx, updateAccessPoolColumns,
+		arg.ID,
+		arg.IsVisibleToParticipants,
+		arg.EligibilityRule,
+		arg.OwnerAccountID,
+	)
+	var i AccessPool
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.EventID,
+		&i.CategoryID,
+		&i.PoolType,
+		&i.Name,
+		&i.TotalSlots,
+		&i.ReservedSlots,
+		&i.UsedSlots,
+		&i.ReleasedSlots,
+		&i.OwnerAccountID,
+		&i.IsVisibleToParticipants,
+		&i.EligibilityRule,
+		&i.ValidFrom,
+		&i.ValidUntil,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updatePoolMemberStatus = `-- name: UpdatePoolMemberStatus :one
+UPDATE access_pool_members
+SET member_status = $2,
+    registered_at = CASE WHEN $2 = 'REGISTERED' THEN now() ELSE registered_at END,
+    revoked_at    = CASE WHEN $2 = 'REVOKED' THEN now() ELSE revoked_at END,
+    access_grant_id = COALESCE($3, access_grant_id)
+WHERE id = $1
+RETURNING id, pool_id, user_id, email, member_status, eligibility_meta, access_grant_id, invited_at, registered_at, revoked_at
+`
+
+type UpdatePoolMemberStatusParams struct {
+	ID            uuid.UUID
+	MemberStatus  string
+	AccessGrantID *uuid.UUID
+}
+
+func (q *Queries) UpdatePoolMemberStatus(ctx context.Context, arg UpdatePoolMemberStatusParams) (AccessPoolMember, error) {
+	row := q.db.QueryRow(ctx, updatePoolMemberStatus, arg.ID, arg.MemberStatus, arg.AccessGrantID)
+	var i AccessPoolMember
+	err := row.Scan(
+		&i.ID,
+		&i.PoolID,
+		&i.UserID,
+		&i.Email,
+		&i.MemberStatus,
+		&i.EligibilityMeta,
+		&i.AccessGrantID,
+		&i.InvitedAt,
+		&i.RegisteredAt,
+		&i.RevokedAt,
 	)
 	return i, err
 }
