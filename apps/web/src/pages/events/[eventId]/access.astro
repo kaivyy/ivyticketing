@@ -1,0 +1,36 @@
+---
+export const prerender = false;
+import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
+import RedeemCodeModal from "../../../components/access/RedeemCodeModal.astro";
+
+const { eventId } = Astro.params;
+const categoryId = Astro.url.searchParams.get("categoryId") ?? "";
+---
+<ParticipantLayout title="Kode Akses">
+  <div class="max-w-md mx-auto mt-12 px-4">
+    <h1 class="text-xl font-bold mb-6 text-center">Gunakan Kode Akses</h1>
+    {eventId && categoryId
+      ? (
+        <div class="text-center">
+          <p class="text-slate-600 text-sm mb-6">
+            Masukkan kode akses yang Anda miliki untuk mendapatkan akses ke kategori ini.
+          </p>
+          <button
+            id="open-redeem"
+            class="rounded bg-slate-900 px-6 py-2 text-white text-sm hover:bg-slate-700"
+            type="button"
+          >
+            Masukkan Kode Akses
+          </button>
+          <RedeemCodeModal eventId={eventId} categoryId={categoryId} />
+          <script>
+            document.getElementById("open-redeem")?.addEventListener("click", () => {
+              document.getElementById("redeem-modal")?.classList.remove("hidden");
+            });
+          </script>
+        </div>
+      )
+      : <p class="text-center text-red-600">Parameter tidak lengkap.</p>
+    }
+  </div>
+</ParticipantLayout>

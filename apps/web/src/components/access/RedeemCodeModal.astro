@@ -1,0 +1,111 @@
+---
+export const prerender = false;
+
+interface Props {
+  eventId: string;
+  categoryId: string;
+}
+
+const { eventId, categoryId } = Astro.props;
+---
+
+<div
+  id="redeem-modal"
+  data-event-id={eventId}
+  data-category-id={categoryId}
+  class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="redeem-modal-title"
+>
+  <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-xl">
+    <h2 id="redeem-modal-title" class="text-lg font-semibold mb-4">
+      Masukkan kode akses
+    </h2>
+    <input
+      id="redeem-input"
+      type="text"
+      placeholder="Contoh: MARATHON2026"
+      autocomplete="off"
+      class="w-full border border-slate-300 rounded px-3 py-2 mb-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+      aria-label="Kode akses"
+    />
+    <p id="redeem-error" class="text-red-600 text-sm mb-3 hidden" role="alert"></p>
+    <div class="flex gap-2">
+      <button
+        id="redeem-cancel"
+        class="flex-1 border border-slate-300 rounded px-3 py-2 text-sm hover:bg-slate-50"
+        type="button"
+      >
+        Batal
+      </button>
+      <button
+        id="redeem-submit"
+        class="flex-1 bg-slate-900 text-white rounded px-3 py-2 text-sm hover:bg-slate-700 disabled:opacity-50"
+        type="button"
+      >
+        Gunakan Kode
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { redeemCode } from "../../lib/access";
+
+  const modal = document.getElementById("redeem-modal")!;
+  const input = document.getElementById("redeem-input") as HTMLInputElement;
+  const errorEl = document.getElementById("redeem-error")!;
+  const submitBtn = document.getElementById("redeem-submit") as HTMLButtonElement;
+
+  const eventId = modal.dataset.eventId!;
+  const categoryId = modal.dataset.categoryId!;
+
+  function showError(msg: string) {
+    errorEl.textContent = msg;
+    errorEl.classList.remove("hidden");
+  }
+
+  function clearError() {
+    errorEl.textContent = "";
+    errorEl.classList.add("hidden");
+  }
+
+  document.getElementById("redeem-cancel")?.addEventListener("click", () => {
+    modal.classList.add("hidden");
+    clearError();
+    input.value = "";
+  });
+
+  submitBtn.addEventListener("click", async () => {
+    const code = input.value.trim();
+    if (!code) {
+      showError("Kode tidak boleh kosong.");
+      return;
+    }
+    clearError();
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Memproses…";
+    try {
+      const grant = await redeemCode(eventId, categoryId, code);
+      // Store grant token for checkout use
+      localStorage.setItem(`grant_${categoryId}`, grant.token);
+      window.location.href =
+        `/events/${eventId}/checkout?categoryId=${categoryId}&grantToken=${grant.token}`;
+    } catch (e: unknown) {
+      showError(e instanceof Error ? e.message : "Kode tidak valid.");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Gunakan Kode";
+    }
+  });
+
+  // Allow closing with Escape key
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modal.classList.contains("hidden")) {
+      modal.classList.add("hidden");
+      clearError();
+      input.value = "";
+    }
+  });
+</script>
