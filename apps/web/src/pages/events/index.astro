@@ -1,6 +1,7 @@
 ---
 export const prerender = false;
 import PublicLayout from "../../layouts/PublicLayout.astro";
+import Button from "../../components/ui/Button.astro";
 ---
 <PublicLayout title="Jelajahi Event — ivyticketing">
   <div class="space-y-8">
@@ -22,12 +23,7 @@ import PublicLayout from "../../layouts/PublicLayout.astro";
         autocomplete="off"
         spellcheck="false"
       />
-      <button
-        type="submit"
-        class="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-      >
-        Cari
-      </button>
+      <Button type="submit" variant="primary" size="sm">Cari</Button>
     </form>
 
     <!-- Results -->
@@ -101,26 +97,39 @@ import PublicLayout from "../../layouts/PublicLayout.astro";
   }
 
   async function search(orgSlug: string) {
-    results.innerHTML = `<p class="text-sm text-slate-500">Memuat event dari <strong>${orgSlug}</strong>…</p>`;
+    // Loading state — use textContent for user-supplied orgSlug
+    const loadingP = document.createElement("p");
+    loadingP.className = "text-sm text-slate-500";
+    loadingP.textContent = `Memuat event dari ${orgSlug}…`;
+    results.replaceChildren(loadingP);
     try {
       const events = await fetchPublicEvents(orgSlug);
       if (!events || events.length === 0) {
-        results.innerHTML = `
-          <div class="rounded border border-slate-200 bg-slate-50 p-6 text-center">
-            <p class="text-slate-500 text-sm">Tidak ada event yang ditemukan untuk organizer <strong>${orgSlug}</strong>.</p>
-          </div>`;
+        const emptyWrap = document.createElement("div");
+        emptyWrap.className = "rounded border border-slate-200 bg-slate-50 p-6 text-center";
+        const emptyP = document.createElement("p");
+        emptyP.className = "text-slate-500 text-sm";
+        emptyP.textContent = `Tidak ada event yang ditemukan untuk organizer ${orgSlug}.`;
+        emptyWrap.appendChild(emptyP);
+        results.replaceChildren(emptyWrap);
         return;
       }
-      results.innerHTML = `
-        <p class="text-xs text-slate-400 mb-3">${events.length} event ditemukan untuk <strong>${orgSlug}</strong></p>
-        <div class="grid gap-4 sm:grid-cols-2">
-          ${events.map((ev) => eventCard(ev, orgSlug)).join("")}
-        </div>`;
+      // Count line uses textContent; event cards use trusted API data via innerHTML
+      const countP = document.createElement("p");
+      countP.className = "text-xs text-slate-400 mb-3";
+      countP.textContent = `${events.length} event ditemukan untuk ${orgSlug}`;
+      const grid = document.createElement("div");
+      grid.className = "grid gap-4 sm:grid-cols-2";
+      grid.innerHTML = events.map((ev) => eventCard(ev, orgSlug)).join("");
+      results.replaceChildren(countP, grid);
     } catch (err) {
-      results.innerHTML = `
-        <div class="rounded border border-red-200 bg-red-50 p-4">
-          <p class="text-sm text-red-700">${(err as Error).message}</p>
-        </div>`;
+      const errWrap = document.createElement("div");
+      errWrap.className = "rounded border border-red-200 bg-red-50 p-4";
+      const errP = document.createElement("p");
+      errP.className = "text-sm text-red-700";
+      errP.textContent = (err as Error).message;
+      errWrap.appendChild(errP);
+      results.replaceChildren(errWrap);
     }
   }
 </script>

@@ -1,4 +1,6 @@
 ---
+import Button from "../ui/Button.astro";
+
 interface Props {
   eventId: string
   categoryId: string
@@ -24,12 +26,10 @@ const { eventId, categoryId, windowOpensAt, windowClosesAt, isEligible } = Astro
             Closes in <span class="font-medium" data-countdown={windowClosesAt}></span>
           </p>
         )}
-        <a
+        <Button
           href={`/events/${eventId}/access/priority-window?categoryId=${categoryId}`}
-          class="bg-amber-600 text-white px-4 py-2 rounded inline-block hover:bg-amber-700 transition-colors"
-        >
-          Register Now
-        </a>
+          variant="primary"
+        >Register Now</Button>
       </div>
     )}
   </div>

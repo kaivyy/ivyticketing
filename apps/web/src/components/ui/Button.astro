@@ -1,0 +1,70 @@
+---
+interface Props {
+  variant?: "primary" | "secondary" | "danger" | "ghost";
+  size?: "sm" | "md" | "lg";
+  disabled?: boolean;
+  href?: string;
+  type?: "button" | "submit";
+  id?: string;
+  class?: string;
+  ariaLabel?: string;
+}
+
+const {
+  variant = "primary",
+  size = "md",
+  disabled = false,
+  href,
+  type = "button",
+  id,
+  class: extraClass,
+  ariaLabel,
+} = Astro.props;
+
+const base =
+  "inline-flex items-center justify-center rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+
+const variantClass: Record<string, string> = {
+  primary:   "bg-slate-900 text-white hover:bg-slate-700 focus-visible:ring-slate-900",
+  secondary: "bg-white text-slate-900 border border-slate-300 hover:bg-slate-50 focus-visible:ring-slate-400",
+  danger:    "bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-600",
+  ghost:     "bg-transparent text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-400",
+};
+
+const sizeClass: Record<string, string> = {
+  sm: "px-3 py-2 text-xs",
+  md: "px-4 py-3 text-sm",
+  lg: "px-6 py-4 text-base",
+};
+
+const disabledClass = disabled ? "opacity-50 cursor-not-allowed" : "";
+
+const classes = [base, variantClass[variant], sizeClass[size], disabledClass, extraClass]
+  .filter(Boolean)
+  .join(" ");
+---
+
+{href && !disabled ? (
+  <a
+    href={href}
+    id={id}
+    class={classes}
+    aria-label={ariaLabel}
+  ><slot /></a>
+) : href && disabled ? (
+  <span
+    id={id}
+    class={classes}
+    aria-disabled="true"
+    aria-label={ariaLabel}
+  ><slot /></span>
+) : (
+  <button
+    type={type}
+    id={id}
+    class={classes}
+    disabled={disabled}
+    aria-disabled={disabled ? "true" : undefined}
+    aria-label={ariaLabel}
+  ><slot /></button>
+)}

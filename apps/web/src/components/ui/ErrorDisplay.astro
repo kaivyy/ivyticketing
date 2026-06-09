@@ -1,0 +1,26 @@
+---
+interface Props {
+  message: string;
+  retryLabel?: string;
+  id?: string;
+  class?: string;
+}
+
+const { message, retryLabel, id, class: extraClass } = Astro.props;
+
+const classes = [
+  "rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800",
+  extraClass,
+]
+  .filter(Boolean)
+  .join(" ");
+---
+
+<div role="alert" class={classes} id={id}>
+  <p>{message}</p>
+  {retryLabel && (
+    <button type="button" class="mt-2 text-red-700 underline text-xs">
+      {retryLabel}
+    </button>
+  )}
+</div>

@@ -21,7 +21,7 @@ const { eventId } = Astro.props;
       sessionStorage.setItem("ivy_admission_" + eventId, s.admissionToken);
       if (timer) clearInterval(timer);
       root.innerHTML = `<p class="text-green-600 font-semibold mb-3">Giliranmu! Selesaikan checkout sebelum waktu habis.</p>
-        <a href="/events/${eventId}/checkout?admission=${s.admissionToken}" class="inline-block rounded bg-slate-900 px-4 py-2 text-white text-sm">Lanjut Checkout →</a>`;
+        <a href="/events/${eventId}/checkout?admission=${s.admissionToken}" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-white text-sm font-medium hover:bg-slate-700">Lanjut Checkout →</a>`;
       return;
     }
     if (s.status === "EXPIRED") {

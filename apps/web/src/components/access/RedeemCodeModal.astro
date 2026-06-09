@@ -1,5 +1,6 @@
 ---
 export const prerender = false;
+import Button from "../ui/Button.astro";
 
 interface Props {
   eventId: string;
@@ -32,20 +33,8 @@ const { eventId, categoryId } = Astro.props;
     />
     <p id="redeem-error" class="text-red-600 text-sm mb-3 hidden" role="alert"></p>
     <div class="flex gap-2">
-      <button
-        id="redeem-cancel"
-        class="flex-1 border border-slate-300 rounded px-3 py-2 text-sm hover:bg-slate-50"
-        type="button"
-      >
-        Batal
-      </button>
-      <button
-        id="redeem-submit"
-        class="flex-1 bg-slate-900 text-white rounded px-3 py-2 text-sm hover:bg-slate-700 disabled:opacity-50"
-        type="button"
-      >
-        Gunakan Kode
-      </button>
+      <Button id="redeem-cancel" variant="secondary" class="flex-1">Batal</Button>
+      <Button id="redeem-submit" variant="primary" class="flex-1">Gunakan Kode</Button>
     </div>
   </div>
 </div>

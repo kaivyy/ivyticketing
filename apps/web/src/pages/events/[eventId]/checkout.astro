@@ -51,13 +51,18 @@ const { eventId } = Astro.params;
     `Rp${n.toLocaleString("id-ID")}`;
 
   function showError(msg: string) {
-    root.innerHTML = `
-      <div class="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
-        <p class="text-red-700 text-sm">${msg}</p>
-        <a href="/participant/orders" class="mt-4 inline-block text-sm text-slate-600 underline">
-          Lihat pesanan saya
-        </a>
-      </div>`;
+    const wrap = document.createElement("div");
+    wrap.className = "rounded-lg border border-red-200 bg-red-50 p-6 text-center";
+    const p = document.createElement("p");
+    p.className = "text-red-700 text-sm";
+    p.textContent = msg;
+    const a = document.createElement("a");
+    a.href = "/participant/orders";
+    a.className = "mt-4 inline-block text-sm text-slate-600 underline";
+    a.textContent = "Lihat pesanan saya";
+    wrap.appendChild(p);
+    wrap.appendChild(a);
+    root.replaceChildren(wrap);
   }
 
   function renderOrder(order: Awaited<ReturnType<typeof fetchOrder>>) {

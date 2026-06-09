@@ -1,0 +1,68 @@
+---
+interface Props {
+  targetIso: string;
+  expiredText?: string;
+  id?: string;
+  class?: string;
+}
+
+const {
+  targetIso,
+  expiredText = "Waktu habis",
+  id,
+  class: extraClass,
+} = Astro.props;
+---
+
+<span
+  id={id}
+  class={extraClass}
+  data-target={targetIso}
+  data-expired-text={expiredText}
+>--:--</span>
+
+<script>
+  (function () {
+    // Scope to each CountdownTimer instance on the page
+    document.querySelectorAll<HTMLElement>("[data-target]").forEach((el) => {
+      // Skip elements already initialised
+      if (el.dataset.timerInit) return;
+      el.dataset.timerInit = "1";
+
+      const targetMs = new Date(el.dataset.target ?? "").getTime();
+      const expiredText = el.dataset.expiredText ?? "Waktu habis";
+
+      if (isNaN(targetMs)) {
+        el.textContent = expiredText;
+        return;
+      }
+
+      function format(diff: number): string {
+        const totalSeconds = Math.floor(diff / 1000);
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = totalSeconds % 60;
+        const mm = String(m).padStart(2, "0");
+        const ss = String(s).padStart(2, "0");
+        return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+      }
+
+      function tick() {
+        const diff = targetMs - Date.now();
+        if (diff <= 0) {
+          clearInterval(timer);
+          el.textContent = expiredText;
+          el.dataset.expired = "true";
+          return;
+        }
+        el.textContent = format(diff);
+      }
+
+      tick();
+      const timer = setInterval(tick, 1000);
+
+      const cleanup = () => clearInterval(timer);
+      window.addEventListener("pagehide", cleanup, { once: true });
+    });
+  })();
+</script>

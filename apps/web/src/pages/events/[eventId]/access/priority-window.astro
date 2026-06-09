@@ -53,11 +53,18 @@ const categoryId = Astro.url.searchParams.get("categoryId") ?? "";
   if (backLinkEl) backLinkEl.setAttribute("href", backHref);
 
   function showError(msg: string) {
-    root!.innerHTML = `
-      <p class="text-red-600 text-sm">${msg}</p>
-      <a href="${backHref}" class="mt-4 inline-block text-sm text-slate-600 underline">
-        Kembali ke event
-      </a>`;
+    const wrap = document.createElement("div");
+    wrap.className = "text-center";
+    const p = document.createElement("p");
+    p.className = "text-red-600 text-sm";
+    p.textContent = msg;
+    const a = document.createElement("a");
+    a.href = backHref;
+    a.className = "mt-4 inline-block text-sm text-slate-600 underline";
+    a.textContent = "Kembali ke event";
+    wrap.appendChild(p);
+    wrap.appendChild(a);
+    root!.replaceChildren(wrap);
   }
 
   async function run() {
@@ -68,13 +75,21 @@ const categoryId = Astro.url.searchParams.get("categoryId") ?? "";
       // Grant auto-issued — redirect to checkout with grant token
       const checkoutUrl =
         `/events/${eventId}/checkout?categoryId=${categoryId}&grantToken=${encodeURIComponent(grant.token)}`;
-      root!.innerHTML = `
-        <p class="text-green-700 font-semibold mb-3">Akses prioritas dikonfirmasi!</p>
-        <p class="text-slate-600 text-sm mb-4">Kamu akan diarahkan ke halaman checkout…</p>
-        <a href="${checkoutUrl}"
-           class="inline-block rounded bg-green-700 px-6 py-2 text-white text-sm hover:bg-green-600">
-          Lanjut Checkout
-        </a>`;
+      const successWrap = document.createElement("div");
+      const p1 = document.createElement("p");
+      p1.className = "text-green-700 font-semibold mb-3";
+      p1.textContent = "Akses prioritas dikonfirmasi!";
+      const p2 = document.createElement("p");
+      p2.className = "text-slate-600 text-sm mb-4";
+      p2.textContent = "Kamu akan diarahkan ke halaman checkout…";
+      const ctaLink = document.createElement("a");
+      ctaLink.href = checkoutUrl;
+      ctaLink.className = "inline-block rounded bg-green-700 px-6 py-2 text-white text-sm hover:bg-green-600";
+      ctaLink.textContent = "Lanjut Checkout";
+      successWrap.appendChild(p1);
+      successWrap.appendChild(p2);
+      successWrap.appendChild(ctaLink);
+      root!.replaceChildren(successWrap);
       // Auto-redirect after short delay
       setTimeout(() => { window.location.href = checkoutUrl; }, 1500);
     } catch (e: unknown) {

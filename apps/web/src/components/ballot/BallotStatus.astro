@@ -167,7 +167,13 @@ const { eventId, categoryId, drawId } = Astro.props;
         await withdrawBallot(eventId, categoryId);
         await refresh();
       } catch (e: unknown) {
-        alert((e as Error).message);
+        const existing = root.querySelector("#withdraw-error");
+        if (existing) existing.remove();
+        const errEl = document.createElement("p");
+        errEl.id = "withdraw-error";
+        errEl.className = "text-red-600 text-sm mt-2 text-center";
+        errEl.textContent = (e as Error).message;
+        root.querySelector(".text-center")?.appendChild(errEl);
       }
     });
   }
