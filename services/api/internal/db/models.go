@@ -57,6 +57,19 @@ type AccessPool struct {
 	CreatedAt               pgtype.Timestamptz
 }
 
+type AccessPoolMember struct {
+	ID              uuid.UUID
+	PoolID          uuid.UUID
+	UserID          *uuid.UUID
+	Email           string
+	MemberStatus    string
+	EligibilityMeta []byte
+	AccessGrantID   *uuid.UUID
+	InvitedAt       pgtype.Timestamptz
+	RegisteredAt    pgtype.Timestamptz
+	RevokedAt       pgtype.Timestamptz
+}
+
 type AuditLog struct {
 	ID             uuid.UUID
 	OrganizationID *uuid.UUID
@@ -130,6 +143,19 @@ type CategoryRegistrationSetting struct {
 	OverrideEnabled  bool
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
+}
+
+type CorporateAccount struct {
+	ID              uuid.UUID
+	OrganizationID  uuid.UUID
+	Name            string
+	BillingEmail    string
+	InvoiceRequired bool
+	Status          string
+	ApprovedAt      pgtype.Timestamptz
+	ApprovedBy      *uuid.UUID
+	CreatedBy       uuid.UUID
+	CreatedAt       pgtype.Timestamptz
 }
 
 type Event struct {
@@ -448,6 +474,7 @@ type User struct {
 	EmailVerifiedAt pgtype.Timestamptz
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
+	MembershipID    pgtype.Text
 }
 
 type Waitlist struct {
