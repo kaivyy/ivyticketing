@@ -21,6 +21,21 @@ type Repository interface {
 	ExpireGrant(ctx context.Context, id uuid.UUID) error
 	ConsumeGrant(ctx context.Context, arg db.ConsumeGrantParams) error
 	ListExpiredActiveGrants(ctx context.Context, limit int32) ([]db.AccessGrant, error)
+
+	// Corporate accounts
+	CreateCorporateAccount(ctx context.Context, arg db.CreateCorporateAccountParams) (db.CorporateAccount, error)
+	GetCorporateAccount(ctx context.Context, id uuid.UUID) (db.CorporateAccount, error)
+	ListCorporateAccounts(ctx context.Context, arg db.ListCorporateAccountsParams) ([]db.CorporateAccount, error)
+	ApproveCorporateAccount(ctx context.Context, arg db.ApproveCorporateAccountParams) (db.CorporateAccount, error)
+
+	// Pool members
+	AddPoolMember(ctx context.Context, arg db.AddPoolMemberParams) (db.AccessPoolMember, error)
+	ListPoolMembers(ctx context.Context, arg db.ListPoolMembersParams) ([]db.AccessPoolMember, error)
+	GetPoolMemberByEmail(ctx context.Context, arg db.GetPoolMemberByEmailParams) (db.AccessPoolMember, error)
+	UpdatePoolMemberStatus(ctx context.Context, arg db.UpdatePoolMemberStatusParams) (db.AccessPoolMember, error)
+	UpdateAccessPoolColumns(ctx context.Context, arg db.UpdateAccessPoolColumnsParams) (db.AccessPool, error)
+	ListVisiblePoolsByCategory(ctx context.Context, arg db.ListVisiblePoolsByCategoryParams) ([]db.AccessPool, error)
+	TransferPoolSlots(ctx context.Context, arg db.TransferPoolSlotsParams) (db.AccessPool, error)
 }
 
 type sqlcRepo struct{ q *db.Queries }
@@ -59,4 +74,41 @@ func (r *sqlcRepo) ConsumeGrant(ctx context.Context, arg db.ConsumeGrantParams) 
 }
 func (r *sqlcRepo) ListExpiredActiveGrants(ctx context.Context, limit int32) ([]db.AccessGrant, error) {
 	return r.q.ListExpiredActiveGrants(ctx, limit)
+}
+
+// Corporate accounts
+func (r *sqlcRepo) CreateCorporateAccount(ctx context.Context, arg db.CreateCorporateAccountParams) (db.CorporateAccount, error) {
+	return r.q.CreateCorporateAccount(ctx, arg)
+}
+func (r *sqlcRepo) GetCorporateAccount(ctx context.Context, id uuid.UUID) (db.CorporateAccount, error) {
+	return r.q.GetCorporateAccount(ctx, id)
+}
+func (r *sqlcRepo) ListCorporateAccounts(ctx context.Context, arg db.ListCorporateAccountsParams) ([]db.CorporateAccount, error) {
+	return r.q.ListCorporateAccounts(ctx, arg)
+}
+func (r *sqlcRepo) ApproveCorporateAccount(ctx context.Context, arg db.ApproveCorporateAccountParams) (db.CorporateAccount, error) {
+	return r.q.ApproveCorporateAccount(ctx, arg)
+}
+
+// Pool members
+func (r *sqlcRepo) AddPoolMember(ctx context.Context, arg db.AddPoolMemberParams) (db.AccessPoolMember, error) {
+	return r.q.AddPoolMember(ctx, arg)
+}
+func (r *sqlcRepo) ListPoolMembers(ctx context.Context, arg db.ListPoolMembersParams) ([]db.AccessPoolMember, error) {
+	return r.q.ListPoolMembers(ctx, arg)
+}
+func (r *sqlcRepo) GetPoolMemberByEmail(ctx context.Context, arg db.GetPoolMemberByEmailParams) (db.AccessPoolMember, error) {
+	return r.q.GetPoolMemberByEmail(ctx, arg)
+}
+func (r *sqlcRepo) UpdatePoolMemberStatus(ctx context.Context, arg db.UpdatePoolMemberStatusParams) (db.AccessPoolMember, error) {
+	return r.q.UpdatePoolMemberStatus(ctx, arg)
+}
+func (r *sqlcRepo) UpdateAccessPoolColumns(ctx context.Context, arg db.UpdateAccessPoolColumnsParams) (db.AccessPool, error) {
+	return r.q.UpdateAccessPoolColumns(ctx, arg)
+}
+func (r *sqlcRepo) ListVisiblePoolsByCategory(ctx context.Context, arg db.ListVisiblePoolsByCategoryParams) ([]db.AccessPool, error) {
+	return r.q.ListVisiblePoolsByCategory(ctx, arg)
+}
+func (r *sqlcRepo) TransferPoolSlots(ctx context.Context, arg db.TransferPoolSlotsParams) (db.AccessPool, error) {
+	return r.q.TransferPoolSlots(ctx, arg)
 }
