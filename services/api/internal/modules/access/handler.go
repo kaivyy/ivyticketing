@@ -9,18 +9,30 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
+	waitlistmod "github.com/varin/ivyticketing/services/api/internal/modules/waitlist"
 	"github.com/varin/ivyticketing/services/api/internal/platform/authctx"
 	apperr "github.com/varin/ivyticketing/services/api/internal/platform/errors"
 )
 
 type Handler struct {
-	codes     *CodeService
-	pools     *PoolService
-	corporate *CorporateService
+	codes        *CodeService
+	pools        *PoolService
+	corporate    *CorporateService
+	priority     *PriorityChecker
+	waitlistRepo waitlistmod.Repository
+	waitlistSvc  *waitlistmod.Service
 }
 
 func NewHandler(codes *CodeService, pools *PoolService, corp *CorporateService) *Handler {
 	return &Handler{codes: codes, pools: pools, corporate: corp}
+}
+
+// WithPriorityAndWaitlist attaches the priority checker and waitlist dependencies.
+func (h *Handler) WithPriorityAndWaitlist(pc *PriorityChecker, wlRepo waitlistmod.Repository, wlSvc *waitlistmod.Service) *Handler {
+	h.priority = pc
+	h.waitlistRepo = wlRepo
+	h.waitlistSvc = wlSvc
+	return h
 }
 
 func caller(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
@@ -231,4 +243,131 @@ func (h *Handler) AdjustPool(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// PriorityWindow GET /events/{eventId}/access/priority-window?categoryId=...
+// Checks the priority window and auto-issues a grant if eligible, then returns it.
+func (h *Handler) PriorityWindow(w http.ResponseWriter, r *http.Request) {
+	uid, ok := caller(w, r)
+	if !ok {
+		return
+	}
+	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		return
+	}
+	categoryID, err := uuid.Parse(r.URL.Query().Get("categoryId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_CATEGORY_ID", "invalid category id"))
+		return
+	}
+	if h.priority == nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusServiceUnavailable, "PRIORITY_NOT_CONFIGURED", "priority checker not configured"))
+		return
+	}
+	if err := h.priority.CheckPriorityAdmission(r.Context(), uid, eventID, categoryID, ""); err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	grant, err := h.codes.repo.GetActiveGrantForParticipant(r.Context(), db.GetActiveGrantForParticipantParams{
+		ParticipantID: uid,
+		CategoryID:    categoryID,
+	})
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, AccessGrantDTO{
+		ID:         grant.ID.String(),
+		Token:      grant.ID.String(),
+		CategoryID: grant.CategoryID.String(),
+		ExpiresAt:  grant.ExpiresAt.Time,
+	})
+}
+
+// WaitlistJoin POST /events/{eventId}/categories/{categoryId}/waitlist/join
+func (h *Handler) WaitlistJoin(w http.ResponseWriter, r *http.Request) {
+	uid, ok := caller(w, r)
+	if !ok {
+		return
+	}
+	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		return
+	}
+	categoryID, err := uuid.Parse(chi.URLParam(r, "categoryId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_CATEGORY_ID", "invalid category id"))
+		return
+	}
+	if h.waitlistRepo == nil || h.waitlistSvc == nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusServiceUnavailable, "WAITLIST_NOT_CONFIGURED", "waitlist not configured"))
+		return
+	}
+	wl, err := h.waitlistRepo.GetWaitlistByCategory(r.Context(), db.GetWaitlistByCategoryParams{
+		EventID:    eventID,
+		CategoryID: categoryID,
+	})
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusNotFound, "WAITLIST_NOT_FOUND", "no waitlist for this category"))
+		return
+	}
+	entry, err := h.waitlistSvc.Join(r.Context(), wl.ID, uid, "QUOTA_RELEASE", nil)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, map[string]any{
+		"waitlistEntryId": entry.ID.String(),
+		"rank":            entry.Rank,
+	})
+}
+
+// WaitlistPosition GET /events/{eventId}/categories/{categoryId}/waitlist/my-position
+func (h *Handler) WaitlistPosition(w http.ResponseWriter, r *http.Request) {
+	uid, ok := caller(w, r)
+	if !ok {
+		return
+	}
+	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		return
+	}
+	categoryID, err := uuid.Parse(chi.URLParam(r, "categoryId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_CATEGORY_ID", "invalid category id"))
+		return
+	}
+	if h.waitlistRepo == nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusServiceUnavailable, "WAITLIST_NOT_CONFIGURED", "waitlist not configured"))
+		return
+	}
+	wl, err := h.waitlistRepo.GetWaitlistByCategory(r.Context(), db.GetWaitlistByCategoryParams{
+		EventID:    eventID,
+		CategoryID: categoryID,
+	})
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusNotFound, "WAITLIST_NOT_FOUND", "no waitlist for this category"))
+		return
+	}
+	entry, err := h.waitlistRepo.GetWaitlistEntry(r.Context(), db.GetWaitlistEntryParams{
+		WaitlistID:    wl.ID,
+		ParticipantID: uid,
+	})
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusNotFound, "NOT_ON_WAITLIST", "not on waitlist"))
+		return
+	}
+	position, _ := h.waitlistRepo.CountWaitlistPosition(r.Context(), db.CountWaitlistPositionParams{
+		WaitlistID: wl.ID,
+		Rank:       entry.Rank,
+	})
+	apperr.WriteJSON(w, http.StatusOK, map[string]any{
+		"position": position + 1,
+		"rank":     entry.Rank,
+		"status":   entry.Status,
+	})
 }

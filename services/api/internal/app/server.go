@@ -111,6 +111,11 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	accessHandler := accessmod.NewHandler(codeSvc, poolSvc, corporateSvc)
 	waitlistRepo := waitlistmod.NewRepository(pool)
 	waitlistSvc := waitlistmod.NewService(waitlistRepo, poolMgr)
+	accessHandler.WithPriorityAndWaitlist(
+		accessmod.NewPriorityChecker(accessRepo, lifecycleSvc, eligibilityChecker),
+		waitlistRepo,
+		waitlistSvc,
+	)
 	ballotRepo := ballotmod.NewRepository(pool)
 	ballotSvc := ballotmod.NewService(ballotRepo, auditLog, poolMgr, poolMgr, waitlistSvc)
 	ballotHandler := ballotmod.NewHandler(ballotSvc)
