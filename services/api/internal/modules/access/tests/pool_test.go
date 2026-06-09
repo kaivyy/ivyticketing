@@ -1,0 +1,124 @@
+package access_test
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/varin/ivyticketing/services/api/internal/db"
+	"github.com/varin/ivyticketing/services/api/internal/modules/access"
+)
+
+type fakeAccessRepo struct {
+	pool        db.AccessPool
+	grant       db.AccessGrant
+	reserveErr  error
+	createErr   error
+}
+
+func (r *fakeAccessRepo) CreateAccessPool(_ context.Context, _ db.CreateAccessPoolParams) (db.AccessPool, error) {
+	return r.pool, nil
+}
+func (r *fakeAccessRepo) GetAccessPool(_ context.Context, _ uuid.UUID) (db.AccessPool, error) {
+	return r.pool, nil
+}
+func (r *fakeAccessRepo) ReservePoolSlot(_ context.Context, _ uuid.UUID) (db.AccessPool, error) {
+	if r.reserveErr != nil {
+		return db.AccessPool{}, r.reserveErr
+	}
+	return r.pool, nil
+}
+func (r *fakeAccessRepo) ConsumePoolSlot(_ context.Context, _ uuid.UUID) error { return nil }
+func (r *fakeAccessRepo) ReleasePoolSlot(_ context.Context, _ uuid.UUID) error { return nil }
+func (r *fakeAccessRepo) CreateAccessGrant(_ context.Context, _ db.CreateAccessGrantParams) (db.AccessGrant, error) {
+	if r.createErr != nil {
+		return db.AccessGrant{}, r.createErr
+	}
+	return r.grant, nil
+}
+func (r *fakeAccessRepo) GetAccessGrant(_ context.Context, _ uuid.UUID) (db.AccessGrant, error) {
+	if r.grant.ID == uuid.Nil {
+		return db.AccessGrant{}, pgx.ErrNoRows
+	}
+	return r.grant, nil
+}
+func (r *fakeAccessRepo) GetActiveGrantForParticipant(_ context.Context, _ db.GetActiveGrantForParticipantParams) (db.AccessGrant, error) {
+	return r.grant, nil
+}
+func (r *fakeAccessRepo) ExpireGrant(_ context.Context, _ uuid.UUID) error { return nil }
+func (r *fakeAccessRepo) ConsumeGrant(_ context.Context, _ db.ConsumeGrantParams) error { return nil }
+func (r *fakeAccessRepo) ListExpiredActiveGrants(_ context.Context, _ int32) ([]db.AccessGrant, error) {
+	return nil, nil
+}
+
+func TestReserveSlot_PoolFull_ReturnsErrPoolExhausted(t *testing.T) {
+	repo := &fakeAccessRepo{reserveErr: pgx.ErrNoRows}
+	pm := access.NewPoolManager(repo)
+	err := pm.ReserveSlot(context.Background(), uuid.New())
+	if !errors.Is(err, access.ErrPoolExhausted) {
+		t.Fatalf("want ErrPoolExhausted, got %v", err)
+	}
+}
+
+func TestReserveSlot_AvailableSlot_ReturnsNil(t *testing.T) {
+	repo := &fakeAccessRepo{pool: db.AccessPool{ID: uuid.New(), TotalSlots: 10}}
+	pm := access.NewPoolManager(repo)
+	if err := pm.ReserveSlot(context.Background(), uuid.New()); err != nil {
+		t.Fatalf("available slot should succeed: %v", err)
+	}
+}
+
+func TestCheckGrant_InvalidToken_ReturnsNotFound(t *testing.T) {
+	repo := &fakeAccessRepo{}
+	pm := access.NewPoolManager(repo)
+	err := pm.CheckGrant(context.Background(), uuid.New(), uuid.New(), "not-a-uuid")
+	if !errors.Is(err, access.ErrGrantNotFound) {
+		t.Fatalf("want ErrGrantNotFound, got %v", err)
+	}
+}
+
+func TestCheckGrant_ExpiredGrant_ReturnsExpired(t *testing.T) {
+	grantID := uuid.New()
+	repo := &fakeAccessRepo{grant: db.AccessGrant{
+		ID:        grantID,
+		Status:    access.GrantStatusActive,
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(-time.Hour), Valid: true},
+	}}
+	pm := access.NewPoolManager(repo)
+	err := pm.CheckGrant(context.Background(), uuid.New(), uuid.New(), grantID.String())
+	if !errors.Is(err, access.ErrGrantExpired) {
+		t.Fatalf("want ErrGrantExpired, got %v", err)
+	}
+}
+
+func TestCheckGrant_ActiveGrant_ReturnsNil(t *testing.T) {
+	grantID := uuid.New()
+	repo := &fakeAccessRepo{grant: db.AccessGrant{
+		ID:        grantID,
+		Status:    access.GrantStatusActive,
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
+	}}
+	pm := access.NewPoolManager(repo)
+	err := pm.CheckGrant(context.Background(), uuid.New(), uuid.New(), grantID.String())
+	if err != nil {
+		t.Fatalf("active grant should pass: %v", err)
+	}
+}
+
+func TestCreatePool_ReturnsPoolID(t *testing.T) {
+	id := uuid.New()
+	repo := &fakeAccessRepo{pool: db.AccessPool{ID: id}}
+	pm := access.NewPoolManager(repo)
+	got, err := pm.CreatePool(context.Background(), uuid.New(), uuid.New(), uuid.New(), access.PoolTypeReserved, "Test", 100, uuid.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != id {
+		t.Fatalf("want %v, got %v", id, got)
+	}
+}

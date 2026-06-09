@@ -17,6 +17,7 @@ import (
 	eventsmod "github.com/varin/ivyticketing/services/api/internal/modules/events"
 	formsmod "github.com/varin/ivyticketing/services/api/internal/modules/forms"
 	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
+	lifecyclemod "github.com/varin/ivyticketing/services/api/internal/modules/lifecycle"
 	ordersmod "github.com/varin/ivyticketing/services/api/internal/modules/orders"
 	queuemod "github.com/varin/ivyticketing/services/api/internal/modules/queue"
 	registrationmod "github.com/varin/ivyticketing/services/api/internal/modules/registration"
@@ -93,7 +94,9 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	queueSvc := queuemod.NewService(queueRepo, queueStore, auditLog, queueEventReader, int32(cfg.QueueDefaultReleaseRate), registrationSvc)
 	queueHandler := queuemod.NewHandler(queueSvc)
 
-	registrationGate := registrationmod.NewGate(registrationSvc, queueSvc)
+	lifecycleRepo := lifecyclemod.NewRepository(pool)
+	lifecycleSvc := lifecyclemod.NewService(lifecycleRepo)
+	registrationGate := registrationmod.NewGate(registrationSvc, queueSvc, lifecycleSvc)
 
 	ordersHandler := ordersmod.NewHandler(ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration, registrationGate, queueSvc))
 	publicHandler := publicmod.NewHandler(publicmod.NewService(publicmod.NewRepository(pool), store))
