@@ -4,7 +4,7 @@ import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
 import BallotStatus from "../../../components/ballot/BallotStatus.astro";
 
 const { eventId } = Astro.params;
-const categoryId = Astro.url.searchParams.get("category") ?? "";
+const categoryId = Astro.url.searchParams.get("categoryId") || Astro.url.searchParams.get("category") || "";
 const drawId = Astro.url.searchParams.get("draw") ?? "";
 ---
 <ParticipantLayout title="Status Ballot">

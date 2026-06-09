@@ -6,7 +6,7 @@ const categoryId = Astro.url.searchParams.get("categoryId") ?? "";
 ---
 <ParticipantLayout title="Akses Prioritas">
   <div class="max-w-md mx-auto mt-12 px-4">
-    <a href={`/events/${eventId}`} class="text-sm text-slate-500">← Kembali ke event</a>
+    <a id="back-link" href={`/events/${eventId}`} class="text-sm text-slate-500">← Kembali ke event</a>
     <h1 class="text-xl font-bold mt-4 mb-6 text-center">Akses Prioritas</h1>
     {eventId && categoryId
       ? (
@@ -42,10 +42,20 @@ const categoryId = Astro.url.searchParams.get("categoryId") ?? "";
   const eventId    = root.dataset.eventId!;
   const categoryId = root.dataset.categoryId!;
 
+  // Preserve slugs in back link
+  const p = new URLSearchParams(window.location.search);
+  const orgSlug   = p.get("orgSlug")   ?? "";
+  const eventSlug = p.get("eventSlug") ?? "";
+  const backHref  = orgSlug && eventSlug
+    ? `/events/${eventId}?orgSlug=${encodeURIComponent(orgSlug)}&eventSlug=${encodeURIComponent(eventSlug)}`
+    : `/events/${eventId}`;
+  const backLinkEl = document.getElementById("back-link");
+  if (backLinkEl) backLinkEl.setAttribute("href", backHref);
+
   function showError(msg: string) {
     root!.innerHTML = `
       <p class="text-red-600 text-sm">${msg}</p>
-      <a href="/events/${eventId}" class="mt-4 inline-block text-sm text-slate-600 underline">
+      <a href="${backHref}" class="mt-4 inline-block text-sm text-slate-600 underline">
         Kembali ke event
       </a>`;
   }

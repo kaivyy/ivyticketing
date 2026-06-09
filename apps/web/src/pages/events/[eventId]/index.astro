@@ -69,6 +69,7 @@ const eventSlug = Astro.url.searchParams.get("eventSlug") ?? "";
                Akses Prioritas
              </a>`;
     } else if (mode === "WAITLIST_ONLY") {
+      // TODO: WAITLIST_ONLY needs dedicated page — access.astro only handles code redemption
       cta = `<a href="/events/${eventId}/access?categoryId=${cat.id}"
                class="rounded bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-700">
                Masuk Waitlist

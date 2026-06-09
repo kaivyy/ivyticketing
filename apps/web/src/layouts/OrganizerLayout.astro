@@ -7,6 +7,10 @@ const segments = Astro.url.pathname.split("/").filter(Boolean);
 const orgIdx = segments.findIndex((s) => s === "organizations" || s === "org");
 const orgId: string = orgIdProp ?? (orgIdx !== -1 ? segments[orgIdx + 1] : "") ?? "";
 
+// Extract eventId from URL segments like /org/{orgId}/events/{eventId}/...
+const eventsIdx = segments.findIndex((s) => s === "events");
+const eventId: string = (eventsIdx !== -1 && segments[eventsIdx + 1] && segments[eventsIdx + 1] !== "") ? segments[eventsIdx + 1] : "";
+
 const path = Astro.url.pathname;
 function navClass(prefix: string): string {
   return path.startsWith(prefix)
@@ -21,6 +25,13 @@ const navItems = [
   { label: "Anggota",    href: orgId ? `${base}/members`   : "#",  prefix: `${base}/members`,    soon: !orgId },
   { label: "Pengaturan", href: orgId ? `${base}/settings`  : "#",  prefix: `${base}/settings`,   soon: !orgId },
 ];
+
+// Event-scoped nav items — only shown when eventId is available
+const eventBase = orgId && eventId ? `/org/${orgId}/events/${eventId}` : "";
+const eventNavItems = eventId ? [
+  { label: "Antrean", href: `${eventBase}/queue-controls`, prefix: `${eventBase}/queue-controls` },
+  { label: "Corporate", href: `${eventBase}/corporate`,   prefix: `${eventBase}/corporate`       },
+] : [];
 ---
 <!doctype html>
 <html lang="id">
@@ -88,6 +99,17 @@ const navItems = [
             )}
           </a>
         ))}
+
+        {eventNavItems.length > 0 && (
+          <>
+            <hr class="my-2 border-slate-200" />
+            {eventNavItems.map((item) => (
+              <a href={item.href} class={navClass(item.prefix)}>
+                {item.label}
+              </a>
+            ))}
+          </>
+        )}
 
         <!-- Divider -->
         <hr class="my-2 border-slate-200" />

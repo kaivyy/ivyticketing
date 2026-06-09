@@ -5,7 +5,7 @@ const { eventId } = Astro.params;
 ---
 <ParticipantLayout title="Checkout">
   <div class="max-w-lg mx-auto mt-12 px-4">
-    <a href={`/events/${eventId}`} class="text-sm text-slate-500">← Kembali ke event</a>
+    <a id="back-link" href={`/events/${eventId}`} class="text-sm text-slate-500">← Kembali ke event</a>
     <h1 class="text-xl font-bold mt-4 mb-6">Checkout</h1>
     <div id="checkout-root" data-event-id={eventId}>
       <p class="text-slate-500 text-center">Memuat…</p>
@@ -231,5 +231,12 @@ const { eventId } = Astro.params;
       drawId:     p.get("drawId")     ?? "",
       source:     p.get("source")     ?? "",
     };
+    // Preserve slugs in back link
+    var orgSlug   = p.get("orgSlug")   ?? "";
+    var eventSlug = p.get("eventSlug") ?? "";
+    var backLink  = document.getElementById("back-link");
+    if (backLink && orgSlug && eventSlug) {
+      backLink.setAttribute("href", backLink.getAttribute("href") + "?orgSlug=" + encodeURIComponent(orgSlug) + "&eventSlug=" + encodeURIComponent(eventSlug));
+    }
   })();
 </script>
