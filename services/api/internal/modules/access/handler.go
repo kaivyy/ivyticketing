@@ -371,3 +371,203 @@ func (h *Handler) WaitlistPosition(w http.ResponseWriter, r *http.Request) {
 		"status":   entry.Status,
 	})
 }
+
+// CreateCorporateAccount POST /org/{orgId}/access/corporate
+func (h *Handler) CreateCorporateAccount(w http.ResponseWriter, r *http.Request) {
+	actor, ok := authctx.FromContext(r.Context())
+	if !ok {
+		apperr.WriteError(w, r, apperr.New(http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated"))
+		return
+	}
+	orgID, err := uuid.Parse(chi.URLParam(r, "orgId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_ORG_ID", "invalid org id"))
+		return
+	}
+	var req CreateCorporateAccountRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_BODY", "invalid request"))
+		return
+	}
+	account, err := h.corporate.Create(r.Context(), orgID, req.Name, req.BillingEmail, req.InvoiceRequired, actor.UserID)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusCreated, CorporateAccountDTO{
+		ID:           account.ID.String(),
+		Name:         account.Name,
+		BillingEmail: account.BillingEmail,
+		Status:       account.Status,
+	})
+}
+
+// ListCorporateAccounts GET /org/{orgId}/access/corporate
+func (h *Handler) ListCorporateAccounts(w http.ResponseWriter, r *http.Request) {
+	orgID, err := uuid.Parse(chi.URLParam(r, "orgId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_ORG_ID", "invalid org id"))
+		return
+	}
+	accounts, err := h.corporate.repo.ListCorporateAccounts(r.Context(), db.ListCorporateAccountsParams{
+		OrganizationID: orgID,
+		Limit:          50,
+		Offset:         0,
+	})
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, accounts)
+}
+
+// ApproveCorporateAccount POST /org/{orgId}/access/corporate/{accountId}/approve
+func (h *Handler) ApproveCorporateAccount(w http.ResponseWriter, r *http.Request) {
+	actor, ok := authctx.FromContext(r.Context())
+	if !ok {
+		apperr.WriteError(w, r, apperr.New(http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated"))
+		return
+	}
+	accountID, err := uuid.Parse(chi.URLParam(r, "accountId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_ACCOUNT_ID", "invalid account id"))
+		return
+	}
+	if err := h.corporate.Approve(r.Context(), accountID, actor.UserID); err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// BulkUploadMembers POST /org/{orgId}/access/pools/{poolId}/members
+func (h *Handler) BulkUploadMembers(w http.ResponseWriter, r *http.Request) {
+	poolID, err := uuid.Parse(chi.URLParam(r, "poolId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_POOL_ID", "invalid pool id"))
+		return
+	}
+	actor, ok := authctx.FromContext(r.Context())
+	if !ok {
+		apperr.WriteError(w, r, apperr.New(http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated"))
+		return
+	}
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_MULTIPART", "expected multipart form"))
+		return
+	}
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "MISSING_FILE", "file field required"))
+		return
+	}
+	defer file.Close()
+	result, err := h.corporate.BulkUploadMembers(r.Context(), poolID, actor.UserID, file)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, BulkUploadResultDTO{Imported: result.Imported, Skipped: result.Skipped})
+}
+
+// ListMembers GET /org/{orgId}/access/pools/{poolId}/members
+func (h *Handler) ListMembers(w http.ResponseWriter, r *http.Request) {
+	poolID, err := uuid.Parse(chi.URLParam(r, "poolId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_POOL_ID", "invalid pool id"))
+		return
+	}
+	members, err := h.corporate.repo.ListPoolMembers(r.Context(), db.ListPoolMembersParams{
+		PoolID: poolID,
+		Limit:  100,
+		Offset: 0,
+	})
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, members)
+}
+
+// GetInvoice GET /org/{orgId}/access/corporate/{accountId}/invoice?eventId=...&unitPrice=...
+func (h *Handler) GetInvoice(w http.ResponseWriter, r *http.Request) {
+	accountID, err := uuid.Parse(chi.URLParam(r, "accountId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_ACCOUNT_ID", "invalid account id"))
+		return
+	}
+	eventID, _ := uuid.Parse(r.URL.Query().Get("eventId"))
+	unitPrice := int64(150000)
+	if v := r.URL.Query().Get("unitPrice"); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			unitPrice = n
+		}
+	}
+	invoice, err := h.corporate.GenerateInvoice(r.Context(), accountID, eventID, unitPrice)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, invoice)
+}
+
+// AdminListCodes GET /admin/access/codes?eventId=...&limit=...&offset=...
+func (h *Handler) AdminListCodes(w http.ResponseWriter, r *http.Request) {
+	limit := int32(100)
+	offset := int32(0)
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			limit = int32(n)
+		}
+	}
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = int32(n)
+		}
+	}
+	eventID, err := uuid.Parse(r.URL.Query().Get("eventId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		return
+	}
+	codes, err := h.codes.repo.ListAccessCodesByEvent(r.Context(), db.ListAccessCodesByEventParams{
+		EventID: eventID,
+		Limit:   limit,
+		Offset:  offset,
+	})
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, codes)
+}
+
+// AdminAdjustQuota POST /admin/access/pools/{poolId}/adjust
+func (h *Handler) AdminAdjustQuota(w http.ResponseWriter, r *http.Request) {
+	poolID, err := uuid.Parse(chi.URLParam(r, "poolId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_POOL_ID", "invalid pool id"))
+		return
+	}
+	var body struct {
+		Delta int `json:"delta"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_BODY", "invalid request"))
+		return
+	}
+	if err := h.pools.AdjustTotalSlots(r.Context(), poolID, body.Delta); err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// RegisterAdminRoutes mounts admin-only access routes.
+// Must be called inside a RequirePlatformAdmin middleware group.
+func (h *Handler) RegisterAdminRoutes(r chi.Router) {
+	r.Route("/admin/access", func(r chi.Router) {
+		r.Get("/codes", h.AdminListCodes)
+		r.Post("/pools/{poolId}/adjust", h.AdminAdjustQuota)
+	})
+}

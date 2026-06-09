@@ -190,12 +190,13 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			ballotHandler.RegisterParticipantRoutes(r, abuseGuard.Middleware(abusemod.CategoryBallotApply))
 			accessHandler.RegisterParticipantRoutes(r)
 
-			// Super-admin abuse management.
+			// Super-admin abuse + access management.
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RequirePlatformAdmin())
 				r.Route("/admin", func(r chi.Router) {
 					abuseHandler.RegisterAdminRoutes(r)
 				})
+				accessHandler.RegisterAdminRoutes(r)
 			})
 
 			// Per-org sub-resources, authz enforced per route.

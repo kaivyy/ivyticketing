@@ -34,6 +34,33 @@ type AccessCodeDTO struct {
 }
 
 type AdjustPoolRequest struct {
-	Delta   int  `json:"delta"`
+	Delta   int   `json:"delta"`
 	Visible *bool `json:"visible,omitempty"`
+}
+
+type CreateCorporateAccountRequest struct {
+	Name            string `json:"name"`
+	BillingEmail    string `json:"billingEmail"`
+	InvoiceRequired bool   `json:"invoiceRequired"`
+}
+
+type CorporateAccountDTO struct {
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	BillingEmail string  `json:"billingEmail"`
+	Status       string  `json:"status"`
+	ApprovedAt   *string `json:"approvedAt,omitempty"`
+}
+
+type BulkUploadResultDTO struct {
+	Imported int      `json:"imported"`
+	Skipped  int      `json:"skipped"`
+	Errors   []string `json:"errors,omitempty"`
+}
+
+type MemberDTO struct {
+	ID           string  `json:"id"`
+	Email        string  `json:"email"`
+	MemberStatus string  `json:"memberStatus"`
+	RegisteredAt *string `json:"registeredAt,omitempty"`
 }

@@ -22,4 +22,14 @@ func (h *Handler) RegisterOrganizerRoutes(r chi.Router) {
 	r.Delete("/access/codes/{codeId}", h.RevokeCode)
 	r.Get("/events/{eventId}/access/pools", h.ListPools)
 	r.Put("/access/pools/{poolId}", h.AdjustPool)
+
+	// Corporate account management
+	r.Post("/access/corporate", h.CreateCorporateAccount)
+	r.Get("/access/corporate", h.ListCorporateAccounts)
+	r.Post("/access/corporate/{accountId}/approve", h.ApproveCorporateAccount)
+	r.Get("/access/corporate/{accountId}/invoice", h.GetInvoice)
+
+	// Pool member management
+	r.Post("/access/pools/{poolId}/members", h.BulkUploadMembers)
+	r.Get("/access/pools/{poolId}/members", h.ListMembers)
 }
