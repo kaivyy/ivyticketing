@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -12,21 +13,24 @@ import (
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
 	abusemod "github.com/varin/ivyticketing/services/api/internal/modules/abuse"
+	accessmod "github.com/varin/ivyticketing/services/api/internal/modules/access"
 	authmod "github.com/varin/ivyticketing/services/api/internal/modules/auth"
+	ballotmod "github.com/varin/ivyticketing/services/api/internal/modules/ballot"
 	categoriesmod "github.com/varin/ivyticketing/services/api/internal/modules/categories"
 	eventsmod "github.com/varin/ivyticketing/services/api/internal/modules/events"
 	formsmod "github.com/varin/ivyticketing/services/api/internal/modules/forms"
-	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
 	lifecyclemod "github.com/varin/ivyticketing/services/api/internal/modules/lifecycle"
+	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
 	ordersmod "github.com/varin/ivyticketing/services/api/internal/modules/orders"
-	queuemod "github.com/varin/ivyticketing/services/api/internal/modules/queue"
-	registrationmod "github.com/varin/ivyticketing/services/api/internal/modules/registration"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
 	paymentsmod "github.com/varin/ivyticketing/services/api/internal/modules/payments"
-	ticketsmod "github.com/varin/ivyticketing/services/api/internal/modules/tickets"
 	publicmod "github.com/varin/ivyticketing/services/api/internal/modules/publiccatalog"
+	queuemod "github.com/varin/ivyticketing/services/api/internal/modules/queue"
+	registrationmod "github.com/varin/ivyticketing/services/api/internal/modules/registration"
 	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
 	"github.com/varin/ivyticketing/services/api/internal/modules/system"
+	ticketsmod "github.com/varin/ivyticketing/services/api/internal/modules/tickets"
+	waitlistmod "github.com/varin/ivyticketing/services/api/internal/modules/waitlist"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 	"github.com/varin/ivyticketing/services/api/internal/platform/captcha"
 	"github.com/varin/ivyticketing/services/api/internal/platform/middleware"
@@ -97,6 +101,26 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	lifecycleRepo := lifecyclemod.NewRepository(pool)
 	lifecycleSvc := lifecyclemod.NewService(lifecycleRepo)
 	registrationGate := registrationmod.NewGate(registrationSvc, queueSvc, lifecycleSvc)
+
+	// Ballot module (Phase 10 Part 2)
+	accessRepo := accessmod.NewRepository(pool)
+	poolMgr := accessmod.NewPoolManager(accessRepo)
+	waitlistRepo := waitlistmod.NewRepository(pool)
+	waitlistSvc := waitlistmod.NewService(waitlistRepo, poolMgr)
+	ballotRepo := ballotmod.NewRepository(pool)
+	ballotSvc := ballotmod.NewService(ballotRepo, auditLog, poolMgr, poolMgr, waitlistSvc)
+	ballotHandler := ballotmod.NewHandler(ballotSvc)
+	ballotExpirer := ballotmod.NewWinnerExpirer(ballotRepo, waitlistSvc)
+	go func() {
+		t := time.NewTicker(time.Minute)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				_ = ballotExpirer.Run(context.Background())
+			}
+		}
+	}()
 
 	ordersHandler := ordersmod.NewHandler(ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration, registrationGate, queueSvc))
 	publicHandler := publicmod.NewHandler(publicmod.NewService(publicmod.NewRepository(pool), store))
@@ -171,6 +195,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 					ticketsHandler.RegisterEventRoutes(r, loader)
 					registrationHandler.RegisterEventRoutes(r, loader)
 					queueHandler.RegisterOrgRoutes(r, loader)
+				ballotHandler.RegisterOrganizerRoutes(r)
 				})
 				paymentsHandler.RegisterOrgRoutes(r, loader)
 			})

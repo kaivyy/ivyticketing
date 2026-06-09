@@ -105,7 +105,7 @@ type fakeWaitlistCreator struct{}
 func (f *fakeWaitlistCreator) CreateWaitlist(_ context.Context, _, _, _, _ uuid.UUID) (uuid.UUID, error) {
 	return uuid.New(), nil
 }
-func (f *fakeWaitlistCreator) Join(_ context.Context, _, _ uuid.UUID, _ string, _ *uuid.UUID, _ int64) error {
+func (f *fakeWaitlistCreator) JoinWithRank(_ context.Context, _, _ uuid.UUID, _ string, _ *uuid.UUID, _ int64) error {
 	return nil
 }
 

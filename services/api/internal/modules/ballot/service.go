@@ -33,7 +33,7 @@ type GrantIssuer interface {
 
 type WaitlistCreator interface {
 	CreateWaitlist(ctx context.Context, orgID, eventID, categoryID, createdBy uuid.UUID) (uuid.UUID, error)
-	Join(ctx context.Context, waitlistID, participantID uuid.UUID, source string, sourceRefID *uuid.UUID, rank int64) error
+	JoinWithRank(ctx context.Context, waitlistID, participantID uuid.UUID, source string, sourceRefID *uuid.UUID, rank int64) error
 }
 
 type Service struct {
@@ -248,7 +248,7 @@ func (s *Service) AnnounceDraw(ctx context.Context, drawID, _ uuid.UUID) error {
 			if e.Status != StatusWaitlisted {
 				continue
 			}
-			_ = s.waitlist.Join(ctx, wlID, e.ParticipantID, "BALLOT", &e.ID, int64(e.ID.ID()))
+			_ = s.waitlist.JoinWithRank(ctx, wlID, e.ParticipantID, "BALLOT", &e.ID, int64(e.ID.ID()))
 		}
 	}
 

@@ -25,6 +25,33 @@ func NewService(repo Repository, reserver PoolReserver) *Service {
 	return &Service{repo: repo, reserver: reserver}
 }
 
+func (s *Service) CreateWaitlist(ctx context.Context, orgID, eventID, categoryID, _ uuid.UUID) (uuid.UUID, error) {
+	wl, err := s.repo.CreateWaitlist(ctx, db.CreateWaitlistParams{
+		OrganizationID:      orgID,
+		EventID:             eventID,
+		CategoryID:          categoryID,
+		Mode:                ModeFIFO,
+		MaxPromotionBatch:   10,
+		PromotionWindowHours: 48,
+		AutoPromote:         true,
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return wl.ID, nil
+}
+
+func (s *Service) JoinWithRank(ctx context.Context, waitlistID, participantID uuid.UUID, source string, sourceRefID *uuid.UUID, rank int64) error {
+	_, err := s.repo.JoinWaitlist(ctx, db.JoinWaitlistParams{
+		WaitlistID:    waitlistID,
+		ParticipantID: participantID,
+		Source:        source,
+		SourceRefID:   sourceRefID,
+		Rank:          rank,
+	})
+	return err
+}
+
 func (s *Service) Join(ctx context.Context, waitlistID, participantID uuid.UUID, source string, sourceRefID *uuid.UUID) (db.WaitlistEntry, error) {
 	rank := FIFORank(time.Now())
 	return s.repo.JoinWaitlist(ctx, db.JoinWaitlistParams{
