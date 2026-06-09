@@ -56,6 +56,41 @@ func (r *fakeAccessRepo) ListExpiredActiveGrants(_ context.Context, _ int32) ([]
 	return nil, nil
 }
 
+// New Repository methods — no-op stubs to satisfy interface
+func (r *fakeAccessRepo) CreateCorporateAccount(_ context.Context, _ db.CreateCorporateAccountParams) (db.CorporateAccount, error) {
+	return db.CorporateAccount{}, nil
+}
+func (r *fakeAccessRepo) GetCorporateAccount(_ context.Context, _ uuid.UUID) (db.CorporateAccount, error) {
+	return db.CorporateAccount{}, nil
+}
+func (r *fakeAccessRepo) ListCorporateAccounts(_ context.Context, _ db.ListCorporateAccountsParams) ([]db.CorporateAccount, error) {
+	return nil, nil
+}
+func (r *fakeAccessRepo) ApproveCorporateAccount(_ context.Context, _ db.ApproveCorporateAccountParams) (db.CorporateAccount, error) {
+	return db.CorporateAccount{}, nil
+}
+func (r *fakeAccessRepo) AddPoolMember(_ context.Context, _ db.AddPoolMemberParams) (db.AccessPoolMember, error) {
+	return db.AccessPoolMember{}, nil
+}
+func (r *fakeAccessRepo) ListPoolMembers(_ context.Context, _ db.ListPoolMembersParams) ([]db.AccessPoolMember, error) {
+	return nil, nil
+}
+func (r *fakeAccessRepo) GetPoolMemberByEmail(_ context.Context, _ db.GetPoolMemberByEmailParams) (db.AccessPoolMember, error) {
+	return db.AccessPoolMember{}, nil
+}
+func (r *fakeAccessRepo) UpdatePoolMemberStatus(_ context.Context, _ db.UpdatePoolMemberStatusParams) (db.AccessPoolMember, error) {
+	return db.AccessPoolMember{}, nil
+}
+func (r *fakeAccessRepo) UpdateAccessPoolColumns(_ context.Context, _ db.UpdateAccessPoolColumnsParams) (db.AccessPool, error) {
+	return db.AccessPool{}, nil
+}
+func (r *fakeAccessRepo) ListVisiblePoolsByCategory(_ context.Context, _ db.ListVisiblePoolsByCategoryParams) ([]db.AccessPool, error) {
+	return nil, nil
+}
+func (r *fakeAccessRepo) TransferPoolSlots(_ context.Context, _ db.TransferPoolSlotsParams) (db.AccessPool, error) {
+	return db.AccessPool{}, nil
+}
+
 func TestReserveSlot_PoolFull_ReturnsErrPoolExhausted(t *testing.T) {
 	repo := &fakeAccessRepo{reserveErr: pgx.ErrNoRows}
 	pm := access.NewPoolManager(repo)

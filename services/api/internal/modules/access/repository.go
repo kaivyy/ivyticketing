@@ -112,3 +112,20 @@ func (r *sqlcRepo) ListVisiblePoolsByCategory(ctx context.Context, arg db.ListVi
 func (r *sqlcRepo) TransferPoolSlots(ctx context.Context, arg db.TransferPoolSlotsParams) (db.AccessPool, error) {
 	return r.q.TransferPoolSlots(ctx, arg)
 }
+
+// EligibilityRepo adapters
+func (r *sqlcRepo) CountPaidOrdersByUserInOrg(ctx context.Context, userID, orgID uuid.UUID) (int64, error) {
+	return r.q.CountPaidOrdersByUserInOrg(ctx, db.CountPaidOrdersByUserInOrgParams{
+		ParticipantID:  userID,
+		OrganizationID: orgID,
+	})
+}
+func (r *sqlcRepo) GetUserMembershipID(ctx context.Context, userID uuid.UUID) (string, error) {
+	return r.q.GetUserMembershipID(ctx, userID)
+}
+func (r *sqlcRepo) HasPaidOrderForEvent(ctx context.Context, userID, eventID uuid.UUID) (bool, error) {
+	return r.q.HasPaidOrderForEvent(ctx, db.HasPaidOrderForEventParams{
+		ParticipantID: userID,
+		EventID:       eventID,
+	})
+}
