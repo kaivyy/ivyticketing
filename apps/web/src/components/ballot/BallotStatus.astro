@@ -20,17 +20,39 @@ const { eventId, categoryId, drawId } = Astro.props;
   const categoryId = root.dataset.categoryId!;
   const drawId = root.dataset.drawId ?? "";
 
-  function deadlineCountdown(isoDeadline: string): string {
-    const diff = Math.max(0, new Date(isoDeadline).getTime() - Date.now());
-    if (diff === 0) return "Waktu habis";
-    const h = Math.floor(diff / 3_600_000);
-    const m = Math.floor((diff % 3_600_000) / 60_000);
-    return `${h}j ${m}m tersisa`;
-  }
-
   type BallotEntry = Awaited<ReturnType<typeof getMyBallotEntry>>;
 
+  // Live countdown ticker — returns a cleanup function
+  function startCountdown(
+    isoDeadline: string,
+    onTick: (label: string) => void,
+    onExpired: () => void
+  ): ReturnType<typeof setInterval> {
+    const tick = () => {
+      const diff = new Date(isoDeadline).getTime() - Date.now();
+      if (diff <= 0) {
+        onExpired();
+        clearInterval(timer);
+        return;
+      }
+      const h = Math.floor(diff / 3_600_000);
+      const m = Math.floor((diff % 3_600_000) / 60_000);
+      const s = Math.floor((diff % 60_000) / 1_000);
+      onTick(`${h}j ${m}m ${s}d tersisa`);
+    };
+    tick();
+    const timer = setInterval(tick, 1_000);
+    return timer;
+  }
+
+  let countdownTimer: ReturnType<typeof setInterval> | undefined;
+
   function render(entry: BallotEntry) {
+    if (countdownTimer !== undefined) {
+      clearInterval(countdownTimer);
+      countdownTimer = undefined;
+    }
+
     if (!entry) {
       root.innerHTML = drawId
         ? `<div class="text-center">
@@ -47,7 +69,10 @@ const { eventId, categoryId, drawId } = Astro.props;
           await applyBallot(eventId, categoryId, drawId);
           await refresh();
         } catch (e: unknown) {
-          alert((e as Error).message);
+          const errMsg = document.createElement("p");
+          errMsg.className = "text-red-600 text-sm mt-2";
+          errMsg.textContent = (e as Error).message;
+          document.getElementById("btn-apply")?.insertAdjacentElement("afterend", errMsg);
         }
       });
       return;
@@ -72,9 +97,22 @@ const { eventId, categoryId, drawId } = Astro.props;
 
     let extra = "";
     if (entry.status === "WINNER" && entry.payment_deadline) {
-      const countdown = deadlineCountdown(entry.payment_deadline);
-      extra = `
-        <p class="text-sm text-amber-700 mt-2">Batas waktu: ${countdown}</p>`;
+      const deadlinePassed = new Date(entry.payment_deadline).getTime() <= Date.now();
+      if (deadlinePassed) {
+        extra = `
+          <p class="text-red-600 text-sm mt-2">Batas waktu pembayaran telah lewat.</p>`;
+      } else {
+        const checkoutUrl = `/events/${eventId}/checkout?categoryId=${categoryId}&drawId=${entry.draw_id}&source=ballot`;
+        extra = `
+          <p class="text-sm text-amber-700 mt-2">
+            Batas waktu: <span id="ballot-countdown" class="font-medium"></span>
+          </p>
+          <a id="btn-checkout"
+            href="${checkoutUrl}"
+            class="mt-3 inline-block rounded bg-green-700 px-4 py-2 text-white text-sm hover:bg-green-600">
+            Lanjut Checkout
+          </a>`;
+      }
     }
     if (entry.status === "WAITLISTED" && entry.waitlist_rank != null) {
       extra = `<p class="text-sm text-slate-500 mt-2">Posisi waitlist: #${entry.waitlist_rank}</p>`;
@@ -87,6 +125,41 @@ const { eventId, categoryId, drawId } = Astro.props;
     }
 
     root.innerHTML = `<div class="text-center">${badge(entry.status)}${extra}</div>`;
+
+    // Start live countdown for WINNER with active deadline
+    if (
+      entry.status === "WINNER" &&
+      entry.payment_deadline &&
+      new Date(entry.payment_deadline).getTime() > Date.now()
+    ) {
+      const countdownEl = document.getElementById("ballot-countdown");
+      const checkoutBtn = document.getElementById("btn-checkout") as HTMLAnchorElement | null;
+      countdownTimer = startCountdown(
+        entry.payment_deadline,
+        (label) => {
+          if (countdownEl) countdownEl.textContent = label;
+        },
+        () => {
+          // Deadline passed: disable CTA, show expired message
+          if (checkoutBtn) {
+            checkoutBtn.removeAttribute("href");
+            checkoutBtn.className = "mt-3 inline-block rounded bg-slate-300 px-4 py-2 text-slate-500 text-sm cursor-not-allowed";
+            checkoutBtn.textContent = "Waktu habis";
+          }
+          if (countdownEl) {
+            countdownEl.textContent = "Waktu habis";
+            countdownEl.className = "font-medium text-red-600";
+          }
+          const parent = countdownEl?.closest(".text-center");
+          if (parent) {
+            const msg = document.createElement("p");
+            msg.className = "text-red-600 text-sm mt-2";
+            msg.textContent = "Batas waktu pembayaran telah lewat.";
+            parent.appendChild(msg);
+          }
+        }
+      );
+    }
 
     document.getElementById("btn-withdraw")?.addEventListener("click", async () => {
       if (!confirm("Tarik pendaftaran ballot ini?")) return;

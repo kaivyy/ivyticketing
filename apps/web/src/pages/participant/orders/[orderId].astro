@@ -8,11 +8,39 @@ import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
   <script>
     import { getInvoice } from "../../../lib/invoice";
     import { getTicketByOrder } from "../../../lib/tickets";
+    import { fetchOrder } from "../../../lib/checkout";
     const orderId = window.location.pathname.split("/").pop()!;
     const detail = document.getElementById("detail")!;
     const fmt = (n: number) => `Rp${n.toLocaleString("id-ID")}`;
+
     try {
+      // Fetch order for status-based pay button
+      const order = await fetchOrder(orderId);
+      const canPay = order.status === "PENDING" || order.status === "AWAITING_PAYMENT";
+      const isCancelledOrExpired = order.status === "CANCELLED" || order.status === "EXPIRED";
+      const checkoutUrl = `/events/${order.eventId}/checkout?orderId=${order.id}`;
+
       let html = "";
+
+      // Pay / status banner
+      if (canPay) {
+        html += `<div class="rounded-lg border border-amber-200 bg-amber-50 p-4 flex items-center justify-between">
+          <div>
+            <p class="font-semibold text-amber-800">Menunggu Pembayaran</p>
+            <p class="text-sm text-amber-700">Total: ${fmt(order.total)}</p>
+            ${order.expiredAt ? `<p class="text-xs text-amber-600 mt-1">Batas: ${new Date(order.expiredAt).toLocaleString("id-ID")}</p>` : ""}
+          </div>
+          <a href="${checkoutUrl}"
+             class="rounded bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-700 whitespace-nowrap">
+            Bayar Sekarang
+          </a>
+        </div>`;
+      } else if (isCancelledOrExpired) {
+        html += `<div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <p class="text-slate-600">Pesanan ini ${order.status === "CANCELLED" ? "dibatalkan" : "kedaluwarsa"}.</p>
+        </div>`;
+      }
+
       try {
         const inv = await getInvoice(orderId);
         html += `<div class="rounded-lg border border-slate-200 bg-white p-6">

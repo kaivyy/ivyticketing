@@ -1,0 +1,253 @@
+---
+export const prerender = false;
+import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
+const { eventId } = Astro.params;
+---
+<ParticipantLayout title="Checkout">
+  <div class="max-w-lg mx-auto mt-12 px-4">
+    <a href={`/events/${eventId}`} class="text-sm text-slate-500">← Kembali ke event</a>
+    <h1 class="text-xl font-bold mt-4 mb-6">Checkout</h1>
+    <div id="checkout-root" data-event-id={eventId}>
+      <p class="text-slate-500 text-center">Memuat…</p>
+    </div>
+  </div>
+</ParticipantLayout>
+
+<script>
+  import { createOrder, fetchOrder, initiatePayment } from "../../../lib/checkout";
+
+  const root = document.getElementById("checkout-root")!;
+  const eventId = root.dataset.eventId!;
+
+  // ── Strip sensitive params from URL on load ─────────────────────────────────
+  const url = new URL(window.location.href);
+  const sensitiveParams = ["grantToken", "admission"];
+  sensitiveParams.forEach((p) => url.searchParams.delete(p));
+  history.replaceState({}, "", url.toString());
+
+  // ── Read entry-point params from the ORIGINAL url (before stripping) ────────
+  const raw = new URL(window.location.href); // already stripped — read from original
+  // Re-read from the original location before history.replaceState wiped them.
+  // We captured them before stripping above.
+  const origParams = new URLSearchParams(window.location.search);
+
+  // Re-read from location.search before replaceState (we already did replaceState,
+  // so we need to stash params before that). Reload approach: use a data attribute
+  // set by inline script before this module runs.
+  // Actually — replaceState was called above, but window.location.search is already
+  // updated. We need to read params BEFORE stripping. Fix: read from a stash.
+  // The stash is written by the inline script below. See <script id="param-stash">.
+  const stash = (window as any).__checkoutParams as Record<string, string> ?? {};
+
+  const orderId    = stash["orderId"]    ?? "";
+  const categoryId = stash["categoryId"] ?? "";
+  const admission  = stash["admission"]  ?? "";
+  const grantToken = stash["grantToken"] ?? "";
+  const drawId     = stash["drawId"]     ?? "";
+  const source     = stash["source"]     ?? "";
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  const fmt = (n: number) =>
+    `Rp${n.toLocaleString("id-ID")}`;
+
+  function showError(msg: string) {
+    root.innerHTML = `
+      <div class="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
+        <p class="text-red-700 text-sm">${msg}</p>
+        <a href="/participant/orders" class="mt-4 inline-block text-sm text-slate-600 underline">
+          Lihat pesanan saya
+        </a>
+      </div>`;
+  }
+
+  function renderOrder(order: Awaited<ReturnType<typeof fetchOrder>>) {
+    const expired = order.expiredAt && new Date(order.expiredAt) < new Date();
+    const canPay = (order.status === "PENDING" || order.status === "AWAITING_PAYMENT") && !expired;
+
+    root.innerHTML = `
+      <div class="rounded-lg border border-slate-200 bg-white p-6 space-y-4">
+        <div>
+          <p class="text-xs text-slate-400 uppercase tracking-wide">Nomor Pesanan</p>
+          <p class="font-mono font-semibold">${order.orderNumber}</p>
+        </div>
+        <dl class="space-y-1 text-sm">
+          <div class="flex justify-between">
+            <dt class="text-slate-500">Subtotal</dt>
+            <dd>${fmt(order.subtotal)}</dd>
+          </div>
+          ${order.fee ? `<div class="flex justify-between"><dt class="text-slate-500">Biaya layanan</dt><dd>${fmt(order.fee)}</dd></div>` : ""}
+          ${order.discount ? `<div class="flex justify-between"><dt class="text-slate-500">Diskon</dt><dd>−${fmt(order.discount)}</dd></div>` : ""}
+          <div class="flex justify-between font-semibold border-t border-slate-100 pt-2 mt-2">
+            <dt>Total</dt>
+            <dd>${fmt(order.total)}</dd>
+          </div>
+        </dl>
+        ${order.expiredAt ? `<p class="text-xs text-amber-700">Batas pembayaran: ${new Date(order.expiredAt).toLocaleString("id-ID")}</p>` : ""}
+        ${expired ? `<p class="text-red-600 text-sm">Pesanan ini telah kedaluwarsa.</p>` : ""}
+        <p id="pay-error" class="text-red-600 text-sm hidden" role="alert"></p>
+        ${canPay
+          ? `<button id="btn-pay"
+               class="w-full rounded bg-slate-900 px-4 py-3 text-white font-medium hover:bg-slate-700 disabled:opacity-50"
+               type="button">
+               Bayar Sekarang
+             </button>`
+          : order.status === "PAID"
+            ? `<p class="text-green-600 font-medium text-center">Pembayaran berhasil.</p>
+               <a href="/participant/orders/${order.id}" class="block text-center text-sm text-slate-600 underline mt-2">Lihat tiket</a>`
+            : `<p class="text-slate-500 text-sm text-center">Status: ${order.status}</p>`
+        }
+      </div>`;
+
+    document.getElementById("btn-pay")?.addEventListener("click", async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      btn.disabled = true;
+      btn.textContent = "Memproses…";
+      const errEl = document.getElementById("pay-error")!;
+      errEl.classList.add("hidden");
+      try {
+        const payment = await initiatePayment(order.id);
+        if (payment.payUrl) {
+          window.location.href = payment.payUrl;
+        } else {
+          // No redirect URL — show inline confirmation
+          root.innerHTML = `
+            <div class="rounded-lg border border-green-200 bg-green-50 p-6 text-center space-y-3">
+              <p class="text-green-700 font-semibold">Pembayaran dimulai.</p>
+              ${payment.vaNumber ? `<p class="text-sm">VA: <span class="font-mono">${payment.vaNumber}</span></p>` : ""}
+              ${payment.qrString ? `<p class="text-sm text-slate-600">Gunakan QR dari aplikasi bank Anda.</p>` : ""}
+              <a href="/participant/orders/${order.id}" class="inline-block rounded border px-4 py-2 text-sm mt-2">
+                Lihat Detail Pesanan
+              </a>
+            </div>`;
+        }
+      } catch (err: unknown) {
+        btn.disabled = false;
+        btn.textContent = "Bayar Sekarang";
+        errEl.textContent = err instanceof Error ? err.message : "Gagal memulai pembayaran.";
+        errEl.classList.remove("hidden");
+      }
+    });
+  }
+
+  // ── Entry-point routing ─────────────────────────────────────────────────────
+
+  async function run() {
+    // 1. Direct orderId — fetch and render
+    if (orderId) {
+      try {
+        renderOrder(await fetchOrder(orderId));
+      } catch (e: unknown) {
+        showError(e instanceof Error ? e.message : "Gagal memuat pesanan.");
+      }
+      return;
+    }
+
+    if (!categoryId) {
+      showError("Parameter tidak lengkap. Kembali ke halaman event.");
+      return;
+    }
+
+    // 2. Queue admission token
+    if (admission) {
+      root.innerHTML = `<p class="text-slate-500 text-center">Membuat pesanan…</p>`;
+      try {
+        const order = await createOrder({ eventId, categoryId, admissionToken: admission });
+        renderOrder(order);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "";
+        if (msg.includes("expired") || msg.includes("EXPIRED") || msg.includes("QUEUE")) {
+          showError("Sesi antrean habis. Silakan masuk antrean kembali.");
+        } else {
+          showError(msg || "Gagal membuat pesanan.");
+        }
+      }
+      return;
+    }
+
+    // 3. Access code grant token
+    if (grantToken) {
+      root.innerHTML = `<p class="text-slate-500 text-center">Memverifikasi kode akses…</p>`;
+      try {
+        const order = await createOrder({ eventId, categoryId, admissionToken: grantToken });
+        renderOrder(order);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "";
+        if (msg.includes("GRANT") || msg.includes("grant") || msg.includes("expired") || msg.includes("EXPIRED")) {
+          showError("Kode akses tidak valid atau sudah kedaluwarsa.");
+        } else {
+          showError(msg || "Gagal memverifikasi kode akses.");
+        }
+      }
+      return;
+    }
+
+    // 4. Ballot winner (drawId + source=ballot)
+    if (drawId && source === "ballot") {
+      root.innerHTML = `<p class="text-slate-500 text-center">Membuat pesanan ballot…</p>`;
+      try {
+        // Ballot winner admission uses the draw entry as admissionToken.
+        // The backend gate checks the participant's winning ballot entry for this draw.
+        // No token needed — backend verifies via session participant ID + drawId.
+        // Pass drawId as the admissionToken so the gate can look up the entry.
+        const order = await createOrder({ eventId, categoryId, admissionToken: drawId });
+        renderOrder(order);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "";
+        if (msg.includes("PAYMENT_WINDOW") || msg.includes("expired") || msg.includes("EXPIRED")) {
+          showError("Batas waktu pembayaran telah lewat.");
+        } else if (msg.includes("NOT_WINNER") || msg.includes("WINNER")) {
+          showError("Kamu tidak terpilih dalam ballot ini.");
+        } else {
+          showError(msg || "Gagal membuat pesanan ballot.");
+        }
+      }
+      return;
+    }
+
+    // 5. Priority window (source=priority)
+    if (source === "priority") {
+      root.innerHTML = `<p class="text-slate-500 text-center">Membuat pesanan prioritas…</p>`;
+      try {
+        const order = await createOrder({ eventId, categoryId });
+        renderOrder(order);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "";
+        if (msg.includes("PRIORITY") || msg.includes("window") || msg.includes("CLOSED")) {
+          showError("Jendela prioritas sudah ditutup.");
+        } else {
+          showError(msg || "Gagal membuat pesanan prioritas.");
+        }
+      }
+      return;
+    }
+
+    // 6. Normal open-sale checkout (no token needed)
+    root.innerHTML = `<p class="text-slate-500 text-center">Membuat pesanan…</p>`;
+    try {
+      const order = await createOrder({ eventId, categoryId });
+      renderOrder(order);
+    } catch (e: unknown) {
+      showError(e instanceof Error ? e.message : "Gagal membuat pesanan.");
+    }
+  }
+
+  run();
+</script>
+
+<!--
+  Stash URL params before the module script strips them from history.
+  This inline script runs synchronously before the module.
+-->
+<script is:inline>
+  (function () {
+    var p = new URLSearchParams(window.location.search);
+    window.__checkoutParams = {
+      orderId:    p.get("orderId")    ?? "",
+      categoryId: p.get("categoryId") ?? "",
+      admission:  p.get("admission")  ?? "",
+      grantToken: p.get("grantToken") ?? "",
+      drawId:     p.get("drawId")     ?? "",
+      source:     p.get("source")     ?? "",
+    };
+  })();
+</script>

@@ -88,8 +88,6 @@ const { eventId, categoryId } = Astro.props;
     submitBtn.textContent = "Memproses…";
     try {
       const grant = await redeemCode(eventId, categoryId, code);
-      // Store grant token for checkout use
-      localStorage.setItem(`grant_${categoryId}`, grant.token);
       window.location.href =
         `/events/${eventId}/checkout?categoryId=${categoryId}&grantToken=${grant.token}`;
     } catch (e: unknown) {

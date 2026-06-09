@@ -1,0 +1,115 @@
+---
+export const prerender = false;
+import PublicLayout from "../../../layouts/PublicLayout.astro";
+const { eventId } = Astro.params;
+const orgSlug   = Astro.url.searchParams.get("orgSlug")   ?? "";
+const eventSlug = Astro.url.searchParams.get("eventSlug") ?? "";
+---
+<PublicLayout title="Detail Event">
+  <div class="max-w-2xl mx-auto mt-8 px-4">
+    <div
+      id="event-detail"
+      data-event-id={eventId}
+      data-org-slug={orgSlug}
+      data-event-slug={eventSlug}
+    >
+      <p class="text-slate-500 text-center py-12">Memuat event…</p>
+    </div>
+  </div>
+</PublicLayout>
+
+<script>
+  import { fetchPublicEvent } from "../../../lib/events";
+  import type { PublicEvent, PublicCategory } from "../../../lib/events";
+
+  const root = document.getElementById("event-detail")!;
+  const eventId   = root.dataset.eventId   ?? "";
+  const orgSlug   = root.dataset.orgSlug   ?? "";
+  const eventSlug = root.dataset.eventSlug ?? "";
+
+  const fmt = (n: number) =>
+    n === 0 ? "Gratis" : `Rp${n.toLocaleString("id-ID")}`;
+
+  const fmtDate = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "—";
+
+  function categoryRow(cat: PublicCategory): string {
+    const now = new Date();
+    const opens  = new Date(cat.registrationOpensAt);
+    const closes = new Date(cat.registrationClosesAt);
+    const isOpen = now >= opens && now <= closes;
+    const isClosed = now > closes;
+
+    // NOTE: Public catalog does not expose registrationMode.
+    // All categories link to checkout (open-sale / NORMAL path).
+    // Mode-aware routing (QUEUE / BALLOT / ACCESS_CODE / PRIORITY)
+    // requires registrationMode in the catalog response (future work).
+    let cta = "";
+    if (isClosed) {
+      cta = `<span class="text-slate-400 text-sm">Pendaftaran ditutup</span>`;
+    } else if (!isOpen) {
+      cta = `<span class="text-slate-400 text-sm">Buka ${fmtDate(cat.registrationOpensAt)}</span>`;
+    } else {
+      // Default: checkout (NORMAL). Will be replaced once catalog exposes registrationMode.
+      cta = `<a href="/events/${eventId}/checkout?categoryId=${cat.id}"
+               class="rounded bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-700">
+               Daftar Sekarang
+             </a>`;
+    }
+
+    return `
+      <div class="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
+        <div>
+          <p class="font-medium text-slate-800">${cat.name}</p>
+          <p class="text-sm text-slate-500">${fmt(cat.price)}</p>
+        </div>
+        <div class="shrink-0 ml-4">${cta}</div>
+      </div>`;
+  }
+
+  function render(ev: PublicEvent) {
+    const cats = (ev.categories ?? []).map(categoryRow).join("") ||
+      `<p class="text-slate-400 text-sm py-4">Belum ada kategori tersedia.</p>`;
+
+    root.innerHTML = `
+      ${ev.bannerUrl
+        ? `<img src="${ev.bannerUrl}" alt="${ev.name}" class="w-full h-48 object-cover rounded-lg mb-6">`
+        : ""}
+      <h1 class="text-2xl font-bold text-slate-900 mb-1">${ev.name}</h1>
+      <div class="flex flex-wrap gap-4 text-sm text-slate-500 mb-4">
+        ${ev.startsAt ? `<span>${fmtDate(ev.startsAt)}${ev.endsAt && ev.endsAt !== ev.startsAt ? " – " + fmtDate(ev.endsAt) : ""}</span>` : ""}
+        ${ev.venueName ? `<span>${ev.venueName}</span>` : ""}
+        ${ev.eventType ? `<span class="capitalize">${ev.eventType.toLowerCase()}</span>` : ""}
+      </div>
+      ${ev.description
+        ? `<p class="text-slate-700 text-sm leading-relaxed mb-6 whitespace-pre-line">${ev.description}</p>`
+        : ""}
+      <section>
+        <h2 class="text-base font-semibold text-slate-800 mb-3">Kategori Tiket</h2>
+        <div class="rounded-lg border border-slate-200 bg-white px-4">${cats}</div>
+      </section>`;
+  }
+
+  async function run() {
+    if (!orgSlug || !eventSlug) {
+      root.innerHTML = `
+        <div class="text-center py-12">
+          <p class="text-slate-600 mb-2">Parameter event tidak lengkap.</p>
+          <p class="text-slate-400 text-sm">
+            URL harus menyertakan <code>?orgSlug=…&amp;eventSlug=…</code>
+          </p>
+        </div>`;
+      return;
+    }
+    try {
+      render(await fetchPublicEvent(orgSlug, eventSlug));
+    } catch (e: unknown) {
+      root.innerHTML = `
+        <div class="text-center py-12">
+          <p class="text-red-600">${e instanceof Error ? e.message : "Gagal memuat event."}</p>
+        </div>`;
+    }
+  }
+
+  run();
+</script>
