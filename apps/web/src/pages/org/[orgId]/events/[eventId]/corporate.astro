@@ -1,0 +1,270 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+<OrganizerLayout title="Manajemen Korporat — ivyticketing">
+  <div id="corporate-root" data-org-id={orgId} data-event-id={eventId} class="space-y-8">
+    <p class="text-slate-500">Memuat…</p>
+  </div>
+
+  <script>
+    import {
+      createCorporateAccount,
+      listCorporateAccounts,
+      approveCorporateAccount,
+      bulkUploadMembers,
+      getInvoice,
+    } from "../../../../../lib/corporate";
+
+    const root = document.getElementById("corporate-root")!;
+    const orgId = root.dataset.orgId!;
+    const eventId = root.dataset.eventId!;
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    function showMsg(id: string, text: string, isError = false) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text;
+      el.className = isError
+        ? "mt-2 text-sm text-red-600"
+        : "mt-2 text-sm text-green-700";
+    }
+
+    function statusBadge(status: string): string {
+      const colors: Record<string, string> = {
+        PENDING: "bg-amber-100 text-amber-800",
+        ACTIVE: "bg-green-100 text-green-800",
+        SUSPENDED: "bg-red-100 text-red-800",
+      };
+      const cls = colors[status] ?? "bg-slate-100 text-slate-700";
+      return `<span class="rounded px-2 py-0.5 text-xs font-medium ${cls}">${status}</span>`;
+    }
+
+    // ── accounts list ─────────────────────────────────────────────────────────
+
+    async function loadAccounts() {
+      const container = document.getElementById("accounts-list");
+      if (!container) return;
+      try {
+        const accounts = await listCorporateAccounts(orgId);
+        if (!accounts || accounts.length === 0) {
+          container.innerHTML = `<p class="text-sm text-slate-400">Belum ada akun korporat.</p>`;
+          return;
+        }
+        container.innerHTML = accounts
+          .map(
+            (a) => `
+          <div class="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-4 py-3">
+            <div>
+              <p class="font-medium">${a.name}</p>
+              <p class="text-xs text-slate-500">${a.billingEmail}</p>
+            </div>
+            <div class="flex items-center gap-3">
+              ${statusBadge(a.status)}
+              ${
+                a.status === "PENDING"
+                  ? `<button data-approve="${a.id}" class="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700">Setujui</button>`
+                  : ""
+              }
+              <button data-invoice="${a.id}" class="rounded border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:bg-slate-100">Invoice</button>
+            </div>
+          </div>`
+          )
+          .join("");
+
+        container.querySelectorAll<HTMLButtonElement>("[data-approve]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            try {
+              await approveCorporateAccount(orgId, btn.dataset.approve!);
+              await loadAccounts();
+            } catch (e) {
+              alert((e as Error).message);
+            }
+          });
+        });
+
+        container.querySelectorAll<HTMLButtonElement>("[data-invoice]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            try {
+              const inv = await getInvoice(orgId, btn.dataset.invoice!, eventId);
+              showInvoice(inv);
+            } catch (e) {
+              alert((e as Error).message);
+            }
+          });
+        });
+      } catch (e) {
+        container.innerHTML = `<p class="text-sm text-red-600">${(e as Error).message}</p>`;
+      }
+    }
+
+    // ── invoice modal ─────────────────────────────────────────────────────────
+
+    function showInvoice(inv: import("../../../../../lib/corporate").Invoice) {
+      const panel = document.getElementById("invoice-panel")!;
+      panel.innerHTML = `
+        <div class="rounded border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 class="mb-3 font-semibold text-slate-800">Invoice — ${inv.account.name}</h3>
+          <p class="mb-1 text-sm text-slate-500">${inv.account.billing_email}</p>
+          <table class="mt-4 w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-left text-slate-500">
+                <th class="pb-1 font-medium">Deskripsi</th>
+                <th class="pb-1 font-medium text-right">Qty</th>
+                <th class="pb-1 font-medium text-right">Harga Satuan</th>
+                <th class="pb-1 font-medium text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${inv.line_items
+                .map(
+                  (li) => `
+                <tr class="border-b border-slate-100">
+                  <td class="py-1">${li.description}</td>
+                  <td class="py-1 text-right">${li.quantity}</td>
+                  <td class="py-1 text-right">${li.unit_price.toLocaleString("id-ID")} ${inv.currency}</td>
+                  <td class="py-1 text-right font-medium">${li.total.toLocaleString("id-ID")} ${inv.currency}</td>
+                </tr>`
+                )
+                .join("")}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3" class="pt-2 text-right font-semibold">Total</td>
+                <td class="pt-2 text-right font-bold">${inv.total.toLocaleString("id-ID")} ${inv.currency}</td>
+              </tr>
+            </tfoot>
+          </table>
+          <button id="close-invoice" class="mt-4 text-xs text-slate-500 underline">Tutup</button>
+        </div>`;
+      panel.classList.remove("hidden");
+      document.getElementById("close-invoice")?.addEventListener("click", () => {
+        panel.classList.add("hidden");
+        panel.innerHTML = "";
+      });
+    }
+
+    // ── render page ───────────────────────────────────────────────────────────
+
+    root.innerHTML = `
+      <h1 class="text-2xl font-bold text-slate-900">Manajemen Korporat</h1>
+
+      <!-- Create account form -->
+      <section class="rounded-lg border border-slate-200 bg-white p-6">
+        <h2 class="mb-4 text-lg font-semibold">Buat Akun Korporat</h2>
+        <form id="create-corp-form" class="space-y-3 max-w-md">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Nama Perusahaan</label>
+            <input id="corp-name" type="text" placeholder="PT Contoh Sejahtera" required
+              class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Email Penagihan</label>
+            <input id="corp-email" type="email" placeholder="finance@example.com" required
+              class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <label class="flex items-center gap-2 text-sm">
+            <input id="corp-invoice" type="checkbox" class="rounded" />
+            <span>Invoice diperlukan</span>
+          </label>
+          <button type="submit"
+            class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+            Buat Akun
+          </button>
+        </form>
+        <p id="create-corp-msg" class="mt-2 text-sm text-slate-500"></p>
+      </section>
+
+      <!-- Accounts list -->
+      <section class="rounded-lg border border-slate-200 bg-white p-6">
+        <h2 class="mb-4 text-lg font-semibold">Akun Korporat</h2>
+        <div id="accounts-list" class="space-y-2">
+          <p class="text-sm text-slate-400">Memuat…</p>
+        </div>
+      </section>
+
+      <!-- Invoice panel -->
+      <div id="invoice-panel" class="hidden"></div>
+
+      <!-- Bulk upload -->
+      <section class="rounded-lg border border-slate-200 bg-white p-6">
+        <h2 class="mb-4 text-lg font-semibold">Upload Anggota (CSV)</h2>
+        <p class="mb-3 text-sm text-slate-500">
+          Format CSV: kolom <code class="rounded bg-slate-100 px-1">email</code> wajib ada (baris pertama = header).
+          Nama kolom lain diabaikan.
+        </p>
+        <div class="max-w-md space-y-3">
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Pool ID</label>
+            <input id="pool-id-input" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              class="w-full rounded border border-slate-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">File CSV</label>
+            <input id="csv-file" type="file" accept=".csv"
+              class="w-full text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm hover:file:bg-slate-200" />
+          </div>
+          <button id="upload-btn"
+            class="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">
+            Upload Anggota
+          </button>
+        </div>
+        <p id="upload-msg" class="mt-2 text-sm text-slate-500"></p>
+      </section>
+    `;
+
+    // ── wire up create form ────────────────────────────────────────────────────
+
+    document.getElementById("create-corp-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = (document.getElementById("corp-name") as HTMLInputElement).value.trim();
+      const billingEmail = (document.getElementById("corp-email") as HTMLInputElement).value.trim();
+      const invoiceRequired = (document.getElementById("corp-invoice") as HTMLInputElement).checked;
+      if (!name || !billingEmail) {
+        showMsg("create-corp-msg", "Nama dan email wajib diisi.", true);
+        return;
+      }
+      try {
+        const account = await createCorporateAccount(orgId, { name, billingEmail, invoiceRequired });
+        showMsg("create-corp-msg", `Akun "${account.name}" berhasil dibuat (${account.status}).`);
+        (document.getElementById("create-corp-form") as HTMLFormElement).reset();
+        await loadAccounts();
+      } catch (err) {
+        showMsg("create-corp-msg", (err as Error).message, true);
+      }
+    });
+
+    // ── wire up upload button ─────────────────────────────────────────────────
+
+    document.getElementById("upload-btn")?.addEventListener("click", async () => {
+      const poolId = (document.getElementById("pool-id-input") as HTMLInputElement).value.trim();
+      const fileInput = document.getElementById("csv-file") as HTMLInputElement;
+      const file = fileInput.files?.[0];
+      if (!poolId) {
+        showMsg("upload-msg", "Pool ID wajib diisi.", true);
+        return;
+      }
+      if (!file) {
+        showMsg("upload-msg", "Pilih file CSV terlebih dahulu.", true);
+        return;
+      }
+      try {
+        showMsg("upload-msg", "Mengunggah…");
+        const result = await bulkUploadMembers(orgId, poolId, file);
+        showMsg(
+          "upload-msg",
+          `Selesai: ${result.imported} diimpor, ${result.skipped} dilewati.`
+        );
+        fileInput.value = "";
+      } catch (err) {
+        showMsg("upload-msg", (err as Error).message, true);
+      }
+    });
+
+    // ── initial load ──────────────────────────────────────────────────────────
+
+    loadAccounts();
+  </script>
+</OrganizerLayout>

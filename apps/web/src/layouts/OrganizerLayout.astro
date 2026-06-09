@@ -1,6 +1,26 @@
 ---
 import "../styles/global.css";
-const { title = "ivyticketing" } = Astro.props;
+const { title = "ivyticketing", orgId: orgIdProp } = Astro.props;
+
+// Derive orgId from prop or from URL segments like /organizations/{orgId}/... or /org/{orgId}/...
+const segments = Astro.url.pathname.split("/").filter(Boolean);
+const orgIdx = segments.findIndex((s) => s === "organizations" || s === "org");
+const orgId: string = orgIdProp ?? (orgIdx !== -1 ? segments[orgIdx + 1] : "") ?? "";
+
+const path = Astro.url.pathname;
+function navClass(prefix: string): string {
+  return path.startsWith(prefix)
+    ? "flex items-center gap-2 rounded px-3 py-2 text-sm font-medium bg-slate-100 text-slate-900"
+    : "flex items-center gap-2 rounded px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900";
+}
+
+const base = orgId ? `/org/${orgId}` : "#";
+const navItems = [
+  { label: "Dashboard",  href: orgId ? `${base}/dashboard` : "#",  prefix: `${base}/dashboard`,  soon: !orgId },
+  { label: "Events",     href: orgId ? `${base}/events`    : "#",  prefix: `${base}/events`,     soon: false  },
+  { label: "Anggota",    href: orgId ? `${base}/members`   : "#",  prefix: `${base}/members`,    soon: !orgId },
+  { label: "Pengaturan", href: orgId ? `${base}/settings`  : "#",  prefix: `${base}/settings`,   soon: !orgId },
+];
 ---
 <!doctype html>
 <html lang="id">
@@ -8,23 +28,116 @@ const { title = "ivyticketing" } = Astro.props;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
+    <style>
+      #org-sidebar { transition: transform 0.2s ease; }
+      @media (max-width: 767px) {
+        #org-sidebar.sidebar-hidden { transform: translateX(-100%); }
+      }
+    </style>
   </head>
   <body class="min-h-screen bg-slate-50 text-slate-900">
-    <header class="border-b border-slate-200 bg-white">
-      <nav class="mx-auto flex max-w-3xl items-center justify-between p-4">
-        <a href="/" class="font-semibold">ivyticketing</a>
-        <button id="logout-btn" class="text-sm text-slate-500">Keluar</button>
-      </nav>
+
+    <!-- Top bar (mobile + desktop) -->
+    <header class="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:pl-64">
+      <div class="flex items-center gap-3">
+        <!-- Hamburger (mobile only) -->
+        <button
+          id="sidebar-toggle"
+          class="flex flex-col gap-1 md:hidden"
+          aria-label="Toggle navigasi"
+          aria-expanded="false"
+          aria-controls="org-sidebar"
+        >
+          <span class="block h-0.5 w-5 bg-slate-700"></span>
+          <span class="block h-0.5 w-5 bg-slate-700"></span>
+          <span class="block h-0.5 w-5 bg-slate-700"></span>
+        </button>
+        <span class="font-semibold text-slate-900">ivyticketing</span>
+      </div>
+      <button id="logout-btn" class="text-sm text-slate-500 hover:text-slate-900">Keluar</button>
     </header>
-    <main class="mx-auto max-w-3xl p-6"><slot /></main>
+
+    <!-- Sidebar overlay (mobile) -->
+    <div
+      id="sidebar-overlay"
+      class="fixed inset-0 z-10 hidden bg-black/30 md:hidden"
+      aria-hidden="true"
+    ></div>
+
+    <!-- Sidebar -->
+    <aside
+      id="org-sidebar"
+      class="sidebar-hidden fixed left-0 top-0 z-30 flex h-full w-56 flex-col border-r border-slate-200 bg-white pt-14 md:translate-x-0 md:pt-0"
+    >
+      <!-- Brand (visible on desktop inside sidebar) -->
+      <div class="hidden border-b border-slate-200 px-4 py-4 md:flex items-center">
+        <a href="/" class="font-semibold text-slate-900">ivyticketing</a>
+      </div>
+
+      <nav class="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+        {navItems.map((item) => (
+          <a
+            href={item.href}
+            class={navClass(item.prefix)}
+            title={item.soon ? "Segera hadir" : undefined}
+            data-comingsoon={item.soon ? "true" : undefined}
+          >
+            {item.label}
+            {item.soon && (
+              <span class="ml-auto rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-500">Segera</span>
+            )}
+          </a>
+        ))}
+
+        <!-- Divider -->
+        <hr class="my-2 border-slate-200" />
+
+        <button
+          id="sidebar-logout-btn"
+          class="flex items-center gap-2 rounded px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+        >
+          Keluar
+        </button>
+      </nav>
+    </aside>
+
+    <!-- Main content offset by sidebar on desktop -->
+    <div class="md:pl-56">
+      <main class="mx-auto max-w-4xl p-6"><slot /></main>
+    </div>
 
     <script>
       import { getToken, logout } from "../lib/auth";
       if (!getToken()) window.location.href = "/login";
-      document.getElementById("logout-btn")?.addEventListener("click", async () => {
+
+      async function doLogout() {
         await logout();
         window.location.href = "/login";
+      }
+
+      document.getElementById("logout-btn")?.addEventListener("click", doLogout);
+      document.getElementById("sidebar-logout-btn")?.addEventListener("click", doLogout);
+
+      // Hamburger toggle
+      const toggle = document.getElementById("sidebar-toggle")!;
+      const sidebar = document.getElementById("org-sidebar")!;
+      const overlay = document.getElementById("sidebar-overlay")!;
+
+      function openSidebar() {
+        sidebar.classList.remove("sidebar-hidden");
+        overlay.classList.remove("hidden");
+        toggle.setAttribute("aria-expanded", "true");
+      }
+      function closeSidebar() {
+        sidebar.classList.add("sidebar-hidden");
+        overlay.classList.add("hidden");
+        toggle.setAttribute("aria-expanded", "false");
+      }
+
+      toggle.addEventListener("click", () => {
+        sidebar.classList.contains("sidebar-hidden") ? openSidebar() : closeSidebar();
       });
+      overlay.addEventListener("click", closeSidebar);
     </script>
   </body>
 </html>

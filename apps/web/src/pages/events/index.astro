@@ -1,0 +1,126 @@
+---
+export const prerender = false;
+import PublicLayout from "../../layouts/PublicLayout.astro";
+---
+<PublicLayout title="Jelajahi Event — ivyticketing">
+  <div class="space-y-8">
+    <!-- Header -->
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Jelajahi Event</h1>
+      <p class="mt-1 text-sm text-slate-500">
+        Masukkan slug organizer untuk melihat event yang tersedia.
+      </p>
+    </div>
+
+    <!-- Search form -->
+    <form id="search-form" class="flex gap-3">
+      <input
+        id="org-slug-input"
+        type="text"
+        placeholder="Contoh: ivy-sports"
+        class="flex-1 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button
+        type="submit"
+        class="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+      >
+        Cari
+      </button>
+    </form>
+
+    <!-- Results -->
+    <div id="results"></div>
+  </div>
+</PublicLayout>
+
+<script>
+  import { fetchPublicEvents } from "../../lib/events";
+  import type { PublicEvent } from "../../lib/events";
+
+  const form = document.getElementById("search-form") as HTMLFormElement;
+  const input = document.getElementById("org-slug-input") as HTMLInputElement;
+  const results = document.getElementById("results")!;
+
+  // Pre-fill from URL query param ?org=slug and auto-search
+  const params = new URLSearchParams(window.location.search);
+  const preOrg = params.get("org");
+  if (preOrg) {
+    input.value = preOrg;
+    search(preOrg);
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const slug = input.value.trim();
+    if (!slug) return;
+    // Update URL without reload
+    const url = new URL(window.location.href);
+    url.searchParams.set("org", slug);
+    history.replaceState(null, "", url.toString());
+    search(slug);
+  });
+
+  function fmtDate(iso: string | null): string {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  }
+
+  function eventCard(ev: PublicEvent, orgSlug: string): string {
+    const detailHref =
+      `/events/${encodeURIComponent(ev.id)}` +
+      `?orgSlug=${encodeURIComponent(orgSlug)}&eventSlug=${encodeURIComponent(ev.slug)}`;
+
+    const dateStr = ev.startsAt ? fmtDate(ev.startsAt) : "Tanggal belum ditentukan";
+    const venue = ev.venueName ? `<p class="text-xs text-slate-500 mt-0.5">${ev.venueName}</p>` : "";
+    const banner = ev.bannerUrl
+      ? `<img src="${ev.bannerUrl}" alt="" class="h-32 w-full rounded-t object-cover" loading="lazy" />`
+      : `<div class="h-32 w-full rounded-t bg-slate-200"></div>`;
+
+    return `
+      <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        ${banner}
+        <div class="p-4 space-y-2">
+          <p class="font-semibold text-slate-900 leading-tight">${ev.name}</p>
+          <p class="text-xs text-slate-600">${dateStr}</p>
+          ${venue}
+          <p class="text-xs text-slate-400">Organizer: ${orgSlug}</p>
+        </div>
+        <div class="border-t border-slate-100 px-4 py-3">
+          <a
+            href="${detailHref}"
+            class="text-sm font-medium text-slate-900 hover:underline"
+          >Lihat Detail &rarr;</a>
+        </div>
+      </div>`;
+  }
+
+  async function search(orgSlug: string) {
+    results.innerHTML = `<p class="text-sm text-slate-500">Memuat event dari <strong>${orgSlug}</strong>…</p>`;
+    try {
+      const events = await fetchPublicEvents(orgSlug);
+      if (!events || events.length === 0) {
+        results.innerHTML = `
+          <div class="rounded border border-slate-200 bg-slate-50 p-6 text-center">
+            <p class="text-slate-500 text-sm">Tidak ada event yang ditemukan untuk organizer <strong>${orgSlug}</strong>.</p>
+          </div>`;
+        return;
+      }
+      results.innerHTML = `
+        <p class="text-xs text-slate-400 mb-3">${events.length} event ditemukan untuk <strong>${orgSlug}</strong></p>
+        <div class="grid gap-4 sm:grid-cols-2">
+          ${events.map((ev) => eventCard(ev, orgSlug)).join("")}
+        </div>`;
+    } catch (err) {
+      results.innerHTML = `
+        <div class="rounded border border-red-200 bg-red-50 p-4">
+          <p class="text-sm text-red-700">${(err as Error).message}</p>
+        </div>`;
+    }
+  }
+</script>
