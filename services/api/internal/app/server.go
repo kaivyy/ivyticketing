@@ -100,7 +100,6 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 
 	lifecycleRepo := lifecyclemod.NewRepository(pool)
 	lifecycleSvc := lifecyclemod.NewService(lifecycleRepo)
-	registrationGate := registrationmod.NewGate(registrationSvc, queueSvc, lifecycleSvc)
 
 	// Ballot module (Phase 10 Part 2)
 	accessRepo := accessmod.NewRepository(pool)
@@ -121,6 +120,8 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			}
 		}
 	}()
+
+	registrationGate := registrationmod.NewGate(registrationSvc, queueSvc, lifecycleSvc, ballotSvc)
 
 	ordersHandler := ordersmod.NewHandler(ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration, registrationGate, queueSvc))
 	publicHandler := publicmod.NewHandler(publicmod.NewService(publicmod.NewRepository(pool), store))
@@ -175,6 +176,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			paymentsHandler.RegisterRoutes(r)
 			ticketsHandler.RegisterRoutes(r)
 			queueHandler.RegisterRoutes(r, abuseGuard.Middleware(abusemod.CategoryQueueJoin))
+			ballotHandler.RegisterParticipantRoutes(r, abuseGuard.Middleware(abusemod.CategoryBallotApply))
 
 			// Super-admin abuse management.
 			r.Group(func(r chi.Router) {

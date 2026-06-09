@@ -35,3 +35,18 @@ type BallotEntryDTO struct {
 	AppliedAt       time.Time  `json:"appliedAt"`
 	PaymentDeadline *time.Time `json:"paymentDeadline,omitempty"`
 }
+
+// ApplyRequest is the body for POST .../ballot/apply.
+type ApplyRequest struct {
+	DrawID string `json:"draw_id"`
+}
+
+// BallotEntryResponse is returned to the participant for all entry reads.
+type BallotEntryResponse struct {
+	ID              string     `json:"id"`
+	DrawID          string     `json:"draw_id"`
+	Status          string     `json:"status"`
+	WaitlistRank    *int32     `json:"waitlist_rank,omitempty"`
+	PaymentDeadline *time.Time `json:"payment_deadline,omitempty"`
+	ConvertedAt     *time.Time `json:"converted_at,omitempty"`
+}

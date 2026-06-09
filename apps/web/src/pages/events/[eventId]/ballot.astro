@@ -1,0 +1,17 @@
+---
+export const prerender = false;
+import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
+import BallotStatus from "../../../components/ballot/BallotStatus.astro";
+
+const { eventId } = Astro.params;
+const categoryId = Astro.url.searchParams.get("category") ?? "";
+const drawId = Astro.url.searchParams.get("draw") ?? "";
+---
+<ParticipantLayout title="Status Ballot">
+  <div class="max-w-md mx-auto mt-12 px-4">
+    <h1 class="text-xl font-bold mb-6 text-center">Status Ballot</h1>
+    {eventId && categoryId
+      ? <BallotStatus eventId={eventId} categoryId={categoryId} drawId={drawId} />
+      : <p class="text-center text-red-600">Parameter tidak lengkap.</p>}
+  </div>
+</ParticipantLayout>

@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/varin/ivyticketing/services/api/internal/db"
 	"github.com/varin/ivyticketing/services/api/internal/platform/authctx"
 	apperr "github.com/varin/ivyticketing/services/api/internal/platform/errors"
 )
@@ -141,6 +142,101 @@ func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) PromoteWaitlist(w http.ResponseWriter, r *http.Request) {
 	drawID, _ := uuid.Parse(chi.URLParam(r, "drawId"))
 	if err := h.svc.PromoteWaitlist(r.Context(), drawID); err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// toBallotEntryResponse maps a db.BallotEntry to the participant-facing DTO.
+func toBallotEntryResponse(e db.BallotEntry) BallotEntryResponse {
+	resp := BallotEntryResponse{
+		ID:     e.ID.String(),
+		DrawID: e.DrawID.String(),
+		Status: e.Status,
+	}
+	if e.PromotedRound > 0 {
+		resp.WaitlistRank = &e.PromotedRound
+	}
+	if e.PaymentDeadline.Valid {
+		t := e.PaymentDeadline.Time
+		resp.PaymentDeadline = &t
+	}
+	if e.ConvertedAt.Valid {
+		t := e.ConvertedAt.Time
+		resp.ConvertedAt = &t
+	}
+	return resp
+}
+
+// Apply handles POST /events/{eventId}/categories/{categoryId}/ballot/apply
+func (h *Handler) Apply(w http.ResponseWriter, r *http.Request) {
+	actor, ok := authctx.FromContext(r.Context())
+	if !ok {
+		apperr.WriteError(w, r, apperr.New(http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated"))
+		return
+	}
+	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "BAD_REQUEST", "invalid eventId"))
+		return
+	}
+	categoryID, err := uuid.Parse(chi.URLParam(r, "categoryId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "BAD_REQUEST", "invalid categoryId"))
+		return
+	}
+	var req ApplyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_BODY", "invalid request body"))
+		return
+	}
+	drawID, err := uuid.Parse(req.DrawID)
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "BAD_REQUEST", "invalid draw_id"))
+		return
+	}
+	entry, err := h.svc.Apply(r.Context(), actor.UserID, eventID, categoryID, drawID)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusCreated, toBallotEntryResponse(entry))
+}
+
+// MyEntry handles GET /events/{eventId}/categories/{categoryId}/ballot/my-entry
+func (h *Handler) MyEntry(w http.ResponseWriter, r *http.Request) {
+	actor, ok := authctx.FromContext(r.Context())
+	if !ok {
+		apperr.WriteError(w, r, apperr.New(http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated"))
+		return
+	}
+	categoryID, err := uuid.Parse(chi.URLParam(r, "categoryId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "BAD_REQUEST", "invalid categoryId"))
+		return
+	}
+	entry, err := h.svc.GetMyEntry(r.Context(), actor.UserID, categoryID)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, toBallotEntryResponse(entry))
+}
+
+// Withdraw handles DELETE /events/{eventId}/categories/{categoryId}/ballot/my-entry
+func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
+	actor, ok := authctx.FromContext(r.Context())
+	if !ok {
+		apperr.WriteError(w, r, apperr.New(http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated"))
+		return
+	}
+	categoryID, err := uuid.Parse(chi.URLParam(r, "categoryId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "BAD_REQUEST", "invalid categoryId"))
+		return
+	}
+	if err := h.svc.Withdraw(r.Context(), actor.UserID, categoryID); err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}

@@ -31,21 +31,40 @@ type GrantIssuer interface {
 	CreateGrant(ctx context.Context, poolID, participantID, eventID, categoryID uuid.UUID, expiresAt time.Time) (uuid.UUID, error)
 }
 
+// GrantChecker validates that an admission token is an active, non-expired grant
+// for the given participant + category. Implemented by access.PoolManager.
+type GrantChecker interface {
+	CheckGrant(ctx context.Context, participantID, categoryID uuid.UUID, grantToken string) error
+}
+
+// GrantIssuerChecker is implemented by access.PoolManager — it combines
+// GrantIssuer and GrantChecker so tests can inject a single stub.
+type GrantIssuerChecker interface {
+	GrantIssuer
+	GrantChecker
+}
+
 type WaitlistCreator interface {
 	CreateWaitlist(ctx context.Context, orgID, eventID, categoryID, createdBy uuid.UUID) (uuid.UUID, error)
 	JoinWithRank(ctx context.Context, waitlistID, participantID uuid.UUID, source string, sourceRefID *uuid.UUID, rank int64) error
 }
 
 type Service struct {
-	repo     Repository
-	audit    AuditRecorder
-	pools    PoolCreator
-	grants   GrantIssuer
-	waitlist WaitlistCreator
+	repo         Repository
+	audit        AuditRecorder
+	pools        PoolCreator
+	grants       GrantIssuer
+	grantChecker GrantChecker
+	waitlist     WaitlistCreator
 }
 
 func NewService(repo Repository, auditRec AuditRecorder, pools PoolCreator, grants GrantIssuer, wl WaitlistCreator) *Service {
-	return &Service{repo: repo, audit: auditRec, pools: pools, grants: grants, waitlist: wl}
+	// grants also implements GrantChecker (access.PoolManager satisfies both interfaces)
+	var gc GrantChecker
+	if g, ok := grants.(GrantChecker); ok {
+		gc = g
+	}
+	return &Service{repo: repo, audit: auditRec, pools: pools, grants: grants, grantChecker: gc, waitlist: wl}
 }
 
 func (s *Service) CreateDraw(ctx context.Context, orgID, eventID, categoryID, createdBy uuid.UUID, req CreateDrawRequest) (db.BallotDraw, error) {
@@ -284,4 +303,87 @@ func (s *Service) ExportResultsCSV(ctx context.Context, drawID uuid.UUID) ([]byt
 func (s *Service) PromoteWaitlist(_ context.Context, _ uuid.UUID) error {
 	// waitlist integration wired in server.go via WinnerExpirer
 	return nil
+}
+
+// CheckBallotAdmission implements registration.BallotAdmitter.
+// It delegates to the access module's GrantChecker which validates the grant
+// is ACTIVE, belongs to the participant+category, and has not expired.
+func (s *Service) CheckBallotAdmission(ctx context.Context, participantID, categoryID uuid.UUID, admissionToken string) error {
+	if s.grantChecker == nil {
+		return ErrNotWinner
+	}
+	return s.grantChecker.CheckGrant(ctx, participantID, categoryID, admissionToken)
+}
+
+// Apply enters a participant into an open ballot draw.
+// Returns ErrBallotClosed if the draw is not OPEN.
+// Returns ErrAlreadyApplied if the participant already has an entry in this draw.
+func (s *Service) Apply(ctx context.Context, participantID, eventID, categoryID, drawID uuid.UUID) (db.BallotEntry, error) {
+	draw, err := s.repo.GetBallotDraw(ctx, drawID)
+	if err != nil {
+		return db.BallotEntry{}, err
+	}
+	if draw.Status != DrawStatusOpen {
+		return db.BallotEntry{}, ErrBallotClosed
+	}
+	if draw.CategoryID != categoryID || draw.EventID != eventID {
+		return db.BallotEntry{}, ErrBallotClosed
+	}
+	// Check for duplicate entry
+	existing, err := s.repo.GetBallotEntry(ctx, db.GetBallotEntryParams{
+		DrawID:        drawID,
+		ParticipantID: participantID,
+	})
+	if err == nil && existing.ID != uuid.Nil {
+		return db.BallotEntry{}, ErrAlreadyApplied
+	}
+	return s.repo.CreateBallotEntry(ctx, db.CreateBallotEntryParams{
+		DrawID:         drawID,
+		OrganizationID: draw.OrganizationID,
+		EventID:        eventID,
+		CategoryID:     categoryID,
+		ParticipantID:  participantID,
+	})
+}
+
+// GetMyEntry returns the most recent ballot entry for a participant in a category.
+func (s *Service) GetMyEntry(ctx context.Context, participantID, categoryID uuid.UUID) (db.BallotEntry, error) {
+	entries, err := s.repo.GetBallotEntryByParticipant(ctx, db.GetBallotEntryByParticipantParams{
+		ParticipantID: participantID,
+		Limit:         50,
+		Offset:        0,
+	})
+	if err != nil {
+		return db.BallotEntry{}, err
+	}
+	for _, e := range entries {
+		if e.CategoryID == categoryID {
+			return e, nil
+		}
+	}
+	return db.BallotEntry{}, ErrNotWinner // callers map this to 404
+}
+
+// Withdraw removes an APPLIED entry from an OPEN draw.
+// Returns ErrBallotWithdrawNotAllowed if the entry is not APPLIED or draw is not OPEN.
+func (s *Service) Withdraw(ctx context.Context, participantID, categoryID uuid.UUID) error {
+	entry, err := s.GetMyEntry(ctx, participantID, categoryID)
+	if err != nil {
+		return ErrBallotWithdrawNotAllowed
+	}
+	if entry.Status != StatusApplied {
+		return ErrBallotWithdrawNotAllowed
+	}
+	draw, err := s.repo.GetBallotDraw(ctx, entry.DrawID)
+	if err != nil {
+		return err
+	}
+	if draw.Status != DrawStatusOpen {
+		return ErrBallotWithdrawNotAllowed
+	}
+	_, err = s.repo.UpdateBallotEntryStatus(ctx, db.UpdateBallotEntryStatusParams{
+		ID:     entry.ID,
+		Status: StatusWithdrawn,
+	})
+	return err
 }

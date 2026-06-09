@@ -22,6 +22,41 @@ type AbuseLog struct {
 	CreatedAt    pgtype.Timestamptz
 }
 
+type AccessGrant struct {
+	ID            uuid.UUID
+	PoolID        *uuid.UUID
+	ParticipantID uuid.UUID
+	EventID       uuid.UUID
+	CategoryID    uuid.UUID
+	CodeID        *uuid.UUID
+	Status        string
+	GrantedAt     pgtype.Timestamptz
+	ExpiresAt     pgtype.Timestamptz
+	ConsumedAt    pgtype.Timestamptz
+	OrderID       *uuid.UUID
+	CreatedAt     pgtype.Timestamptz
+}
+
+type AccessPool struct {
+	ID                      uuid.UUID
+	OrganizationID          uuid.UUID
+	EventID                 uuid.UUID
+	CategoryID              uuid.UUID
+	PoolType                string
+	Name                    string
+	TotalSlots              int32
+	ReservedSlots           int32
+	UsedSlots               int32
+	ReleasedSlots           int32
+	OwnerAccountID          *uuid.UUID
+	IsVisibleToParticipants bool
+	EligibilityRule         []byte
+	ValidFrom               pgtype.Timestamptz
+	ValidUntil              pgtype.Timestamptz
+	CreatedBy               uuid.UUID
+	CreatedAt               pgtype.Timestamptz
+}
+
 type AuditLog struct {
 	ID             uuid.UUID
 	OrganizationID *uuid.UUID
@@ -31,6 +66,52 @@ type AuditLog struct {
 	TargetID       pgtype.Text
 	Metadata       []byte
 	CreatedAt      pgtype.Timestamptz
+}
+
+type BallotDraw struct {
+	ID                  uuid.UUID
+	OrganizationID      uuid.UUID
+	EventID             uuid.UUID
+	CategoryID          uuid.UUID
+	Status              string
+	Quota               int32
+	WaitlistSize        pgtype.Int4
+	PaymentWindowHours  int32
+	ApplicationOpensAt  pgtype.Timestamptz
+	ApplicationClosesAt pgtype.Timestamptz
+	DrawAt              pgtype.Timestamptz
+	AnnouncedAt         pgtype.Timestamptz
+	Seed                pgtype.Text
+	DrawNonce           *uuid.UUID
+	WinnerPoolID        *uuid.UUID
+	WaitlistID          *uuid.UUID
+	CreatedBy           uuid.UUID
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+}
+
+type BallotDrawResult struct {
+	ID            uuid.UUID
+	DrawID        uuid.UUID
+	BallotEntryID uuid.UUID
+	Outcome       string
+	Rank          int32
+	ResultHash    string
+}
+
+type BallotEntry struct {
+	ID              uuid.UUID
+	DrawID          uuid.UUID
+	OrganizationID  uuid.UUID
+	EventID         uuid.UUID
+	CategoryID      uuid.UUID
+	ParticipantID   uuid.UUID
+	Status          string
+	AppliedAt       pgtype.Timestamptz
+	PaymentDeadline pgtype.Timestamptz
+	ConvertedAt     pgtype.Timestamptz
+	PromotedRound   int32
+	AccessGrantID   *uuid.UUID
 }
 
 type BlockedSubject struct {
@@ -153,6 +234,21 @@ type IpRule struct {
 	Note      pgtype.Text
 	CreatedBy *uuid.UUID
 	CreatedAt pgtype.Timestamptz
+}
+
+type LifecyclePhase struct {
+	ID               uuid.UUID
+	LifecycleID      uuid.UUID
+	PhaseIndex       int32
+	RegistrationMode string
+	Label            string
+	OpensAt          pgtype.Timestamptz
+	ClosesAt         pgtype.Timestamptz
+	CapacityOverride pgtype.Int4
+	AutoAdvance      bool
+	Status           string
+	ActivatedAt      pgtype.Timestamptz
+	CompletedAt      pgtype.Timestamptz
 }
 
 type MemberRole struct {
@@ -291,6 +387,18 @@ type RefreshToken struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type RegistrationLifecycle struct {
+	ID                uuid.UUID
+	OrganizationID    uuid.UUID
+	EventID           uuid.UUID
+	CategoryID        uuid.UUID
+	Status            string
+	CurrentPhaseIndex int32
+	CreatedBy         uuid.UUID
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+}
+
 type Role struct {
 	ID             uuid.UUID
 	OrganizationID *uuid.UUID
@@ -340,4 +448,36 @@ type User struct {
 	EmailVerifiedAt pgtype.Timestamptz
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
+}
+
+type Waitlist struct {
+	ID                   uuid.UUID
+	OrganizationID       uuid.UUID
+	EventID              uuid.UUID
+	CategoryID           uuid.UUID
+	PoolID               *uuid.UUID
+	Mode                 string
+	Status               string
+	MaxPromotionBatch    int32
+	PromotionWindowHours int32
+	AutoPromote          bool
+	Seed                 pgtype.Text
+	CreatedAt            pgtype.Timestamptz
+}
+
+type WaitlistEntry struct {
+	ID                   uuid.UUID
+	WaitlistID           uuid.UUID
+	ParticipantID        uuid.UUID
+	EventID              uuid.UUID
+	CategoryID           uuid.UUID
+	Source               string
+	SourceRefID          *uuid.UUID
+	Status               string
+	Rank                 int64
+	NotifiedAt           pgtype.Timestamptz
+	PromotedAt           pgtype.Timestamptz
+	AccessGrantID        *uuid.UUID
+	PromotionWindowHours pgtype.Int4
+	CreatedAt            pgtype.Timestamptz
 }

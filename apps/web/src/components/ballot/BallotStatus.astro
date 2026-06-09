@@ -1,0 +1,115 @@
+---
+export const prerender = false;
+const { eventId, categoryId, drawId } = Astro.props;
+---
+<div
+  id="ballot-status"
+  data-event-id={eventId}
+  data-category-id={categoryId}
+  data-draw-id={drawId ?? ""}
+  class="rounded-lg border border-slate-200 bg-white p-6"
+>
+  <p class="text-slate-500 text-center">Memuat status ballot…</p>
+</div>
+
+<script>
+  import { getMyBallotEntry, applyBallot, withdrawBallot } from "../../lib/ballot";
+
+  const root = document.getElementById("ballot-status")!;
+  const eventId = root.dataset.eventId!;
+  const categoryId = root.dataset.categoryId!;
+  const drawId = root.dataset.drawId ?? "";
+
+  function deadlineCountdown(isoDeadline: string): string {
+    const diff = Math.max(0, new Date(isoDeadline).getTime() - Date.now());
+    if (diff === 0) return "Waktu habis";
+    const h = Math.floor(diff / 3_600_000);
+    const m = Math.floor((diff % 3_600_000) / 60_000);
+    return `${h}j ${m}m tersisa`;
+  }
+
+  type BallotEntry = Awaited<ReturnType<typeof getMyBallotEntry>>;
+
+  function render(entry: BallotEntry) {
+    if (!entry) {
+      root.innerHTML = drawId
+        ? `<div class="text-center">
+            <p class="text-slate-500 text-sm mb-4">Kamu belum mendaftar ballot ini.</p>
+            <button id="btn-apply"
+              class="rounded bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-700">
+              Daftar Ballot
+            </button>
+          </div>`
+        : `<p class="text-slate-500 text-center text-sm">Ballot belum tersedia.</p>`;
+
+      document.getElementById("btn-apply")?.addEventListener("click", async () => {
+        try {
+          await applyBallot(eventId, categoryId, drawId);
+          await refresh();
+        } catch (e: unknown) {
+          alert((e as Error).message);
+        }
+      });
+      return;
+    }
+
+    const statusLabel: Record<string, string> = {
+      APPLIED:      "Terdaftar — menunggu pengundian",
+      WINNER:       "Menang!",
+      WAITLISTED:   "Waitlist",
+      NOT_SELECTED: "Tidak terpilih",
+      CONVERTED:    "Pesanan dibuat",
+      WITHDRAWN:    "Ditarik",
+    };
+
+    const badge = (status: string) =>
+      `<span class="inline-block rounded-full px-3 py-1 text-xs font-medium ${
+        status === "WINNER"       ? "bg-green-100 text-green-700" :
+        status === "WAITLISTED"   ? "bg-amber-100 text-amber-700" :
+        status === "NOT_SELECTED" ? "bg-red-100 text-red-600" :
+        "bg-slate-100 text-slate-600"
+      }">${statusLabel[status] ?? status}</span>`;
+
+    let extra = "";
+    if (entry.status === "WINNER" && entry.payment_deadline) {
+      const countdown = deadlineCountdown(entry.payment_deadline);
+      extra = `
+        <p class="text-sm text-amber-700 mt-2">Batas waktu: ${countdown}</p>`;
+    }
+    if (entry.status === "WAITLISTED" && entry.waitlist_rank != null) {
+      extra = `<p class="text-sm text-slate-500 mt-2">Posisi waitlist: #${entry.waitlist_rank}</p>`;
+    }
+    if (entry.status === "APPLIED") {
+      extra = `
+        <button id="btn-withdraw" class="mt-3 text-xs text-red-500 underline">
+          Tarik pendaftaran
+        </button>`;
+    }
+
+    root.innerHTML = `<div class="text-center">${badge(entry.status)}${extra}</div>`;
+
+    document.getElementById("btn-withdraw")?.addEventListener("click", async () => {
+      if (!confirm("Tarik pendaftaran ballot ini?")) return;
+      try {
+        await withdrawBallot(eventId, categoryId);
+        await refresh();
+      } catch (e: unknown) {
+        alert((e as Error).message);
+      }
+    });
+  }
+
+  async function refresh() {
+    try {
+      render(await getMyBallotEntry(eventId, categoryId));
+    } catch {
+      root.innerHTML = `<p class="text-xs text-red-500 text-center">Gagal memuat status ballot.</p>`;
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 30_000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refresh();
+  });
+</script>
