@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
+	notifmod "github.com/varin/ivyticketing/services/api/internal/modules/notifications"
 )
 
 type PoolReserver interface {
@@ -16,14 +17,23 @@ type PoolReserver interface {
 	CreateGrant(ctx context.Context, poolID, participantID, eventID, categoryID uuid.UUID, expiresAt time.Time) (uuid.UUID, error)
 }
 
+// Notifier is a local interface satisfied by *notifmod.Service.
+type Notifier interface {
+	Enqueue(ctx context.Context, participantID uuid.UUID, typ string, data notifmod.TemplateData) error
+}
+
 type Service struct {
 	repo     Repository
 	reserver PoolReserver
+	notifier Notifier
 }
 
 func NewService(repo Repository, reserver PoolReserver) *Service {
 	return &Service{repo: repo, reserver: reserver}
 }
+
+// WithNotifier attaches a Notifier to the service. Called from server.go after construction.
+func (s *Service) WithNotifier(n Notifier) { s.notifier = n }
 
 func (s *Service) CreateWaitlist(ctx context.Context, orgID, eventID, categoryID, _ uuid.UUID) (uuid.UUID, error) {
 	wl, err := s.repo.CreateWaitlist(ctx, db.CreateWaitlistParams{
@@ -95,11 +105,13 @@ func (s *Service) PromoteBatch(ctx context.Context, waitlistID uuid.UUID) error 
 				Status:        StatusPromoted,
 				AccessGrantID: &grantID,
 			})
+			s.notifyPromoted(ctx, entry.ParticipantID)
 		} else {
 			_, _ = s.repo.UpdateWaitlistEntryStatus(ctx, db.UpdateWaitlistEntryStatusParams{
 				ID:     entry.ID,
 				Status: StatusPromoted,
 			})
+			s.notifyPromoted(ctx, entry.ParticipantID)
 		}
 	}
 	return nil
@@ -129,4 +141,13 @@ func (s *Service) Withdraw(ctx context.Context, waitlistID, participantID uuid.U
 		Status: StatusWithdrawn,
 	})
 	return err
+}
+
+func (s *Service) notifyPromoted(ctx context.Context, participantID uuid.UUID) {
+	if s.notifier == nil {
+		return
+	}
+	go func() {
+		_ = s.notifier.Enqueue(ctx, participantID, "waitlist.promoted", notifmod.TemplateData{})
+	}()
 }

@@ -12,8 +12,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
-	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
+	notifmod "github.com/varin/ivyticketing/services/api/internal/modules/notifications"
 	gw "github.com/varin/ivyticketing/services/api/internal/modules/payments/gateway"
+	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 )
 
 // AuditRecorder is satisfied by *audit.Logger.
@@ -28,17 +29,26 @@ type TicketIssuer interface {
 	IssueForOrder(ctx context.Context, q *db.Queries, order db.Order) error
 }
 
+// Notifier is a local interface satisfied by *notifmod.Service.
+type Notifier interface {
+	Enqueue(ctx context.Context, participantID uuid.UUID, typ string, data notifmod.TemplateData) error
+}
+
 // Processor is the idempotent callback handler used by both the HTTP webhook
 // receiver and the manual reconcile path.
 type Processor struct {
-	repo   Repository
-	audit  AuditRecorder
-	issuer TicketIssuer
+	repo     Repository
+	audit    AuditRecorder
+	issuer   TicketIssuer
+	notifier Notifier
 }
 
 func NewProcessor(repo Repository, recorder AuditRecorder, issuer TicketIssuer) *Processor {
 	return &Processor{repo: repo, audit: recorder, issuer: issuer}
 }
+
+// WithNotifier attaches a Notifier to the Processor. Called from server.go after construction.
+func (p *Processor) WithNotifier(n Notifier) { p.notifier = n }
 
 // ProcessRaw stores the raw webhook first, then processes it.
 // Used by the webhook receiver binary.
@@ -245,6 +255,7 @@ func (p *Processor) applyPaid(ctx context.Context, tx Repository, webhookID uuid
 	}
 
 	p.recordPaid(ctx, updated, note)
+	p.notifyPaid(ctx, updated, order)
 	return nil
 }
 
@@ -300,4 +311,19 @@ func (p *Processor) recordRejected(ctx context.Context, gateway, reason string) 
 		TargetType: "webhook",
 		Metadata:   map[string]any{"gateway": gateway, "reason": reason},
 	})
+}
+
+func (p *Processor) notifyPaid(ctx context.Context, payment db.Payment, order db.Order) {
+	if p.notifier == nil {
+		return
+	}
+	total := fmt.Sprintf("Rp %d", payment.Amount)
+	pid := payment.ParticipantID
+	go func() {
+		_ = p.notifier.Enqueue(ctx, pid, "payment.paid", notifmod.TemplateData{
+			OrderID:     order.ID.String(),
+			OrderNumber: order.OrderNumber,
+			TotalAmount: total,
+		})
+	}()
 }

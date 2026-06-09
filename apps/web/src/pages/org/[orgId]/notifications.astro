@@ -1,0 +1,81 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../layouts/OrganizerLayout.astro";
+const { orgId } = Astro.params;
+
+const notifTypes = [
+  {
+    type: "order.created",
+    name: "Pesanan Dibuat",
+    description: "Dikirim saat pesanan baru berhasil dibuat oleh peserta. Berisi nomor pesanan, total, dan link pembayaran.",
+  },
+  {
+    type: "payment.paid",
+    name: "Pembayaran Dikonfirmasi",
+    description: "Dikirim saat pembayaran pesanan berhasil dikonfirmasi oleh gateway. Tiket diterbitkan bersamaan dengan notifikasi ini.",
+  },
+  {
+    type: "payment.expired",
+    name: "Pesanan Kadaluarsa",
+    description: "Dikirim saat pesanan kadaluarsa karena pembayaran tidak diselesaikan sebelum batas waktu.",
+  },
+  {
+    type: "queue.allowed",
+    name: "Antrean Diizinkan",
+    description: "Dikirim saat peserta diizinkan keluar dari antrean dan dapat melanjutkan ke checkout.",
+  },
+  {
+    type: "ballot.winner",
+    name: "Pemenang Ballot",
+    description: "Dikirim saat peserta terpilih sebagai pemenang dalam pengundian ballot. Berisi link untuk menyelesaikan pembelian.",
+  },
+  {
+    type: "ballot.not_selected",
+    name: "Tidak Terpilih dalam Ballot",
+    description: "Dikirim saat pengundian ballot telah diumumkan dan peserta tidak terpilih.",
+  },
+  {
+    type: "waitlist.promoted",
+    name: "Dipromosikan dari Waitlist",
+    description: "Dikirim saat peserta dipromosikan dari waitlist dan slot tersedia untuk mereka.",
+  },
+];
+---
+<OrganizerLayout title="Notifikasi — ivyticketing">
+  <div class="space-y-6">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-900">Notifikasi</h1>
+      <p class="mt-1 text-sm text-slate-500">Kelola notifikasi email otomatis untuk peserta Anda.</p>
+    </div>
+
+    <!-- Mode banner -->
+    <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+      <p class="text-sm font-medium text-amber-800">Mode Log Aktif</p>
+      <p class="mt-1 text-sm text-amber-700">
+        Email notifikasi saat ini aktif dalam mode logging. Setiap notifikasi tercatat di log server tetapi tidak dikirimkan ke peserta.
+        Untuk mengaktifkan pengiriman email nyata, konfigurasikan <code class="rounded bg-amber-100 px-1 py-0.5 font-mono text-xs">SMTP_HOST</code> atau
+        <code class="rounded bg-amber-100 px-1 py-0.5 font-mono text-xs">RESEND_API_KEY</code> di environment server.
+      </p>
+    </div>
+
+    <!-- Notification types -->
+    <div class="rounded-lg border border-slate-200 bg-white divide-y divide-slate-100">
+      {notifTypes.map((n) => (
+        <div class="flex items-start justify-between gap-4 px-5 py-4">
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-slate-900">{n.name}</p>
+            <p class="mt-0.5 text-xs text-slate-500">{n.description}</p>
+            <code class="mt-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">{n.type}</code>
+          </div>
+          <span class="shrink-0 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+            Aktif (Log)
+          </span>
+        </div>
+      ))}
+    </div>
+
+    <p class="text-xs text-slate-400">
+      <a href={`/org/${orgId}/dashboard`} class="underline hover:text-slate-600">Kembali ke Dashboard</a>
+    </p>
+  </div>
+</OrganizerLayout>

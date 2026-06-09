@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
+	notifmod "github.com/varin/ivyticketing/services/api/internal/modules/notifications"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 )
 
@@ -49,9 +50,15 @@ type WaitlistCreator interface {
 	JoinWithRank(ctx context.Context, waitlistID, participantID uuid.UUID, source string, sourceRefID *uuid.UUID, rank int64) error
 }
 
+// Notifier is a local interface satisfied by *notifmod.Service.
+type Notifier interface {
+	Enqueue(ctx context.Context, participantID uuid.UUID, typ string, data notifmod.TemplateData) error
+}
+
 type Service struct {
 	repo         Repository
 	audit        AuditRecorder
+	notifier     Notifier
 	pools        PoolCreator
 	grants       GrantIssuer
 	grantChecker GrantChecker
@@ -66,6 +73,9 @@ func NewService(repo Repository, auditRec AuditRecorder, pools PoolCreator, gran
 	}
 	return &Service{repo: repo, audit: auditRec, pools: pools, grants: grants, grantChecker: gc, waitlist: wl}
 }
+
+// WithNotifier attaches a Notifier to the service. Called from server.go after construction.
+func (s *Service) WithNotifier(n Notifier) { s.notifier = n }
 
 func (s *Service) CreateDraw(ctx context.Context, orgID, eventID, categoryID, createdBy uuid.UUID, req CreateDrawRequest) (db.BallotDraw, error) {
 	return s.repo.CreateBallotDraw(ctx, db.CreateBallotDrawParams{
@@ -257,6 +267,7 @@ func (s *Service) AnnounceDraw(ctx context.Context, drawID, _ uuid.UUID) error {
 			PaymentDeadline: pgtype.Timestamptz{Time: deadline, Valid: true},
 			AccessGrantID:   &grantID,
 		})
+		s.notifyBallot(ctx, w.ParticipantID, "ballot.winner", draw.ID.String())
 	}
 
 	// Add waitlisted entries to waitlist engine
@@ -270,6 +281,9 @@ func (s *Service) AnnounceDraw(ctx context.Context, drawID, _ uuid.UUID) error {
 			_ = s.waitlist.JoinWithRank(ctx, wlID, e.ParticipantID, "BALLOT", &e.ID, int64(e.ID.ID()))
 		}
 	}
+
+	// Notify not-selected entries
+	s.notifyNotSelected(ctx, drawID, draw.ID.String())
 
 	_, err = s.repo.UpdateBallotDrawStatus(ctx, db.UpdateBallotDrawStatusParams{ID: drawID, Status: DrawStatusAnnounced})
 	return err
@@ -404,4 +418,36 @@ func (s *Service) Withdraw(ctx context.Context, participantID, categoryID uuid.U
 		Status: StatusWithdrawn,
 	})
 	return err
+}
+
+func (s *Service) notifyBallot(ctx context.Context, participantID uuid.UUID, typ, drawID string) {
+	if s.notifier == nil {
+		return
+	}
+	go func() {
+		_ = s.notifier.Enqueue(ctx, participantID, typ, notifmod.TemplateData{
+			BallotDrawID: drawID,
+		})
+	}()
+}
+
+func (s *Service) notifyNotSelected(ctx context.Context, drawID uuid.UUID, drawIDStr string) {
+	if s.notifier == nil {
+		return
+	}
+	entries, err := s.repo.ListAppliedEntriesForDraw(ctx, drawID)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.Status != StatusNotSelected {
+			continue
+		}
+		pid := e.ParticipantID
+		go func() {
+			_ = s.notifier.Enqueue(ctx, pid, "ballot.not_selected", notifmod.TemplateData{
+				BallotDrawID: drawIDStr,
+			})
+		}()
+	}
 }

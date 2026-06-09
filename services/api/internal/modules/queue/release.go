@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
+	notifmod "github.com/varin/ivyticketing/services/api/internal/modules/notifications"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 )
 
@@ -53,6 +54,7 @@ func (s *Service) Release(ctx context.Context, eventID uuid.UUID, n int, window 
 		if s.store != nil {
 			_ = s.store.MoveToAllowed(ctx, eventID.String(), tok.ParticipantID.String(), expiresAt.Unix())
 		}
+		s.notifyAllowed(ctx, tok.ParticipantID)
 		promoted++
 	}
 	if promoted > 0 && s.audit != nil {
@@ -65,4 +67,13 @@ func (s *Service) Release(ctx context.Context, eventID uuid.UUID, n int, window 
 		})
 	}
 	return promoted, nil
+}
+
+func (s *Service) notifyAllowed(ctx context.Context, participantID uuid.UUID) {
+	if s.notifier == nil {
+		return
+	}
+	go func() {
+		_ = s.notifier.Enqueue(ctx, participantID, "queue.allowed", notifmod.TemplateData{})
+	}()
 }

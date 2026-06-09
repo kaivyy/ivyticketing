@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
+	notifmod "github.com/varin/ivyticketing/services/api/internal/modules/notifications"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 )
 
@@ -28,10 +29,16 @@ type EventModeResolver interface {
 	ResolveEventMode(ctx context.Context, eventID uuid.UUID) (string, error)
 }
 
+// Notifier is a local interface satisfied by *notifmod.Service.
+type Notifier interface {
+	Enqueue(ctx context.Context, participantID uuid.UUID, typ string, data notifmod.TemplateData) error
+}
+
 type Service struct {
 	repo        Repository
 	store       *Store
 	audit       AuditRecorder
+	notifier    Notifier
 	events      EventReader
 	resolver    EventModeResolver
 	defaultRate int32
@@ -40,6 +47,9 @@ type Service struct {
 func NewService(repo Repository, store *Store, recorder AuditRecorder, events EventReader, defaultRate int32, resolver EventModeResolver) *Service {
 	return &Service{repo: repo, store: store, audit: recorder, events: events, resolver: resolver, defaultRate: defaultRate}
 }
+
+// WithNotifier attaches a Notifier to the service. Called from server.go after construction.
+func (s *Service) WithNotifier(n Notifier) { s.notifier = n }
 
 // Join issues (or returns existing) a queue token for the participant. Idempotent:
 // refresh/reconnect/mobile-sleep safe — same token returned on repeated calls.

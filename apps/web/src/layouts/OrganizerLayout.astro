@@ -20,10 +20,11 @@ function navClass(prefix: string): string {
 
 const base = orgId ? `/org/${orgId}` : "#";
 const navItems = [
-  { label: "Dashboard",  href: orgId ? `${base}/dashboard` : "#",  prefix: `${base}/dashboard`,  soon: !orgId },
-  { label: "Events",     href: orgId ? `${base}/events`    : "#",  prefix: `${base}/events`,     soon: false  },
-  { label: "Anggota",    href: orgId ? `${base}/members`   : "#",  prefix: `${base}/members`,    soon: !orgId },
-  { label: "Pengaturan", href: orgId ? `${base}/settings`  : "#",  prefix: `${base}/settings`,   soon: !orgId },
+  { label: "Dashboard",   href: orgId ? `${base}/dashboard`      : "#",  prefix: `${base}/dashboard`,      soon: !orgId },
+  { label: "Events",      href: orgId ? `${base}/events`         : "#",  prefix: `${base}/events`,         soon: false  },
+  { label: "Anggota",     href: orgId ? `${base}/members`        : "#",  prefix: `${base}/members`,        soon: !orgId },
+  { label: "Notifikasi",  href: orgId ? `${base}/notifications`  : "#",  prefix: `${base}/notifications`,  soon: false  },
+  { label: "Pengaturan",  href: orgId ? `${base}/settings`       : "#",  prefix: `${base}/settings`,       soon: !orgId },
 ];
 
 // Event-scoped nav items — only shown when eventId is available

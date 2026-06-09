@@ -31,6 +31,8 @@ import (
 	"github.com/varin/ivyticketing/services/api/internal/modules/system"
 	ticketsmod "github.com/varin/ivyticketing/services/api/internal/modules/tickets"
 	waitlistmod "github.com/varin/ivyticketing/services/api/internal/modules/waitlist"
+	notifmod "github.com/varin/ivyticketing/services/api/internal/modules/notifications"
+	notifemail "github.com/varin/ivyticketing/services/api/internal/modules/notifications/email"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 	"github.com/varin/ivyticketing/services/api/internal/platform/captcha"
 	"github.com/varin/ivyticketing/services/api/internal/platform/middleware"
@@ -149,6 +151,20 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	paymentsSvc := paymentsmod.NewService(paymentsRepo, paymentsRegistry, auditLog, cfg.PaymentDefaultExpiry)
 	paymentsReconciler := paymentsmod.NewReconciler(paymentsRepo, paymentsRegistry, paymentsProc)
 	paymentsHandler := paymentsmod.NewHandler(paymentsSvc, paymentsReconciler)
+
+	// Notifications (Phase 12)
+	notifRepo := notifmod.NewRepository(pool)
+	notifSender := &notifemail.LogSender{Log: log}
+	notifSvc := notifmod.NewService(notifRepo, notifSender, log)
+	// Wire notifier into each service via WithNotifier (duck-typed, no circular imports).
+	// Extract orders service to call WithNotifier on it.
+	ordersSvc := ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration, registrationGate, queueSvc)
+	ordersSvc.WithNotifier(notifSvc)
+	ordersHandler = ordersmod.NewHandler(ordersSvc)
+	paymentsProc.WithNotifier(notifSvc)
+	queueSvc.WithNotifier(notifSvc)
+	ballotSvc.WithNotifier(notifSvc)
+	waitlistSvc.WithNotifier(notifSvc)
 
 	// Anti-bot / abuse (Phase 9)
 	abuseRepo := abusemod.NewRepository(pool)

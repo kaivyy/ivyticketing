@@ -301,6 +301,32 @@ type MemberRole struct {
 	RoleID               uuid.UUID
 }
 
+type Notification struct {
+	ID            uuid.UUID
+	ParticipantID uuid.UUID
+	Type          string
+	Channel       string
+	Status        string
+	Payload       []byte
+	Attempts      int32
+	LastAttemptAt pgtype.Timestamptz
+	SentAt        pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+}
+
+type NotificationTemplate struct {
+	ID        uuid.UUID
+	OrgID     *uuid.UUID
+	Type      string
+	Channel   string
+	Subject   string
+	BodyHtml  string
+	BodyText  string
+	IsDefault bool
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Order struct {
 	ID             uuid.UUID
 	OrganizationID uuid.UUID

@@ -3,6 +3,7 @@ package orders
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,20 +11,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
-	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 	inv "github.com/varin/ivyticketing/services/api/internal/modules/inventory"
+	notifmod "github.com/varin/ivyticketing/services/api/internal/modules/notifications"
+	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 )
 
 type AuditRecorder interface {
 	Record(ctx context.Context, e audit.Entry)
 }
 
+// Notifier is a local interface satisfied by *notifmod.Service.
+type Notifier interface {
+	Enqueue(ctx context.Context, participantID uuid.UUID, typ string, data notifmod.TemplateData) error
+}
+
 type Service struct {
-	repo  Repository
-	audit AuditRecorder
-	ttl   time.Duration
-	gate  RegistrationGate
-	hook  CheckoutHook
+	repo     Repository
+	audit    AuditRecorder
+	notifier Notifier
+	ttl      time.Duration
+	gate     RegistrationGate
+	hook     CheckoutHook
 }
 
 func NewService(repo Repository, recorder AuditRecorder, ttl time.Duration, gate RegistrationGate, hook CheckoutHook) *Service {
@@ -32,6 +40,9 @@ func NewService(repo Repository, recorder AuditRecorder, ttl time.Duration, gate
 	}
 	return &Service{repo: repo, audit: recorder, ttl: ttl, gate: gate, hook: hook}
 }
+
+// WithNotifier attaches a Notifier to the service. Called from server.go after construction.
+func (s *Service) WithNotifier(n Notifier) { s.notifier = n }
 
 func (s *Service) Checkout(ctx context.Context, participantID, eventID, categoryID uuid.UUID, admissionToken string) (OrderResponse, error) {
 	if err := s.gate.Admit(ctx, participantID, eventID, categoryID, admissionToken); err != nil {
@@ -108,6 +119,7 @@ func (s *Service) Checkout(ctx context.Context, participantID, eventID, category
 	}
 	s.record(ctx, created, "ORDER_CREATED")
 	s.recordReservation(ctx, created, "RESERVATION_CREATED")
+	s.notifyOrderCreated(ctx, created)
 	return toResponse(created), nil
 }
 
@@ -211,6 +223,28 @@ func (s *Service) recordReservation(ctx context.Context, order db.Order, action 
 		OrganizationID: &oid, ActorUserID: &uid, Action: action,
 		TargetType: "reservation", TargetID: order.ID.String(),
 	})
+}
+
+func (s *Service) notifyOrderCreated(ctx context.Context, order db.Order) {
+	if s.notifier == nil {
+		return
+	}
+	total := fmt.Sprintf("Rp %d", order.Total)
+	var deadline string
+	if order.ExpiredAt.Valid {
+		deadline = order.ExpiredAt.Time.Format("02 Jan 2006 15:04")
+	}
+	pid := order.ParticipantID
+	go func() {
+		if err := s.notifier.Enqueue(ctx, pid, "order.created", notifmod.TemplateData{
+			OrderID:         order.ID.String(),
+			OrderNumber:     order.OrderNumber,
+			TotalAmount:     total,
+			PaymentDeadline: deadline,
+		}); err != nil {
+			_ = err
+		}
+	}()
 }
 
 func toResponse(o db.Order) OrderResponse {
