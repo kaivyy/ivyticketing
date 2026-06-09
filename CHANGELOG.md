@@ -4,6 +4,30 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
+## [Phase 11] — 2026-06-09
+
+### Added
+- Access Engine: full pool type support (RESERVED, COMMUNITY, CORPORATE, SPONSOR, VIP, PARTNER, PRIORITY, ELITE)
+- Access codes: create, bulk-generate, revoke, sha256-hashed storage
+- Code redemption: atomic reserve + grant issuance, eligibility rules (5 types)
+- Corporate module: account management, bulk CSV upload, invoice JSON, approval flow
+- Priority window: auto-eligibility grant for PRIORITY_ACCESS mode
+- WAITLIST_ONLY mode: grant-based slot promotion via WaitlistEngine
+- RAE gate: INVITATION_ONLY, PRIORITY_ACCESS, WAITLIST_ONLY fully implemented (no more ErrModeNotAvailable)
+- Security: code brute-force block (Redis INCR, auto-block after 3 failures/60s), reputation bump (+2) on failed redemption
+- Frontend: "I have an access code" modal, priority countdown, waitlist position, corporate management page
+- Admin: list codes across events, emergency quota adjustment
+- k6 load tests: redemption burst (10k concurrent), quota exhaustion (exactly N grants)
+- Docs: ACCESS_ENGINE.md operations guide
+
+### Changed
+- registration/gate.go: NewGate gains accessGrant + priority injected interfaces
+- access_pools: owner_account_id, is_visible_to_participants, eligibility_rule columns added
+- ratelimit.Limiter: added IncrExpire() for brute-force counter support
+- abuse.Guard: added WithBruteForce(), TrackCodeFailure(), BumpReputation() public methods
+
+---
+
 ## [Phase 10] — 2026-06-09
 
 ### Added
