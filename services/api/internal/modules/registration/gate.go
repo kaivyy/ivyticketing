@@ -34,6 +34,12 @@ type AccessGrantChecker interface {
 	CheckGrant(ctx context.Context, participantID, categoryID uuid.UUID, grantToken string) error
 }
 
+// PriorityChecker auto-issues an access grant when the PRIORITY_ACCESS window
+// is open and the participant is eligible. eventID is required for pool lookup.
+type PriorityChecker interface {
+	CheckPriorityAdmission(ctx context.Context, participantID, eventID, categoryID uuid.UUID, grantToken string) error
+}
+
 // WindowClosedReason is an opaque string reason why a window is closed.
 type WindowClosedReason = string
 
@@ -42,14 +48,15 @@ var ErrRegistrationWindowClosed = apperr.New(http.StatusConflict, "REGISTRATION_
 // Gate implements orders.RegistrationGate.
 type Gate struct {
 	svc         *Service
-	queue       QueueAdmitter    // may be nil until Part 3
-	lifecycle   LifecycleChecker // may be nil — fail-open
-	ballot      BallotAdmitter   // may be nil until Phase 10 Part 3
+	queue       QueueAdmitter      // may be nil until Part 3
+	lifecycle   LifecycleChecker   // may be nil — fail-open
+	ballot      BallotAdmitter     // may be nil until Phase 10 Part 3
 	accessGrant AccessGrantChecker // Phase 11 — may be nil
+	priority    PriorityChecker    // Phase 11 Part 3 — may be nil
 }
 
-func NewGate(svc *Service, queue QueueAdmitter, lifecycle LifecycleChecker, ballot BallotAdmitter, accessGrant AccessGrantChecker) *Gate {
-	return &Gate{svc: svc, queue: queue, lifecycle: lifecycle, ballot: ballot, accessGrant: accessGrant}
+func NewGate(svc *Service, queue QueueAdmitter, lifecycle LifecycleChecker, ballot BallotAdmitter, accessGrant AccessGrantChecker, priority PriorityChecker) *Gate {
+	return &Gate{svc: svc, queue: queue, lifecycle: lifecycle, ballot: ballot, accessGrant: accessGrant, priority: priority}
 }
 
 var (
@@ -89,11 +96,16 @@ func (g *Gate) Admit(ctx context.Context, participantID, eventID, categoryID uui
 			return ErrModeNotAvailable
 		}
 		return g.ballot.CheckBallotAdmission(ctx, participantID, categoryID, admissionToken)
-	case ModeInvitationOnly, ModeWaitlistOnly, ModePriorityAccess:
+	case ModeInvitationOnly, ModeWaitlistOnly:
 		if g.accessGrant == nil {
 			return ErrModeNotAvailable
 		}
 		return g.accessGrant.CheckGrant(ctx, participantID, categoryID, admissionToken)
+	case ModePriorityAccess:
+		if g.priority == nil {
+			return ErrModeNotAvailable
+		}
+		return g.priority.CheckPriorityAdmission(ctx, participantID, eventID, categoryID, admissionToken)
 	default:
 		return ErrModeNotAvailable
 	}
