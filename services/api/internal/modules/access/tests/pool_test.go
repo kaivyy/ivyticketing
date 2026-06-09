@@ -91,6 +91,24 @@ func (r *fakeAccessRepo) TransferPoolSlots(_ context.Context, _ db.TransferPoolS
 	return db.AccessPool{}, nil
 }
 
+// Access code stubs
+func (r *fakeAccessRepo) CreateAccessCode(_ context.Context, _ db.CreateAccessCodeParams) (db.AccessCode, error) {
+	return db.AccessCode{}, nil
+}
+func (r *fakeAccessRepo) GetAccessCodeByHash(_ context.Context, _ db.GetAccessCodeByHashParams) (db.AccessCode, error) {
+	return db.AccessCode{}, nil
+}
+func (r *fakeAccessRepo) ListAccessCodesByEvent(_ context.Context, _ db.ListAccessCodesByEventParams) ([]db.AccessCode, error) {
+	return nil, nil
+}
+func (r *fakeAccessRepo) IncrementCodeUseCount(_ context.Context, _ uuid.UUID) (db.AccessCode, error) {
+	return db.AccessCode{}, nil
+}
+func (r *fakeAccessRepo) RevokeAccessCode(_ context.Context, _ uuid.UUID) error { return nil }
+func (r *fakeAccessRepo) ListActiveGrantsForParticipant(_ context.Context, _ db.ListActiveGrantsForParticipantParams) ([]db.AccessGrant, error) {
+	return nil, nil
+}
+
 func TestReserveSlot_PoolFull_ReturnsErrPoolExhausted(t *testing.T) {
 	repo := &fakeAccessRepo{reserveErr: pgx.ErrNoRows}
 	pm := access.NewPoolManager(repo)

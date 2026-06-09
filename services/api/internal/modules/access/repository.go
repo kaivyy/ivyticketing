@@ -36,6 +36,14 @@ type Repository interface {
 	UpdateAccessPoolColumns(ctx context.Context, arg db.UpdateAccessPoolColumnsParams) (db.AccessPool, error)
 	ListVisiblePoolsByCategory(ctx context.Context, arg db.ListVisiblePoolsByCategoryParams) ([]db.AccessPool, error)
 	TransferPoolSlots(ctx context.Context, arg db.TransferPoolSlotsParams) (db.AccessPool, error)
+
+	// Access codes
+	CreateAccessCode(ctx context.Context, arg db.CreateAccessCodeParams) (db.AccessCode, error)
+	GetAccessCodeByHash(ctx context.Context, arg db.GetAccessCodeByHashParams) (db.AccessCode, error)
+	ListAccessCodesByEvent(ctx context.Context, arg db.ListAccessCodesByEventParams) ([]db.AccessCode, error)
+	IncrementCodeUseCount(ctx context.Context, id uuid.UUID) (db.AccessCode, error)
+	RevokeAccessCode(ctx context.Context, id uuid.UUID) error
+	ListActiveGrantsForParticipant(ctx context.Context, arg db.ListActiveGrantsForParticipantParams) ([]db.AccessGrant, error)
 }
 
 type sqlcRepo struct{ q *db.Queries }
@@ -128,4 +136,24 @@ func (r *sqlcRepo) HasPaidOrderForEvent(ctx context.Context, userID, eventID uui
 		ParticipantID: userID,
 		EventID:       eventID,
 	})
+}
+
+// Access code methods
+func (r *sqlcRepo) CreateAccessCode(ctx context.Context, arg db.CreateAccessCodeParams) (db.AccessCode, error) {
+	return r.q.CreateAccessCode(ctx, arg)
+}
+func (r *sqlcRepo) GetAccessCodeByHash(ctx context.Context, arg db.GetAccessCodeByHashParams) (db.AccessCode, error) {
+	return r.q.GetAccessCodeByHash(ctx, arg)
+}
+func (r *sqlcRepo) ListAccessCodesByEvent(ctx context.Context, arg db.ListAccessCodesByEventParams) ([]db.AccessCode, error) {
+	return r.q.ListAccessCodesByEvent(ctx, arg)
+}
+func (r *sqlcRepo) IncrementCodeUseCount(ctx context.Context, id uuid.UUID) (db.AccessCode, error) {
+	return r.q.IncrementCodeUseCount(ctx, id)
+}
+func (r *sqlcRepo) RevokeAccessCode(ctx context.Context, id uuid.UUID) error {
+	return r.q.RevokeAccessCode(ctx, id)
+}
+func (r *sqlcRepo) ListActiveGrantsForParticipant(ctx context.Context, arg db.ListActiveGrantsForParticipantParams) ([]db.AccessGrant, error) {
+	return r.q.ListActiveGrantsForParticipant(ctx, arg)
 }
