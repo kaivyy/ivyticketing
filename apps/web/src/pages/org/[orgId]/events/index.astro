@@ -1,0 +1,91 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../layouts/OrganizerLayout.astro";
+const { orgId } = Astro.params;
+---
+<OrganizerLayout title="Events — ivyticketing">
+  <div class="space-y-6">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-slate-900">Events</h1>
+    </div>
+
+    <div id="events-list" class="space-y-3">
+      <p class="text-slate-500">Memuat…</p>
+    </div>
+
+    <p class="text-xs text-slate-400">
+      <a href={`/org/${orgId}/dashboard`} class="underline hover:text-slate-600">Kembali ke Dashboard</a>
+    </p>
+  </div>
+</OrganizerLayout>
+
+<script define:vars={{ orgId }}>
+  import { authedFetch } from "../../../../lib/api";
+
+  function statusLabel(status) {
+    const map = {
+      DRAFT:     "Draf",
+      PUBLISHED: "Dipublikasikan",
+      ARCHIVED:  "Diarsipkan",
+    };
+    return map[status] ?? status;
+  }
+
+  function statusClass(status) {
+    const map = {
+      DRAFT:     "bg-slate-100 text-slate-600",
+      PUBLISHED: "bg-green-100 text-green-800",
+      ARCHIVED:  "bg-amber-100 text-amber-800",
+    };
+    return map[status] ?? "bg-slate-100 text-slate-700";
+  }
+
+  const list = document.getElementById("events-list");
+
+  try {
+    const events = await authedFetch(`/organizations/${orgId}/events`);
+
+    if (!events || events.length === 0) {
+      const p = document.createElement("p");
+      p.className = "text-slate-500";
+      p.textContent = "Belum ada event.";
+      list.replaceChildren(p);
+    } else {
+      list.replaceChildren(
+        ...events.map((ev) => {
+          const a = document.createElement("a");
+          a.href = `/org/${orgId}/events/${ev.id}/queue-controls`;
+          a.className =
+            "block rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400 transition-colors";
+
+          const header = document.createElement("div");
+          header.className = "flex items-center justify-between gap-2 mb-1";
+
+          const title = document.createElement("span");
+          title.className = "font-medium text-slate-900 truncate";
+          title.textContent = ev.title ?? ev.name ?? ev.id;
+
+          const badge = document.createElement("span");
+          badge.className = `inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusClass(ev.status)}`;
+          badge.textContent = statusLabel(ev.status);
+
+          header.append(title, badge);
+
+          const sub = document.createElement("p");
+          sub.className = "text-xs text-slate-500";
+          sub.textContent = ev.startAt
+            ? new Date(ev.startAt).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
+            : "—";
+
+          a.append(header, sub);
+          return a;
+        })
+      );
+    }
+  } catch (e) {
+    const p = document.createElement("p");
+    p.className = "text-red-600 text-sm";
+    p.textContent = e.message;
+    list.replaceChildren(p);
+  }
+</script>

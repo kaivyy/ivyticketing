@@ -1,0 +1,47 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../layouts/OrganizerLayout.astro";
+const { orgId } = Astro.params;
+---
+<OrganizerLayout title="Dashboard — ivyticketing">
+  <div class="space-y-6">
+    <h1 class="text-2xl font-bold text-slate-900">Dashboard</h1>
+    <p class="text-slate-600">
+      Selamat datang di panel organizer. Pilih menu di samping untuk mengelola event Anda.
+    </p>
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <a
+        href={`/org/${orgId}/events`}
+        class="rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-400 transition-colors"
+      >
+        <p class="font-semibold text-slate-900 mb-1">Events</p>
+        <p class="text-sm text-slate-500">Kelola daftar event organisasi Anda.</p>
+      </a>
+
+      <a
+        href="#"
+        class="rounded-lg border border-slate-200 bg-white p-5 opacity-60 cursor-not-allowed"
+        aria-disabled="true"
+        tabindex="-1"
+      >
+        <p class="font-semibold text-slate-900 mb-1">Anggota</p>
+        <p class="text-sm text-slate-500">Segera tersedia.</p>
+      </a>
+
+      <a
+        href="#"
+        class="rounded-lg border border-slate-200 bg-white p-5 opacity-60 cursor-not-allowed"
+        aria-disabled="true"
+        tabindex="-1"
+      >
+        <p class="font-semibold text-slate-900 mb-1">Pengaturan</p>
+        <p class="text-sm text-slate-500">Segera tersedia.</p>
+      </a>
+    </div>
+
+    <p class="text-xs text-slate-400">
+      <a href="/" class="underline hover:text-slate-600">Kembali ke Beranda</a>
+    </p>
+  </div>
+</OrganizerLayout>

@@ -80,7 +80,7 @@ const { orgId, eventId } = Astro.params;
               await approveCorporateAccount(orgId, btn.dataset.approve!);
               await loadAccounts();
             } catch (e) {
-              alert((e as Error).message);
+              showMsg("accounts-action-msg", (e as Error).message, true);
             }
           });
         });
@@ -91,7 +91,7 @@ const { orgId, eventId } = Astro.params;
               const inv = await getInvoice(orgId, btn.dataset.invoice!, eventId);
               showInvoice(inv);
             } catch (e) {
-              alert((e as Error).message);
+              showMsg("accounts-action-msg", (e as Error).message, true);
             }
           });
         });
@@ -183,6 +183,7 @@ const { orgId, eventId } = Astro.params;
         <div id="accounts-list" class="space-y-2">
           <p class="text-sm text-slate-400">Memuat…</p>
         </div>
+        <p id="accounts-action-msg" class="mt-2 text-sm text-slate-500"></p>
       </section>
 
       <!-- Invoice panel -->

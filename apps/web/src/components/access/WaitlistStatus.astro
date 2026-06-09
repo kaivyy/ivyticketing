@@ -7,8 +7,8 @@ interface Props {
 const { eventId, categoryId, token } = Astro.props
 ---
 
-<div id="waitlist-status" class="border border-gray-200 rounded p-4">
-  <p class="text-gray-500 text-sm">Checking waitlist position...</p>
+<div id="waitlist-status" class="border border-slate-200 rounded p-4">
+  <p class="text-slate-500 text-sm">Memeriksa posisi waitlist…</p>
 </div>
 
 <script define:vars={{ eventId, categoryId, token }}>
@@ -23,23 +23,53 @@ const { eventId, categoryId, token } = Astro.props
         { headers: { Authorization: `Bearer ${token}` } }
       )
       if (!res.ok) {
-        el.innerHTML = `<p class="text-gray-500 text-sm">You are not on the waitlist.</p>`
+        el.replaceChildren((() => {
+          const p = document.createElement("p")
+          p.className = "text-slate-500 text-sm"
+          p.textContent = "Anda tidak memenuhi syarat untuk waitlist ini."
+          return p
+        })())
         return
       }
       const data = await res.json()
+
       if (data.status === "PROMOTED") {
-        el.innerHTML = `
-          <p class="text-green-700 font-semibold">
-            You've been promoted! Check your email for your registration link.
-          </p>`
+        const wrap = document.createElement("div")
+        const msg = document.createElement("p")
+        msg.className = "text-green-700 font-semibold mb-2"
+        msg.textContent = "Selamat! Anda dipromosikan ke posisi teratas. Silakan lanjutkan ke checkout."
+        wrap.appendChild(msg)
+        const link = document.createElement("a")
+        link.href = `/events/${eventId}/checkout?categoryId=${categoryId}`
+        link.className = "inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+        link.textContent = "Lanjut ke Checkout →"
+        wrap.appendChild(link)
+        el.replaceChildren(wrap)
+      } else if (data.status === "EXPIRED") {
+        const p = document.createElement("p")
+        p.className = "text-red-600 text-sm"
+        p.textContent = "Waktu pendaftaran Anda telah berakhir. Silakan coba lagi."
+        el.replaceChildren(p)
+      } else if (data.status === "NOT_ELIGIBLE") {
+        const p = document.createElement("p")
+        p.className = "text-slate-500 text-sm"
+        p.textContent = "Anda tidak memenuhi syarat untuk waitlist ini."
+        el.replaceChildren(p)
       } else {
-        el.innerHTML = `
-          <div>
-            <p class="text-gray-700">
-              Waitlist position: <strong class="text-gray-900">#${data.position}</strong>
-            </p>
-            <p class="text-gray-500 text-sm mt-1">Status: ${data.status}</p>
-          </div>`
+        // handles WAITING and any other active status
+        const wrap = document.createElement("div")
+        const pos = document.createElement("p")
+        pos.className = "text-slate-700"
+        const label = document.createTextNode("Posisi antrean Anda: ")
+        const strong = document.createElement("strong")
+        strong.className = "text-slate-900"
+        strong.textContent = `#${data.position}`
+        pos.append(label, strong)
+        const hint = document.createElement("p")
+        hint.className = "text-slate-500 text-sm mt-1"
+        hint.textContent = "Kami akan memberi tahu Anda saat giliran tiba."
+        wrap.append(pos, hint)
+        el.replaceChildren(wrap)
       }
     } catch {
       // silently ignore network errors — stale UI is acceptable
@@ -47,6 +77,6 @@ const { eventId, categoryId, token } = Astro.props
   }
 
   loadPosition()
-  // Refresh position every 60 seconds
+  // Segarkan posisi setiap 60 detik
   setInterval(loadPosition, 60_000)
 </script>

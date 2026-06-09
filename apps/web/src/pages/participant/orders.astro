@@ -6,15 +6,101 @@ import ParticipantLayout from "../../layouts/ParticipantLayout.astro";
   <div id="list" class="space-y-3"><p class="text-slate-500">Memuat…</p></div>
   <script>
     import { listMyOrders } from "../../lib/invoice";
+
+    function formatRupiah(amount: number): string {
+      return "Rp " + amount.toLocaleString("id-ID");
+    }
+
+    function formatDate(iso: string): string {
+      try {
+        return new Date(iso).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      } catch {
+        return "—";
+      }
+    }
+
+    function statusBadgeClass(status: string): string {
+      const map: Record<string, string> = {
+        PAID:      "bg-green-100 text-green-800",
+        PENDING:   "bg-amber-100 text-amber-800",
+        EXPIRED:   "bg-slate-100 text-slate-600",
+        CANCELLED: "bg-red-100 text-red-700",
+        REFUNDED:  "bg-blue-100 text-blue-800",
+      };
+      return map[status] ?? "bg-slate-100 text-slate-700";
+    }
+
+    function statusLabel(status: string): string {
+      const map: Record<string, string> = {
+        PAID:      "Lunas",
+        PENDING:   "Menunggu",
+        EXPIRED:   "Kedaluwarsa",
+        CANCELLED: "Dibatalkan",
+        REFUNDED:  "Dikembalikan",
+      };
+      return map[status] ?? status;
+    }
+
     const list = document.getElementById("list")!;
     try {
       const orders = await listMyOrders();
-      list.innerHTML = orders.length
-        ? orders.map((o) => `<a href="/participant/orders/${o.id}" class="block rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400">
-            <div class="flex justify-between"><span class="font-medium">${o.orderNumber}</span><span>${o.status}</span></div></a>`).join("")
-        : '<p class="text-slate-500">Belum ada pesanan.</p>';
+      if (!orders.length) {
+        const p = document.createElement("p");
+        p.className = "text-slate-500";
+        p.textContent = "Belum ada pesanan.";
+        list.replaceChildren(p);
+      } else {
+        list.replaceChildren(
+          ...orders.map((o) => {
+            const a = document.createElement("a");
+            a.href = `/participant/orders/${o.id}`;
+            a.className =
+              "block rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400 transition-colors";
+
+            const header = document.createElement("div");
+            header.className = "flex items-center justify-between gap-2 mb-2";
+
+            const num = document.createElement("span");
+            num.className = "font-medium text-slate-900 truncate";
+            num.textContent = o.orderNumber ?? o.id;
+
+            const badge = document.createElement("span");
+            badge.className =
+              `inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadgeClass(o.status)}`;
+            badge.textContent = statusLabel(o.status);
+
+            header.append(num, badge);
+
+            const meta = document.createElement("div");
+            meta.className = "flex items-center justify-between text-sm text-slate-500";
+
+            const date = document.createElement("span");
+            date.textContent = o.createdAt ? formatDate(o.createdAt) : "—";
+
+            const total = document.createElement("span");
+            total.className = "font-medium text-slate-700";
+            total.textContent = typeof o.total === "number" ? formatRupiah(o.total) : "—";
+
+            meta.append(date, total);
+
+            const cta = document.createElement("p");
+            cta.className = "mt-2 text-xs text-blue-600";
+            cta.textContent = "Lihat Detail →";
+
+            a.append(header, meta, cta);
+            return a;
+          })
+        );
+      }
     } catch (e) {
-      list.innerHTML = `<p class="text-red-600">${(e as Error).message}</p>`;
+      const p = document.createElement("p");
+      p.className = "text-red-600";
+      p.textContent = (e as Error).message;
+      list.replaceChildren(p);
     }
   </script>
 </ParticipantLayout>

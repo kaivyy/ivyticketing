@@ -12,27 +12,101 @@ const { eventId } = Astro.props;
   const eventId = root.dataset.eventId!;
   let timer: ReturnType<typeof setInterval> | undefined;
 
-  function render(s: { status: string; position: number; estimatedWaitSeconds: number; systemState: string; admissionToken?: string }) {
+  // ── countdown helper (mirrors CountdownTimer.astro logic) ────────────────
+  function startCountdown(el: HTMLElement, targetIso: string) {
+    const targetMs = new Date(targetIso).getTime();
+    if (isNaN(targetMs)) return;
+    function fmt(diff: number): string {
+      const total = Math.floor(diff / 1000);
+      const m = Math.floor(total / 60);
+      const s = total % 60;
+      return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+    function tick() {
+      const diff = targetMs - Date.now();
+      if (diff <= 0) {
+        clearInterval(cdTimer);
+        el.textContent = "Waktu habis";
+        // disable checkout link if present
+        const link = root.querySelector<HTMLAnchorElement>("a[data-checkout]");
+        if (link) {
+          link.classList.add("pointer-events-none", "opacity-50");
+          link.setAttribute("aria-disabled", "true");
+        }
+        return;
+      }
+      el.textContent = fmt(diff);
+    }
+    tick();
+    const cdTimer = setInterval(tick, 1000);
+    window.addEventListener("pagehide", () => clearInterval(cdTimer), { once: true });
+  }
+
+  // ── render ────────────────────────────────────────────────────────────────
+  function render(s: {
+    status: string;
+    position: number;
+    estimatedWaitSeconds: number;
+    systemState: string;
+    admissionToken?: string;
+    checkoutExpiresAt?: string;
+  }) {
     if (s.systemState === "PAUSED") {
       root.innerHTML = `<p class="text-amber-600 font-medium">Antrean dijeda sementara. Posisimu tetap aman.</p>`;
       return;
     }
+
     if (s.status === "ALLOWED" && s.admissionToken) {
       sessionStorage.setItem("ivy_admission_" + eventId, s.admissionToken);
       if (timer) clearInterval(timer);
-      root.innerHTML = `<p class="text-green-600 font-semibold mb-3">Giliranmu! Selesaikan checkout sebelum waktu habis.</p>
-        <a href="/events/${eventId}/checkout?admission=${s.admissionToken}" class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-white text-sm font-medium hover:bg-slate-700">Lanjut Checkout →</a>`;
+      const expiryHtml = s.checkoutExpiresAt
+        ? `<p class="text-slate-500 text-sm mb-1">Selesaikan checkout sebelum: <span id="cd-timer" class="font-mono font-medium text-slate-800">--:--</span></p>`
+        : "";
+      root.innerHTML = `
+        <p class="text-green-600 font-semibold mb-2">Giliranmu! Selesaikan checkout sebelum waktu habis.</p>
+        ${expiryHtml}
+        <a data-checkout href="/events/${eventId}/checkout?admission=${s.admissionToken}"
+          class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-white text-sm font-medium hover:bg-slate-700">
+          Lanjut Checkout →
+        </a>`;
+      if (s.checkoutExpiresAt) {
+        const cdEl = root.querySelector<HTMLElement>("#cd-timer");
+        if (cdEl) startCountdown(cdEl, s.checkoutExpiresAt);
+      }
       return;
     }
+
     if (s.status === "EXPIRED") {
-      root.innerHTML = `<p class="text-red-600">Waktu checkout habis. Kamu dikembalikan ke antrean.</p>`;
+      root.innerHTML = `
+        <p class="text-red-600 mb-3">Waktu checkout habis. Kamu dikembalikan ke antrean.</p>
+        <button id="rejoin-btn"
+          class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-white text-sm font-medium hover:bg-slate-700">
+          Masuk Antrean Lagi
+        </button>
+        <p id="rejoin-err" class="mt-2 text-xs text-red-500"></p>`;
+      document.getElementById("rejoin-btn")?.addEventListener("click", async () => {
+        const btn = document.getElementById("rejoin-btn") as HTMLButtonElement | null;
+        const errEl = document.getElementById("rejoin-err");
+        if (btn) { btn.disabled = true; btn.textContent = "Bergabung…"; }
+        try {
+          await joinQueue(eventId);
+          // resume polling
+          await poll();
+          timer = setInterval(poll, 4000);
+        } catch {
+          if (errEl) errEl.textContent = "Gagal bergabung kembali ke antrean. Silakan coba lagi.";
+          if (btn) { btn.disabled = false; btn.textContent = "Masuk Antrean Lagi"; }
+        }
+      });
       return;
     }
+
     if (s.status === "COMPLETED") {
       root.innerHTML = `<p class="text-green-600">Checkout selesai. Terima kasih!</p>`;
       if (timer) clearInterval(timer);
       return;
     }
+
     const pos = s.position + 1;
     const mins = s.estimatedWaitSeconds > 0 ? Math.max(1, Math.ceil(s.estimatedWaitSeconds / 60)) : "?";
     root.innerHTML = `
