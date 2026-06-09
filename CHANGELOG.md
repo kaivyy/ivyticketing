@@ -4,6 +4,27 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
+## [Phase 10] — 2026-06-09
+
+### Added
+- Ballot draw engine: deterministic Fisher-Yates shuffle, seeded with sha256(event|category|nonce)
+- Ballot lifecycle: PENDING → OPEN → CLOSED → DRAWN → ANNOUNCED state machine
+- Winner grant issuance: RESERVED AccessPool created per draw, grants issued to winners at announce
+- Waitlist promotion: lapsed winners auto-promote from ballot waitlist (WinnerExpirer job)
+- Participant endpoints: apply, my-entry, withdraw
+- BallotAdmitter: ModeBallot wired into RAE gate
+- CSV export: full draw results downloadable by organizer
+- Result hash verification: public endpoint to verify deterministic draw integrity
+- Registration lifecycle: LifecycleChecker fail-open gate for all non-NORMAL modes
+- Waitlist module: FIFO/RANDOMIZED rank, join/promote/expire/withdraw
+- AccessPool module: typed pools (RESERVED/COMMUNITY/etc), atomic slot reservation
+- k6 load test: ballot application burst (2000 VU)
+
+### Changed
+- NewGate now accepts BallotAdmitter (4th arg) — pass nil for non-ballot modes
+
+---
+
 ## [Phase 9] — 2026-06-08
 
 Anti-bot system: guard middleware chain (blocklist → rate limit → reputation → captcha → queue cap), Redis token-bucket rate limiter, Cloudflare Turnstile adapter, IP reputation scorer, runtime DB-toggled feature flags, super-admin abuse endpoints, and frontend Turnstile widget.

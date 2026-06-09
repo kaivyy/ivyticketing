@@ -139,6 +139,33 @@ func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+// VerifyResultHash handles GET /ballot/{drawId}/verify?entry_id=...&rank=...&hash=...
+func (h *Handler) VerifyResultHash(w http.ResponseWriter, r *http.Request) {
+	drawID, err := uuid.Parse(chi.URLParam(r, "drawId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "BAD_REQUEST", "invalid drawId"))
+		return
+	}
+	entryID := r.URL.Query().Get("entry_id")
+	rankStr := r.URL.Query().Get("rank")
+	claimedHash := r.URL.Query().Get("hash")
+	if entryID == "" || rankStr == "" || claimedHash == "" {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "BAD_REQUEST", "entry_id, rank, and hash are required"))
+		return
+	}
+	rank, err := strconv.Atoi(rankStr)
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "BAD_REQUEST", "rank must be an integer"))
+		return
+	}
+	ok, err := h.svc.VerifyResultHash(r.Context(), drawID, entryID, rank, claimedHash)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, map[string]bool{"valid": ok})
+}
+
 func (h *Handler) PromoteWaitlist(w http.ResponseWriter, r *http.Request) {
 	drawID, _ := uuid.Parse(chi.URLParam(r, "drawId"))
 	if err := h.svc.PromoteWaitlist(r.Context(), drawID); err != nil {

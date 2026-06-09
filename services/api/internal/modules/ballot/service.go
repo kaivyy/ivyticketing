@@ -364,6 +364,24 @@ func (s *Service) GetMyEntry(ctx context.Context, participantID, categoryID uuid
 	return db.BallotEntry{}, ErrNotWinner // callers map this to 404
 }
 
+// VerifyResultHash recomputes the deterministic result hash for a given entry
+// and compares it against the claimed hash. Returns true if they match.
+// The hash formula is: sha256(seed + "|" + rank + "|" + entryID).
+func (s *Service) VerifyResultHash(ctx context.Context, drawID uuid.UUID, entryID string, rank int, claimedHash string) (bool, error) {
+	draw, err := s.repo.GetBallotDraw(ctx, drawID)
+	if err != nil {
+		return false, err
+	}
+	if !draw.Seed.Valid {
+		return false, ErrDrawNotAnnounced
+	}
+	seed := draw.Seed.String
+	raw := fmt.Sprintf("%s|%d|%s", seed, rank, entryID)
+	hash := sha256.Sum256([]byte(raw))
+	expected := hex.EncodeToString(hash[:])
+	return expected == claimedHash, nil
+}
+
 // Withdraw removes an APPLIED entry from an OPEN draw.
 // Returns ErrBallotWithdrawNotAllowed if the entry is not APPLIED or draw is not OPEN.
 func (s *Service) Withdraw(ctx context.Context, participantID, categoryID uuid.UUID) error {

@@ -17,6 +17,7 @@ func (h *Handler) RegisterOrganizerRoutes(r chi.Router) {
 		r.Get("/ballot/{drawId}/results", h.ListResults)
 		r.Post("/ballot/{drawId}/promote-waitlist", h.PromoteWaitlist)
 		r.Get("/ballot/{drawId}/export", h.ExportCSV)
+		r.Get("/ballot/{drawId}/verify", h.VerifyResultHash)
 	})
 }
 
