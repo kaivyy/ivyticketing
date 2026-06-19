@@ -2,9 +2,13 @@ package orders
 
 import (
 	"context"
+	"fmt"
+
+	"github.com/google/uuid"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
 	inv "github.com/varin/ivyticketing/services/api/internal/modules/inventory"
+	notifmod "github.com/varin/ivyticketing/services/api/internal/modules/notifications"
 )
 
 // ExpireOrders finds PENDING_PAYMENT orders past their expiry and transitions them
@@ -13,6 +17,7 @@ import (
 // Returns the number of orders expired.
 func (s *Service) ExpireOrders(ctx context.Context, batch int32) (int, error) {
 	var expired int
+	var expiredOrderIDs []uuid.UUID
 	err := s.repo.ExecTx(ctx, func(tx Repository) error {
 		ids, err := tx.ListExpiredPendingOrders(ctx, batch)
 		if err != nil {
@@ -30,6 +35,7 @@ func (s *Service) ExpireOrders(ctx context.Context, batch int32) (int, error) {
 				return err
 			}
 			expired++
+			expiredOrderIDs = append(expiredOrderIDs, id)
 			s.record(ctx, updated, "ORDER_EXPIRED")
 			s.recordReservation(ctx, updated, "RESERVATION_EXPIRED")
 		}
@@ -38,6 +44,12 @@ func (s *Service) ExpireOrders(ctx context.Context, batch int32) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+
+	// Fire payment.expired notifications for successfully expired orders.
+	for _, orderID := range expiredOrderIDs {
+		s.notifyPaymentExpired(ctx, orderID)
+	}
+
 	return expired, nil
 }
 
@@ -47,4 +59,32 @@ func (s *Service) ExpireJob(batch int32) func(context.Context) error {
 		_, err := s.ExpireOrders(ctx, batch)
 		return err
 	}
+}
+
+// notifyPaymentExpired fires a payment.expired notification for an expired order.
+// Only called after successful PENDING_PAYMENT→EXPIRED transition.
+func (s *Service) notifyPaymentExpired(ctx context.Context, orderID uuid.UUID) {
+	if s.notifier == nil {
+		return
+	}
+	order, err := s.repo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return
+	}
+	total := fmt.Sprintf("Rp %d", order.Total)
+	var deadline string
+	if order.ExpiredAt.Valid {
+		deadline = order.ExpiredAt.Time.Format("02 Jan 2006 15:04")
+	}
+	pid := order.ParticipantID
+	go func() {
+		if err := s.notifier.Enqueue(context.Background(), pid, "payment.expired", notifmod.TemplateData{
+			OrderID:         order.ID.String(),
+			OrderNumber:     order.OrderNumber,
+			TotalAmount:     total,
+			PaymentDeadline: deadline,
+		}); err != nil {
+			_ = err
+		}
+	}()
 }

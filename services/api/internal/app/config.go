@@ -57,6 +57,14 @@ type Config struct {
 	ReputationChallengeThreshold int
 	ReputationDenyThreshold      int
 	AbuseSettingsRefresh         time.Duration
+
+	EmailDriver      string
+	SMTPHost         string
+	SMTPPort         string
+	SMTPUser         string
+	SMTPPass         string
+	EmailFromName    string
+	EmailFromAddress string
 }
 
 func LoadConfig() (Config, error) {
@@ -191,6 +199,14 @@ func LoadConfig() (Config, error) {
 	cfg.ReputationChallengeThreshold = int(repChallenge)
 	cfg.ReputationDenyThreshold = int(repDeny)
 	cfg.AbuseSettingsRefresh = abuseRefresh
+
+	cfg.EmailDriver = getEnv("EMAIL_DRIVER", "log")
+	cfg.SMTPHost = os.Getenv("SMTP_HOST")
+	cfg.SMTPPort = getEnv("SMTP_PORT", "587")
+	cfg.SMTPUser = os.Getenv("SMTP_USER")
+	cfg.SMTPPass = os.Getenv("SMTP_PASS")
+	cfg.EmailFromName = getEnv("EMAIL_FROM_NAME", "IvyTicketing")
+	cfg.EmailFromAddress = os.Getenv("EMAIL_FROM_ADDRESS")
 
 	return cfg, nil
 }

@@ -312,6 +312,8 @@ type Notification struct {
 	LastAttemptAt pgtype.Timestamptz
 	SentAt        pgtype.Timestamptz
 	CreatedAt     pgtype.Timestamptz
+	NextRetryAt   pgtype.Timestamptz
+	LastError     pgtype.Text
 }
 
 type NotificationTemplate struct {

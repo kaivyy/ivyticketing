@@ -64,6 +64,21 @@ func (r *fakeRepo) UpdateStatus(_ context.Context, _ uuid.UUID, status string, _
 	return nil
 }
 
+func (r *fakeRepo) UpdateRetry(_ context.Context, _ uuid.UUID, status string, attempts int32, lastError *string, nextRetryAt, sentAt *time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.updated = append(r.updated, status)
+	return nil
+}
+
+func (r *fakeRepo) ListRetryable(_ context.Context, maxAttempts, limit int32) ([]db.Notification, error) {
+	return nil, nil
+}
+
+func (r *fakeRepo) GetDefaultTemplate(_ context.Context, typ, channel string) (templates.DBTemplate, error) {
+	return templates.DBTemplate{}, nil
+}
+
 func (r *fakeRepo) ListPending(_ context.Context, _ int32) ([]db.Notification, error) {
 	return nil, nil
 }
@@ -81,7 +96,7 @@ func newTestLogger() *slog.Logger {
 func TestEnqueue_LogSender(t *testing.T) {
 	sender := &fakeSender{}
 	repo := &fakeRepo{}
-	svc := notifmod.NewService(repo, sender, newTestLogger())
+	svc := notifmod.NewService(repo, sender, nil, nil, newTestLogger())
 
 	ctx := context.Background()
 	participantID := uuid.New()

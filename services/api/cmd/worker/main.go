@@ -8,6 +8,9 @@ import (
 
 	"github.com/varin/ivyticketing/services/api/internal/app"
 	"github.com/varin/ivyticketing/services/api/internal/db"
+	notifmod "github.com/varin/ivyticketing/services/api/internal/modules/notifications"
+	notifemail "github.com/varin/ivyticketing/services/api/internal/modules/notifications/email"
+	notiftmpl "github.com/varin/ivyticketing/services/api/internal/modules/notifications/templates"
 	ordersmod "github.com/varin/ivyticketing/services/api/internal/modules/orders"
 	queuemod "github.com/varin/ivyticketing/services/api/internal/modules/queue"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
@@ -62,6 +65,19 @@ func main() {
 	go expiryRunner.Run(ctx)
 
 	runner := worker.New("expire_orders", cfg.WorkerInterval, svc.ExpireJob(100), log)
+	log.Info("worker starting", "job", "expire_orders", "interval", cfg.WorkerInterval.String())
+	go runner.Run(ctx)
+
+	// Notification retry worker
+	notifRepo := notifmod.NewRepository(pg.Pool)
+	notifSender := &notifemail.LogSender{Log: log}
+	notifLookup := notifmod.NewParticipantLookup(db.New(pg.Pool))
+	notifResolver := notiftmpl.NewResolver(notifRepo)
+	notifRetrySvc := notifmod.NewRetryService(notifRepo, notifSender, notifLookup, notifResolver, log)
+	notifRetryRunner := worker.New("notifications_retry", cfg.WorkerInterval, notifRetrySvc.RetryWorkerJob(50), log)
+	log.Info("worker starting", "job", "notifications_retry", "interval", cfg.WorkerInterval.String())
+	go notifRetryRunner.Run(ctx)
+
 	log.Info("worker starting", "job", "expire_orders", "interval", cfg.WorkerInterval.String())
 	runner.Run(ctx)
 	log.Info("worker exited")

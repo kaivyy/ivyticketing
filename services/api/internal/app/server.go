@@ -33,6 +33,7 @@ import (
 	waitlistmod "github.com/varin/ivyticketing/services/api/internal/modules/waitlist"
 	notifmod "github.com/varin/ivyticketing/services/api/internal/modules/notifications"
 	notifemail "github.com/varin/ivyticketing/services/api/internal/modules/notifications/email"
+	notiftmpl "github.com/varin/ivyticketing/services/api/internal/modules/notifications/templates"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 	"github.com/varin/ivyticketing/services/api/internal/platform/captcha"
 	"github.com/varin/ivyticketing/services/api/internal/platform/middleware"
@@ -154,8 +155,10 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 
 	// Notifications (Phase 12)
 	notifRepo := notifmod.NewRepository(pool)
-	notifSender := &notifemail.LogSender{Log: log}
-	notifSvc := notifmod.NewService(notifRepo, notifSender, log)
+	notifSender := selectEmailSender(cfg, log)
+	notifLookup := notifmod.NewParticipantLookup(queries)
+	notifResolver := notiftmpl.NewResolver(notifRepo)
+	notifSvc := notifmod.NewService(notifRepo, notifSender, notifLookup, notifResolver, log)
 	// Wire notifier into each service via WithNotifier (duck-typed, no circular imports).
 	// Extract orders service to call WithNotifier on it.
 	ordersSvc := ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration, registrationGate, queueSvc)
@@ -165,6 +168,11 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	queueSvc.WithNotifier(notifSvc)
 	ballotSvc.WithNotifier(notifSvc)
 	waitlistSvc.WithNotifier(notifSvc)
+
+	// Notification status endpoint
+	smtpConfigured := cfg.EmailDriver == "smtp" && cfg.SMTPHost != "" && cfg.SMTPPort != ""
+	notifStatusHandler := notifmod.NewStatusHandler(cfg.EmailDriver, smtpConfigured, 5)
+	notifStatusHandler.RegisterRoutes(r)
 
 	// Anti-bot / abuse (Phase 9)
 	abuseRepo := abusemod.NewRepository(pool)
@@ -248,4 +256,24 @@ func StartServer(ctx context.Context, cfg Config, log *slog.Logger, handler http
 	srv := &http.Server{Addr: ":" + cfg.APIPort, Handler: handler}
 	log.Info("api listening", "port", cfg.APIPort)
 	return srv.ListenAndServe()
+}
+
+// selectEmailSender chooses between SMTP and Log sender based on config.
+// Never panics — falls back to LogSender if SMTP config is invalid.
+func selectEmailSender(cfg Config, log *slog.Logger) notifemail.Sender {
+	if cfg.EmailDriver == "smtp" && cfg.SMTPHost != "" && cfg.SMTPPort != "" {
+		log.Info("email driver: smtp", "host", cfg.SMTPHost, "port", cfg.SMTPPort)
+		return notifemail.NewSMTPSender(notifemail.SMTPConfig{
+			Host:     cfg.SMTPHost,
+			Port:     cfg.SMTPPort,
+			User:     cfg.SMTPUser,
+			Pass:     cfg.SMTPPass,
+			FromName: cfg.EmailFromName,
+			FromAddr: cfg.EmailFromAddress,
+		})
+	}
+	if cfg.EmailDriver == "smtp" {
+		log.Warn("email driver smtp but config incomplete, falling back to log")
+	}
+	return &notifemail.LogSender{Log: log}
 }
