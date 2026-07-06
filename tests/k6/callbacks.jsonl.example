@@ -1,0 +1,3 @@
+X-Callback-Signature:PLACEHOLDER_SIG_1	{"merchantOrderId":"ORDER-0001","resultCode":"00","reference":"REF0001","amount":"150000"}
+X-Callback-Signature:PLACEHOLDER_SIG_2	{"merchantOrderId":"ORDER-0002","resultCode":"00","reference":"REF0002","amount":"150000"}
+X-Callback-Signature:PLACEHOLDER_SIG_3	{"merchantOrderId":"ORDER-0003","resultCode":"00","reference":"REF0003","amount":"150000"}
