@@ -69,6 +69,9 @@ func (s *Service) notifyPaymentExpired(ctx context.Context, orderID uuid.UUID) {
 	}
 	order, err := s.repo.GetOrderByID(ctx, orderID)
 	if err != nil {
+		if s.log != nil {
+			s.log.Warn("notifyPaymentExpired: get order failed", "order_id", orderID, "err", err)
+		}
 		return
 	}
 	total := fmt.Sprintf("Rp %d", order.Total)
@@ -84,7 +87,9 @@ func (s *Service) notifyPaymentExpired(ctx context.Context, orderID uuid.UUID) {
 			TotalAmount:     total,
 			PaymentDeadline: deadline,
 		}); err != nil {
-			_ = err
+			if s.log != nil {
+				s.log.Warn("notifyPaymentExpired: enqueue failed", "order_id", order.ID, "err", err)
+			}
 		}
 	}()
 }

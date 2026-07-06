@@ -26,6 +26,8 @@ const (
 	CategoryAuthRegister = "auth_register"
 	CategoryBallotApply  = "ballot_apply"
 	CategoryAccessRedeem = "access_redeem"
+	CategoryRacepackPickup = "racepack_pickup"
+	CategoryRacepackProblem = "racepack_problem"
 	CategoryDefault      = "default"
 )
 

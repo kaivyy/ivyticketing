@@ -16,6 +16,11 @@ type TicketResponse struct {
 	CategoryName string     `json:"categoryName"`
 	IssuedAt     time.Time  `json:"issuedAt"`
 	UsedAt       *time.Time `json:"usedAt,omitempty"`
+
+	// BIB fields (Phase 13). All optional; hide section when nil.
+	BibNumber           *string    `json:"bibNumber,omitempty"`
+	BibAssignedAt       *time.Time `json:"bibAssignedAt,omitempty"`
+	BibAssignmentMethod *string    `json:"bibAssignmentMethod,omitempty"`
 }
 
 // TicketWithQR adds the signed QR token to a ticket view.

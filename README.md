@@ -2,6 +2,51 @@
 
 Race registration & event ticketing platform. Go modular monolith + Astro frontend.
 
+## Phase 15 — Scanner PWA
+
+Installable, offline-capable scanner app for on-site staff: racepack pickup and
+event check-in. A new backend `scanner` module reuses Phase 7 `tickets/qr`
+(HMAC-SHA256) for signature verification and Phase 14 `racepack.ExecutePickup`
+for pickups, and adds an idempotent `VALID → USED` check-in path. The HMAC secret
+stays server-only — the server is the single source of truth for signature
+validation and the no-duplicate guarantee.
+
+### New endpoints
+
+- `POST /api/v1/organizations/{orgId}/events/{eventId}/scan/verify` —
+  validate a QR token, return whitelisted participant display info + duplicate
+  flags. Requires `racepack.execute` OR `checkin.execute`.
+- `POST /api/v1/organizations/{orgId}/events/{eventId}/scan/check-in` —
+  idempotent `VALID → USED` transition (`Idempotency-Key` header). Requires
+  `checkin.execute`.
+- `GET /api/v1/scan/events` — the caller's permitted events across all their
+  organizations (authenticated).
+- Pickups reuse the existing `POST .../racepack/pickups` unchanged.
+
+Migration `00053_seed_checkin_rbac` adds the `checkin.execute` permission and
+grants it to the `racepack-staff` and `manager` role templates.
+
+### New env
+
+None new for the backend — QR signing continues to use the existing
+`TICKET_QR_SECRET`. The scanner app reads its API base URL from
+`VITE_API_BASE_URL` (defaults to `http://localhost:8080`).
+
+### Run the scanner app
+
+```bash
+pnpm --filter @ivyticketing/scanner dev        # Vite dev server
+pnpm --filter @ivyticketing/scanner build      # production PWA build
+pnpm --filter @ivyticketing/scanner test       # unit + property tests (fast-check)
+pnpm --filter @ivyticketing/scanner test:pwa   # PWA build smoke/integration tests
+```
+
+Set `VITE_API_BASE_URL` (see `apps/scanner/.env.example`) to point the app at
+your API. Offline scans are queued in IndexedDB and replayed with a
+client-generated `Idempotency-Key`, so sync is exactly-once regardless of
+retries; forged tokens that pass structural checks are rejected server-side at
+sync and surfaced for manual resolution.
+
 ## Phase 6 — Payment Gateway V1
 
 Duitku + Xendit payment integration. Order `PENDING_PAYMENT` → `PAID` via callback. Webhook receiver as a separate binary on a different port. Idempotent callback processing.
@@ -215,4 +260,4 @@ brew services start redis
 
 ## Next phase
 
-Phase 2 — Auth, RBAC & multi-tenant core. See `docs/masterplan.md`.
+Phase 16 — Reporting & Export. See `docs/masterplan.md`.

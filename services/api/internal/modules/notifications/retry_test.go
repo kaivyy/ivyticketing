@@ -231,7 +231,7 @@ func TestRetryPending_PicksRetryable(t *testing.T) {
 func TestRetryPending_MaxAttempts(t *testing.T) {
 	repo := &fakeRepoForRetry{}
 	sender := &fakeSenderForRetry{}
-	
+
 	// Create a notification that has reached max attempts
 	repo.notifications = append(repo.notifications, db.Notification{
 		ID:            uuid.New(),
@@ -251,5 +251,29 @@ func TestRetryPending_MaxAttempts(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("expected 0 retries for max attempts notification, got %d", count)
+	}
+}
+
+func TestBackoffForAttempt_Durations(t *testing.T) {
+	// Pin the exact sequence for attempts 1..6. Attempts 1..5 follow the
+	// exponential schedule; attempt 6 caps at the last value.
+	expected := map[int32]time.Duration{
+		1: 30 * time.Second,
+		2: 60 * time.Second,
+		3: 120 * time.Second,
+		4: 240 * time.Second,
+		5: 480 * time.Second,
+		6: 480 * time.Second, // cap
+	}
+	for attempt, want := range expected {
+		got := notifmod.BackoffForAttempt(attempt)
+		if got != want {
+			t.Errorf("BackoffForAttempt(%d) = %s, want %s", attempt, got, want)
+		}
+	}
+
+	// Defensive: count must equal MaxRetryAttempts so the cap lines up.
+	if got := len(notifmod.RetryBackoffs); got != notifmod.MaxRetryAttempts {
+		t.Errorf("RetryBackoffs length = %d, want MaxRetryAttempts=%d", got, notifmod.MaxRetryAttempts)
 	}
 }

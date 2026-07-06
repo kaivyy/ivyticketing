@@ -2,7 +2,6 @@ package notifications
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -56,9 +55,9 @@ func (r *sqlcRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status string
 }
 
 func (r *sqlcRepo) UpdateRetry(ctx context.Context, id uuid.UUID, status string, attempts int32, lastError *string, nextRetryAt, sentAt *time.Time) error {
-	var le sql.NullString
+	var le pgtype.Text
 	if lastError != nil {
-		le = sql.NullString{String: *lastError, Valid: true}
+		le = pgtype.Text{String: *lastError, Valid: true}
 	}
 	var nra pgtype.Timestamptz
 	if nextRetryAt != nil {
@@ -84,8 +83,8 @@ func (r *sqlcRepo) ListPending(ctx context.Context, limit int32) ([]db.Notificat
 
 func (r *sqlcRepo) ListRetryable(ctx context.Context, maxAttempts, limit int32) ([]db.Notification, error) {
 	return r.q.ListRetryableNotifications(ctx, db.ListRetryableNotificationsParams{
-		MaxAttempts: maxAttempts,
-		Limit:       limit,
+		Attempts: maxAttempts,
+		Limit:    limit,
 	})
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,6 +33,7 @@ type Service struct {
 	ttl      time.Duration
 	gate     RegistrationGate
 	hook     CheckoutHook
+	log      *slog.Logger
 }
 
 func NewService(repo Repository, recorder AuditRecorder, ttl time.Duration, gate RegistrationGate, hook CheckoutHook) *Service {
@@ -43,6 +45,10 @@ func NewService(repo Repository, recorder AuditRecorder, ttl time.Duration, gate
 
 // WithNotifier attaches a Notifier to the service. Called from server.go after construction.
 func (s *Service) WithNotifier(n Notifier) { s.notifier = n }
+
+// WithLogger attaches a structured logger to the service. Optional — when unset,
+// warnings from notification enqueue helpers are dropped.
+func (s *Service) WithLogger(l *slog.Logger) { s.log = l }
 
 func (s *Service) Checkout(ctx context.Context, participantID, eventID, categoryID uuid.UUID, admissionToken string) (OrderResponse, error) {
 	if err := s.gate.Admit(ctx, participantID, eventID, categoryID, admissionToken); err != nil {

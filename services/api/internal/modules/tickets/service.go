@@ -49,6 +49,18 @@ func toResponse(t db.Ticket) TicketResponse {
 		u := t.UsedAt.Time
 		r.UsedAt = &u
 	}
+	if t.BibNumber.Valid {
+		v := t.BibNumber.String
+		r.BibNumber = &v
+	}
+	if t.BibAssignedAt.Valid {
+		u := t.BibAssignedAt.Time
+		r.BibAssignedAt = &u
+	}
+	if t.BibAssignmentMethod.Valid {
+		v := t.BibAssignmentMethod.String
+		r.BibAssignmentMethod = &v
+	}
 	return r
 }
 

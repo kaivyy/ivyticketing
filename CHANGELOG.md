@@ -4,7 +4,160 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
-## [Phase 11] — 2026-06-09
+## [Phase 15] — 2026-06-21
+
+### Scanner PWA — offline-capable on-site scanning (racepack pickup + event check-in)
+
+Installable Vite + Svelte 5 PWA for on-site staff plus a new backend `scanner`
+module. Reuses Phase 7 `tickets/qr` (HMAC-SHA256) for signature verification and
+Phase 14/14.1 `racepack.ExecutePickup` for pickups; adds a dedicated idempotent
+check-in path. Server stays the single source of truth for signature validation
+and the no-duplicate guarantee — the HMAC secret never reaches the client.
+
+### Added
+- Migration `00053_seed_checkin_rbac` (reversible): adds `checkin.execute`
+  permission and grants it to the platform `racepack-staff` and `manager` role
+  templates, mirroring `00051`. Down migration removes the grant and permission.
+- New sqlc queries: `MarkTicketUsed` (guarded `VALID → USED`, no-op when not
+  `VALID`), `GetTicketDisplayInfo` (whitelisted display fields only),
+  `ListScannableEventsForUser` and `UserCanScanEvent` (RBAC join for permitted
+  events / per-operation authorization).
+- New backend module `internal/modules/scanner`:
+  - `Service.Verify`: server-side HMAC verification via `tickets/qr`, event-match
+    check, whitelisted display info, and `alreadyPickedUp` / `alreadyCheckedIn`
+    duplicate flags with original timestamps.
+  - `Service.CheckIn`: idempotent `VALID → USED` transition inside one tx with
+    `SELECT … FOR UPDATE` (TOCTOU-safe); `USED` is a duplicate no-op, `CANCELLED`
+    rejected.
+  - Permitted-event resolution (`ListPermittedEvents`) + `AssertEventPermitted`
+    per-operation authorization.
+  - Audit actions `SCANNER_CHECKIN_COMPLETED` and `SCANNER_QR_REJECTED`, with
+    offline `scannedAt` propagated to both `used_at` and the audit timestamp.
+- `tickets/qr`: distinct sentinel errors `ErrMalformedToken`,
+  `ErrUnsupportedVersion`, `ErrInvalidSignature`, and `DecodeStructure` — a
+  secret-free structural decode (segments, version, base64url payload,
+  parseable IDs) usable by the offline client. `DecodeStructure` never checks
+  the HMAC and never returns `ErrInvalidSignature`.
+- Endpoints: `POST /scan/verify` (`racepack.execute` OR `checkin.execute`),
+  `POST /scan/check-in` (`checkin.execute`, `Idempotency-Key`), and
+  `GET /scan/events` (authenticated, cross-org permitted events). Pickups reuse
+  the existing `POST /racepack/pickups` unchanged.
+- New middleware `RequireAnyPermission` (logical-OR permission gate) alongside
+  `RequirePermission`.
+- New frontend app `apps/scanner` (`@ivyticketing/scanner`): Vite + Svelte 5 +
+  `vite-plugin-pwa` (manifest + Workbox service worker, offline app-shell
+  precache, API network-only), IndexedDB offline queue (`offline-db`) with
+  structural validation + offline duplicate detection, Sync_Engine (idempotent
+  replay with DRAIN / RETAIN / FAIL classification), and Svelte 5 components
+  (`Login` / `Logout` / `EventPicker` / `ModeToggle` / `ScannerCamera` with
+  `$effect` cleanup / `ParticipantCard` / `ConfirmAction` / `OfflineSyncStatus`),
+  camera decode via `qr-scanner`.
+
+### Tests
+- Backend `rapid` property tests (Properties 1–3, 5–11, 18, 19) + DB-backed
+  integration property tests against real Postgres (Properties 4, 8, 9) +
+  scan-flow integration tests (build tag `integration`): online
+  scan → verify → check-in, offline replay with `Idempotency-Key`, forged-token
+  sync rejection → FAILED path.
+- Frontend `fast-check` property tests (Properties 12–17) with `fake-indexeddb`
+  and an injectable mock transport, component unit tests, and PWA build
+  smoke/integration tests (`test:pwa`).
+
+### Design decisions
+- **D1** — Offline validation is structural only. The QR scheme is symmetric
+  HMAC-SHA256, so the client cannot verify signatures without the server secret;
+  offline scans are enqueued as provisional and re-verified server-side at sync.
+  A forged token that passes structural checks fails the server HMAC at sync and
+  is surfaced as a FAILED op — the system of record is never corrupted.
+- **D3** — Pickups reuse `racepack.ExecutePickup` verbatim (TOCTOU lock, unique
+  partial index, slot enforcement, idempotency all inherited).
+- **D4** — Check-in gets its own `checkin.execute` permission (least privilege;
+  racepack distribution and gate check-in are often different staff).
+
+
+
+### Racepack hardening — audit remediation
+
+### Fixed
+- **JSON contract mismatch** (C1): backend DTOs now accept BOTH camelCase and snake_case JSON keys for pickup, proxy authorization, and problem case request bodies. Backward-compatible with the Phase 14.0 frontend (`ticket_id`/`counter_id`).
+- **Dashboard response shape** (C2): unified to `byCounter` + `openCases` (matches frontend `Dashboard` interface). Per-counter rows use snake_case keys (`counter_id`, `count`).
+- **Multi-tenant isolation** (C3): added service-layer guards `AssertEventInOrg`, `AssertTicketInEvent`, `AssertCounterInEvent` (defense-in-depth on top of route middleware).
+- **Counter IDOR** (C4): `ExecutePickup` now verifies `counter.event_id == eventID` AND `counter.active == true` before insert. Cross-event counter manipulation returns `ErrCounterEventMismatch`.
+- **Ticket IDOR** (C5): `CreateProxyAuthorization` and `CreateProblemCase` verify ticket belongs to event. Cross-event writes rejected.
+- **Slot enforcement** (C6): `ExecutePickup` accepts optional `slot_id`, validates slot is active + within window + atomic capacity. `IncrementSlotReserved` is now called inside the pickup transaction.
+- **Participant slot reservation API** (C7): `POST /api/v1/events/{eventId}/racepack/slots/{slotId}/reserve` and `GET /api/v1/events/{eventId}/racepack/slots` mounted under participant routes.
+- **TOCTOU closure** (C8): `SELECT … FOR UPDATE` on the ticket row inside `ExecutePickup` transaction. Concurrent cancel + pickup no longer allows pickup of a just-cancelled ticket.
+- **Idempotency** (C9): `Idempotency-Key` header support on `POST /pickups`. Same key + same payload → cached response. Same key + different payload → 409 `IDEMPOTENCY_CONFLICT`.
+- **Method validation** (C10): removed silent coercion of empty `method`. Now returns 400 `INVALID_METHOD`. Case + whitespace normalised; unknown values rejected.
+- **Open problem case count** (C11): dashboard `openCases` is now populated from a dedicated `CountRacepackProblemCasesByEventAndStatus` query.
+- **Rate limit scaffolding** (C12): added `CategoryRacepackPickup` and `CategoryRacepackProblem` to abuse module. Middleware wiring deferred — the abuse `RateChecker` does not yet expose a `Middleware` method; follow-up work.
+- **Append-only**: `slot_id` column added to `racepack_pickup_records` for slot-throughput reporting (Fix 6+).
+
+### Added
+- Migration `00052`: adds `racepack_pickup_records.slot_id` (FK to `racepack_pickup_slots`), indexes for event/status and slot, `idempotency_keys` table for replay-safe POSTs.
+- New sqlc queries: `AssignBib`, `ClearBib` (BIB helpers), `IncrementRacepackPickupSlotReserved`, `DecrementRacepackPickupSlotReserved`, `ListRacepackPickupSlotsActiveByEvent`, `GetRacepackPickupRecordByID`, `CountRacepackProblemCasesByEventAndStatus`, `LockTicketForUpdate`, `GetEventOrganizationID`, `CheckOrganizationMembership`, `GetUserTicketByID`, `GetIdempotencyKey`, `InsertIdempotencyKey`.
+- Service methods: `ReserveSlot`, `ReleaseSlot`, `ListActiveSlots`, `GetPickupRecordByID`, `LookupIdempotency`, `StoreIdempotency`, `HashRequest`, `AssertEventInOrg`, `AssertTicketInEvent`, `AssertCounterInEventTx`.
+- Participant-facing handlers: `ListActiveSlotsForParticipant`, `ReserveSlotForParticipant` mounted under `/api/v1/events/{eventId}/racepack/...`.
+- Handler idempotency support on `CreatePickup` and `CreateProblemCase`.
+- Integration tests under `services/api/tests/integration/racepack_integration_test.go` (build tag `integration`).
+
+### Tests
+- 16 unit tests in `services/api/internal/modules/racepack/tests/service_test.go` (counter / ticket / slot / pickup / proxy / problem-case flows + 50-goroutine parallel race).
+- 4 integration tests against real PostgreSQL (counter lifecycle, slot capacity 409, dashboard shape, problem-case target required).
+- All Phase 13 BIB tests still pass.
+
+### Performance / Security
+- All `ExecutePickup` paths now run inside a single tx with row-level lock — TOCTOU closed.
+- Counter/ticket ownership verified at the service layer in addition to route middleware.
+- Audit-failure tolerated but logged (audit outside tx, per Phase 12.1 convention).
+- Pickup-record INSERT still relies on the unique partial index as the no-duplicate guard.
+
+---
+
+## [Phase 14.0] — 2026-06-19
+
+### Racepack Pickup System — initial release
+
+### Added
+- 5 racepack tables: `racepack_counters`, `racepack_pickup_slots`, `racepack_pickup_records`, `racepack_proxy_authorizations`, `racepack_problem_cases`.
+- RBAC: `racepack.execute`, `racepack.problemdesk` (migration 00051); grants to Racepack Staff + Manager.
+- 11 racepack API endpoints under `/api/v1/organizations/{orgId}/events/{eventId}/racepack/...`.
+- Anti-duplicate unique partial index on `(ticket_id) WHERE status = 'PICKED_UP'`.
+- Slot capacity atomic UPDATE with `WHERE reserved_count < capacity` guard.
+- Problem-case state machine: OPEN → UNDER_REVIEW → RESOLVED | ESCALATED.
+- Proxy authorization workflow with immutable audit trail.
+- Astro organizer pages: Counter Manager, Slot Manager, Pickup Dashboard, Problem Desk Board.
+- Sidebar navigation for racepack group (dashboard / counters / slots / problem desk).
+
+### Known gaps (resolved in Phase 14.1)
+- No participant slot selection API.
+- Slot capacity not enforced during pickup.
+- TOCTOU window between eligibility check and pickup insert.
+- No idempotency-key support.
+- No DB-level immutability trigger on pickup records.
+- Dashboard shape mismatch with frontend.
+
+---
+
+## [Phase 13] — 2026-06-19
+
+### BIB Management System
+
+### Added
+- Migration `00049`: `tickets.bib_number`, `bib_assigned_at`, `bib_assigned_by`, `bib_assignment_method`, partial unique index on `(event_id, bib_number) WHERE bib_number IS NOT NULL`.
+- RBAC: `bib.manage` permission (existing seed 00007); Manager role granted.
+- 6 BIB management API endpoints under `/api/v1/organizations/{orgId}/events/{eventId}/racepack/...` (wait — these are under `/tickets`, not racepack).
+- BIB Manager Astro page (organizer) + sidebar entry.
+- BIB assignment methods: AUTO (auto-increment), MANUAL (organizer override).
+- Audit emission on BIB_ASSIGNED.
+
+---
+
+## [Phase 12] — 2026-06-09
+
+### Notification System + Notification Reliability (Phase 12.1)
+
+### Added
 
 ### Added
 - Access Engine: full pool type support (RESERVED, COMMUNITY, CORPORATE, SPONSOR, VIP, PARTNER, PRIORITY, ELITE)

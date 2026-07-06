@@ -83,7 +83,9 @@ func (s *Service) sendAsync(id uuid.UUID, typ string, data TemplateData) {
 	if data.ParticipantEmail == "" {
 		now := time.Now()
 		lastErr := "no_email_address"
-		_ = s.repo.UpdateRetry(ctx, id, "failed", 1, &lastErr, nil, &now)
+		if err := s.repo.UpdateRetry(ctx, id, "failed", 1, &lastErr, nil, &now); err != nil {
+			s.log.Warn("notification UpdateRetry failed (no email)", "id", id, "err", err)
+		}
 		s.log.Warn("notification terminal: no email address", "id", id)
 		return
 	}
@@ -101,12 +103,13 @@ func (s *Service) sendAsync(id uuid.UUID, typ string, data TemplateData) {
 		s.log.Warn("notification template render failed", "id", id, "type", typ, "err", renderErr)
 		now := time.Now()
 		lastErr := renderErr.Error()
-		_ = s.repo.UpdateRetry(ctx, id, "failed", 1, &lastErr, nil, &now)
+		if err := s.repo.UpdateRetry(ctx, id, "failed", 1, &lastErr, nil, &now); err != nil {
+			s.log.Warn("notification UpdateRetry failed (render)", "id", id, "err", err)
+		}
 		return
 	}
 
 	// Attempt send.
-	const maxAttempts = 5
 	senderErr := s.sender.Send(ctx, data.ParticipantEmail, result.Subject, result.HTMLBody, result.TextBody)
 	now := time.Now()
 
@@ -120,17 +123,21 @@ func (s *Service) sendAsync(id uuid.UUID, typ string, data TemplateData) {
 		}
 
 		lastErr := senderErr.Error()
-		if attempts >= maxAttempts {
+		if attempts >= MaxRetryAttempts {
 			// Terminal — no more retries.
-			_ = s.repo.UpdateRetry(ctx, id, "failed", attempts, &lastErr, nil, &now)
+			if err := s.repo.UpdateRetry(ctx, id, "failed", attempts, &lastErr, nil, &now); err != nil {
+				s.log.Warn("notification UpdateRetry failed (terminal)", "id", id, "attempts", attempts, "err", err)
+			}
 			s.log.Warn("notification terminal: max attempts reached", "id", id, "attempts", attempts)
 			return
 		}
 
 		// Retryable — calculate backoff.
-		backoff := backoffForAttempt(attempts)
+		backoff := BackoffForAttempt(attempts)
 		retryAt := time.Now().Add(backoff)
-		_ = s.repo.UpdateRetry(ctx, id, "failed", attempts, &lastErr, &retryAt, &now)
+		if err := s.repo.UpdateRetry(ctx, id, "failed", attempts, &lastErr, &retryAt, &now); err != nil {
+			s.log.Warn("notification UpdateRetry failed (retryable)", "id", id, "attempts", attempts, "err", err)
+		}
 		s.log.Warn("notification send failed — will retry", "id", id, "attempts", attempts, "backoff", backoff)
 		return
 	}
@@ -140,25 +147,22 @@ func (s *Service) sendAsync(id uuid.UUID, typ string, data TemplateData) {
 	if n, err := s.repo.GetByID(ctx, id); err == nil {
 		attempts = n.Attempts + 1
 	}
-	_ = s.repo.UpdateRetry(ctx, id, "sent", attempts, nil, nil, &now)
+	if err := s.repo.UpdateRetry(ctx, id, "sent", attempts, nil, nil, &now); err != nil {
+		s.log.Warn("notification UpdateRetry failed (success)", "id", id, "attempts", attempts, "err", err)
+	}
 }
 
-// backoffForAttempt returns exponential backoff capped at 15 minutes.
+// BackoffForAttempt returns the exponential backoff duration for the given
+// 1-based attempt number. The schedule is defined in RetryBackoffs; attempts
+// beyond the slice length reuse the last value.
 // Sequence: 30s, 60s, 120s, 240s, 480s.
-func backoffForAttempt(attempt int32) time.Duration {
-	backoffs := []time.Duration{
-		30 * time.Second,
-		60 * time.Second,
-		120 * time.Second,
-		240 * time.Second,
-		480 * time.Second,
-	}
+func BackoffForAttempt(attempt int32) time.Duration {
 	if attempt < 1 {
 		attempt = 1
 	}
 	idx := int(attempt) - 1
-	if idx >= len(backoffs) {
-		idx = len(backoffs) - 1
+	if idx >= len(RetryBackoffs) {
+		idx = len(RetryBackoffs) - 1
 	}
-	return backoffs[idx]
+	return RetryBackoffs[idx]
 }

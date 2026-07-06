@@ -24,6 +24,12 @@ type Repository interface {
 	GetEventByID(ctx context.Context, id uuid.UUID) (db.Event, error)
 	GetCategoryByID(ctx context.Context, id uuid.UUID) (db.EventCategory, error)
 	GetOrderByID(ctx context.Context, id uuid.UUID) (db.Order, error)
+
+	// BIB management (migration 00049+).
+	AssignBib(ctx context.Context, ticketID uuid.UUID, bib string, assignedBy uuid.UUID, method string) (db.Ticket, error)
+	ClearBib(ctx context.Context, ticketID uuid.UUID) (db.Ticket, error)
+	GetNextBibNumeric(ctx context.Context, eventID uuid.UUID) (int64, error)
+	ListUnassignedTicketsByEvent(ctx context.Context, eventID uuid.UUID) ([]db.Ticket, error)
 }
 
 type sqlcRepo struct {

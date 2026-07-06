@@ -39,6 +39,12 @@ func testPool(t *testing.T) *pgxpool.Pool {
 func truncate(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	_, err := pool.Exec(context.Background(), `
+		DELETE FROM idempotency_keys;
+		DELETE FROM racepack_problem_cases;
+		DELETE FROM racepack_proxy_authorizations;
+		DELETE FROM racepack_pickup_records;
+		DELETE FROM racepack_pickup_slots;
+		DELETE FROM racepack_counters;
 		DELETE FROM form_fields;
 		DELETE FROM form_schemas;
 		DELETE FROM inventory_reservations;
@@ -89,6 +95,11 @@ func newTestServer(t *testing.T, pool *pgxpool.Pool) *httptest.Server {
 		StorageLocalPath:      mediaDir,
 		StoragePublicBaseURL:  "http://localhost:8080",
 		StorageUploadMaxBytes: 5242880,
+		// Must be positive: server.go passes this to abuse.Settings.StartRefresh,
+		// which does time.NewTicker(interval) and panics on a non-positive value.
+		// Production defaults to 30s (ABUSE_SETTINGS_REFRESH); mirror that here so
+		// the hand-built test Config doesn't leave it at the zero value.
+		AbuseSettingsRefresh: 30 * time.Second,
 	}
 
 	redisURL := os.Getenv("REDIS_TEST_URL")
