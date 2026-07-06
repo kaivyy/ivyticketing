@@ -1,0 +1,275 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+<OrganizerLayout title="Racepack Dashboard — ivyticketing">
+  <div id="racepack-dashboard" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
+    <p class="text-slate-500">Memuat data dashboard…</p>
+  </div>
+
+  <script>
+    import {
+      getDashboard,
+      listCounters,
+      listPickups,
+      executePickup,
+      type Dashboard,
+      type Counter,
+      type PickupRecord,
+      type PickupMethod,
+    } from "../../../../../lib/racepack";
+    import { esc } from "../../../../../lib/safe";
+
+    const root = document.getElementById("racepack-dashboard")!;
+    const orgId = root.dataset.orgId!;
+    const eventId = root.dataset.eventId!;
+
+    let timer: ReturnType<typeof setInterval> | undefined;
+    let abortCtl: AbortController | undefined;
+    let lastFetchError = false;
+
+    function showMsg(id: string, text: string, isError = false) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text;
+      el.className = isError
+        ? "mt-2 text-sm text-red-600"
+        : "mt-2 text-sm text-green-700";
+    }
+
+    function methodLabel(m: string): string {
+      switch (m) {
+        case "SELF": return "Mandiri";
+        case "PROXY": return "Kuas";
+        case "MANUAL_OVERRIDE": return "Manual";
+        default: return m;
+      }
+    }
+
+    function methodBadge(m: string): string {
+      const colors: Record<string, string> = {
+        SELF: "bg-blue-100 text-blue-700",
+        PROXY: "bg-amber-100 text-amber-700",
+        MANUAL_OVERRIDE: "bg-purple-100 text-purple-700",
+      };
+      const c = colors[m] ?? "bg-slate-100 text-slate-700";
+      return `<span class="rounded px-1.5 py-0.5 text-[10px] ${c}">${esc(methodLabel(m))}</span>`;
+    }
+
+    function counterNameLookup(counters: Counter[]): Map<string, string> {
+      const m = new Map<string, string>();
+      for (const c of counters) m.set(c.id, c.name);
+      return m;
+    }
+
+    async function loadCountersForSelect(): Promise<Counter[]> {
+      try {
+        return await listCounters(orgId, eventId);
+      } catch {
+        return [];
+      }
+    }
+
+    async function loadRecentPickups(limit = 20): Promise<PickupRecord[]> {
+      try {
+        const records = await listPickups(orgId, eventId, limit, 0);
+        return records ?? [];
+      } catch {
+        return [];
+      }
+    }
+
+    function renderDashboard(d: Dashboard, recent: PickupRecord[], counters: Counter[]) {
+      const lookup = counterNameLookup(counters);
+      const total = d.totalPickups ?? 0;
+      const openCases = d.openCases ?? 0;
+      const byCounter = d.byCounter ?? [];
+
+      const counterRows = byCounter.length === 0
+        ? `<p class="text-sm text-slate-400">Belum ada pickup.</p>`
+        : byCounter
+            .map((b) => {
+              const name = b.counter_name || lookup.get(b.counter_id) || b.counter_id;
+              return `
+                <div class="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-4 py-2">
+                  <p class="text-sm">${esc(name)}</p>
+                  <span class="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">${b.count}</span>
+                </div>`;
+            })
+            .join("");
+
+      const recentRows = recent.length === 0
+        ? `<p class="text-sm text-slate-400">Belum ada pickup tercatat.</p>`
+        : `
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                  <th class="py-2 pr-3">Waktu</th>
+                  <th class="py-2 pr-3">Tiket</th>
+                  <th class="py-2 pr-3">BIB</th>
+                  <th class="py-2 pr-3">Counter</th>
+                  <th class="py-2 pr-3">Metode</th>
+                  <th class="py-2 pr-3">Catatan</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${recent
+                  .map((r) => `
+                    <tr class="border-b border-slate-100">
+                      <td class="py-2 pr-3 text-xs text-slate-600">${esc(new Date(r.pickupTimestamp).toLocaleTimeString("id-ID"))}</td>
+                      <td class="py-2 pr-3 font-mono text-xs">${esc(r.ticketId)}</td>
+                      <td class="py-2 pr-3 font-mono">${r.bibNumber ? esc(r.bibNumber) : '<span class="text-slate-400">—</span>'}</td>
+                      <td class="py-2 pr-3">${esc(lookup.get(r.counterId) ?? r.counterId)}</td>
+                      <td class="py-2 pr-3">${methodBadge(r.pickupMethod)}</td>
+                      <td class="py-2 pr-3 text-xs text-slate-500">${r.notes ? esc(r.notes) : ""}</td>
+                    </tr>`)
+                  .join("")}
+              </tbody>
+            </table>
+          </div>`;
+
+      const counterOptions = counters
+        .filter((c) => c.active)
+        .map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`)
+        .join("");
+
+      root.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h1 class="text-2xl font-bold text-slate-900">Racepack — Pickup Dashboard</h1>
+          <span class="text-xs text-slate-500">Auto-refresh 5 detik</span>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <div class="rounded-lg border border-slate-200 bg-white p-6 text-center">
+            <p class="text-3xl font-bold text-slate-900">${total}</p>
+            <p class="text-sm text-slate-500">Total Pickup</p>
+          </div>
+          <div class="rounded-lg border border-slate-200 bg-white p-6 text-center">
+            <p class="text-3xl font-bold ${openCases > 0 ? "text-red-600" : "text-slate-900"}">${openCases}</p>
+            <p class="text-sm text-slate-500">Kasus Masalah Terbuka</p>
+          </div>
+        </div>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">Per-Counter Breakdown</h2>
+          <div class="space-y-2">${counterRows}</div>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">Catat Pickup</h2>
+          <form id="pickup-form" class="space-y-3 max-w-2xl">
+            <div class="grid gap-3 md:grid-cols-3">
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Ticket ID</label>
+                <input id="pickup-ticket" type="text" required placeholder="uuid"
+                  class="w-full rounded border border-slate-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Counter</label>
+                <select id="pickup-counter" required
+                  class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">— pilih —</option>
+                  ${counterOptions}
+                </select>
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Metode</label>
+                <select id="pickup-method"
+                  class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="SELF">Mandiri</option>
+                  <option value="PROXY">Kuas</option>
+                  <option value="MANUAL_OVERRIDE">Manual Override</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium text-slate-700">Catatan (opsional)</label>
+              <input id="pickup-notes" type="text"
+                class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <button type="submit"
+              class="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">
+              Catat Pickup
+            </button>
+          </form>
+          <p id="pickup-msg" class="mt-2 text-sm text-slate-500"></p>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">Pickup Terbaru</h2>
+          ${recentRows}
+        </section>
+
+        <p id="updated-at" class="text-xs text-slate-400">Terakhir diperbarui: ${new Date().toLocaleTimeString("id-ID")}</p>
+      `;
+
+      document.getElementById("pickup-form")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const ticketId = (document.getElementById("pickup-ticket") as HTMLInputElement).value.trim();
+        const counterId = (document.getElementById("pickup-counter") as HTMLSelectElement).value;
+        const method = (document.getElementById("pickup-method") as HTMLSelectElement).value as PickupMethod;
+        const notes = (document.getElementById("pickup-notes") as HTMLInputElement).value.trim();
+        if (!ticketId || !counterId) {
+          showMsg("pickup-msg", "Ticket ID dan Counter wajib diisi.", true);
+          return;
+        }
+        try {
+          await executePickup(orgId, eventId, ticketId, counterId, method, notes || undefined);
+          showMsg("pickup-msg", "Pickup berhasil dicatat.");
+          (document.getElementById("pickup-form") as HTMLFormElement).reset();
+          await poll();
+        } catch (err) {
+          showMsg("pickup-msg", (err as Error).message, true);
+        }
+      });
+    }
+
+    async function poll() {
+      // Abort previous in-flight request to avoid leaks
+      if (abortCtl) abortCtl.abort();
+      abortCtl = new AbortController();
+      const signal = abortCtl.signal;
+
+      try {
+        const [d, recent, counters] = await Promise.all([
+          getDashboard(orgId, eventId),
+          loadRecentPickups(20),
+          loadCountersForSelect(),
+        ]);
+        if (signal.aborted) return;
+        renderDashboard(d, recent, counters);
+        lastFetchError = false;
+      } catch (e) {
+        if (signal.aborted) return;
+        lastFetchError = true;
+        // Only show a single-line status; keep previous content visible
+        const status = document.getElementById("updated-at");
+        if (status) {
+          status.textContent = `Gagal memuat: ${(e as Error).message}. Akan coba lagi…`;
+          status.className = "text-xs text-amber-600";
+        }
+      }
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) void poll();
+    });
+
+    void poll();
+    timer = setInterval(() => { void poll(); }, 5000);
+
+    // Cleanup on page unload to prevent leaked intervals
+    window.addEventListener("pagehide", () => {
+      if (timer) {
+        clearInterval(timer);
+        timer = undefined;
+      }
+      if (abortCtl) {
+        abortCtl.abort();
+        abortCtl = undefined;
+      }
+    });
+  </script>
+</OrganizerLayout>

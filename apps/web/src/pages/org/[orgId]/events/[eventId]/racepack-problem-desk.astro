@@ -1,0 +1,249 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+<OrganizerLayout title="Racepack Problem Desk — ivyticketing">
+  <div id="racepack-problem-desk" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
+    <p class="text-slate-500">Memuat data kasus…</p>
+  </div>
+
+  <script>
+    import {
+      listProblemCases,
+      createProblemCase,
+      updateProblemCase,
+      type ProblemCase,
+      type ProblemStatus,
+    } from "../../../../../lib/racepack";
+    import { esc } from "../../../../../lib/safe";
+
+    const root = document.getElementById("racepack-problem-desk")!;
+    const orgId = root.dataset.orgId!;
+    const eventId = root.dataset.eventId!;
+
+    let allCases: ProblemCase[] = [];
+    let currentFilter: "ALL" | ProblemStatus = "ALL";
+
+    function showMsg(id: string, text: string, isError = false) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text;
+      el.className = isError
+        ? "mt-2 text-sm text-red-600"
+        : "mt-2 text-sm text-green-700";
+    }
+
+    function statusLabel(s: ProblemStatus): string {
+      switch (s) {
+        case "OPEN": return "Terbuka";
+        case "UNDER_REVIEW": return "Ditinjau";
+        case "RESOLVED": return "Selesai";
+        case "ESCALATED": return "Dieskalasi";
+        default: return s;
+      }
+    }
+
+    function statusBadge(s: ProblemStatus): string {
+      const colors: Record<ProblemStatus, string> = {
+        OPEN: "bg-red-100 text-red-800",
+        UNDER_REVIEW: "bg-amber-100 text-amber-800",
+        RESOLVED: "bg-green-100 text-green-800",
+        ESCALATED: "bg-purple-100 text-purple-800",
+      };
+      const cls = colors[s] ?? "bg-slate-100 text-slate-700";
+      return `<span class="rounded px-2 py-0.5 text-xs font-medium ${cls}">${esc(statusLabel(s))}</span>`;
+    }
+
+    function filterCases(): ProblemCase[] {
+      const filtered = currentFilter === "ALL"
+        ? allCases
+        : allCases.filter((c) => c.status === currentFilter);
+      return [...filtered].sort((a, b) =>
+        (b.createdAt ?? "").localeCompare(a.createdAt ?? "")
+      );
+    }
+
+    function renderList() {
+      const container = document.getElementById("cases-list");
+      if (!container) return;
+      const cases = filterCases();
+      if (cases.length === 0) {
+        container.innerHTML = `<p class="text-sm text-slate-400">Tidak ada kasus pada filter ini.</p>`;
+        return;
+      }
+      container.innerHTML = cases
+        .map(
+          (c) => `
+          <div class="rounded border border-slate-200 bg-slate-50 p-4 space-y-3" data-case-id="${esc(c.id)}">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  ${statusBadge(c.status)}
+                  <span class="text-xs text-slate-500">${esc(new Date(c.createdAt).toLocaleString("id-ID"))}</span>
+                </div>
+                <p class="text-sm">${esc(c.reason)}</p>
+                <p class="text-xs text-slate-500">
+                  ${c.ticketId ? `Ticket: <span class="font-mono">${esc(c.ticketId)}</span>` : ""}
+                  ${c.participantId ? ` · Participant: <span class="font-mono">${esc(c.participantId)}</span>` : ""}
+                </p>
+                ${c.resolution ? `<p class="text-xs text-slate-600"><strong>Resolusi:</strong> ${esc(c.resolution)}</p>` : ""}
+              </div>
+            </div>
+            <div class="space-y-2 border-t border-slate-200 pt-3">
+              <div class="flex flex-wrap gap-2">
+                ${(["OPEN","UNDER_REVIEW","RESOLVED","ESCALATED"] as ProblemStatus[])
+                  .map((s) =>
+                    s === c.status
+                      ? ""
+                      : `<button data-act="status" data-status="${s}" class="rounded border border-slate-300 bg-white px-2 py-1 text-xs hover:bg-slate-100">${esc(statusLabel(s))}</button>`
+                  )
+                  .join("")}
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <input data-field="resolution" type="text" placeholder="Resolusi (wajib untuk RESOLVED/ESCALATED)"
+                  class="flex-1 min-w-[200px] rounded border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+            </div>
+          </div>`
+        )
+        .join("");
+
+      container.querySelectorAll<HTMLDivElement>("[data-case-id]").forEach((row) => {
+        const id = row.dataset.caseId!;
+        row.querySelectorAll<HTMLButtonElement>('[data-act="status"]').forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const status = btn.dataset.status as ProblemStatus;
+            const resolutionEl = row.querySelector<HTMLInputElement>('[data-field="resolution"]');
+            const resolution = resolutionEl?.value.trim();
+            if ((status === "RESOLVED" || status === "ESCALATED") && !resolution) {
+              showMsg("cases-action-msg", "Resolusi wajib diisi untuk status RESOLVED atau ESCALATED.", true);
+              return;
+            }
+            try {
+              await updateProblemCase(orgId, eventId, id, status, resolution || undefined);
+              showMsg("cases-action-msg", `Kasus diperbarui menjadi ${statusLabel(status)}.`);
+              await loadCases();
+            } catch (e) {
+              showMsg("cases-action-msg", (e as Error).message, true);
+            }
+          });
+        });
+      });
+    }
+
+    async function loadCases() {
+      const container = document.getElementById("cases-list");
+      if (!container) return;
+      try {
+        allCases = await listProblemCases(orgId, eventId);
+        renderList();
+      } catch (e) {
+        container.replaceChildren(
+          Object.assign(document.createElement("p"), {
+            className: "text-sm text-red-600",
+            textContent: (e as Error).message,
+          })
+        );
+      }
+    }
+
+    function renderFilterTabs() {
+      const tabs = document.getElementById("filter-tabs");
+      if (!tabs) return;
+      const statuses: Array<"ALL" | ProblemStatus> = [
+        "ALL", "OPEN", "UNDER_REVIEW", "RESOLVED", "ESCALATED",
+      ];
+      tabs.innerHTML = statuses
+        .map(
+          (s) => `
+          <button data-filter="${s}"
+            class="rounded border px-3 py-1 text-xs ${currentFilter === s ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}">
+            ${s === "ALL" ? "Semua" : esc(statusLabel(s))}
+          </button>`
+        )
+        .join("");
+      tabs.querySelectorAll<HTMLButtonElement>("[data-filter]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          currentFilter = btn.dataset.filter as "ALL" | ProblemStatus;
+          renderFilterTabs();
+          renderList();
+        });
+      });
+    }
+
+    root.innerHTML = `
+      <h1 class="text-2xl font-bold text-slate-900">Racepack — Problem Desk</h1>
+
+      <section class="rounded-lg border border-slate-200 bg-white p-6">
+        <h2 class="mb-4 text-lg font-semibold">Buat Kasus Baru</h2>
+        <form id="create-case-form" class="space-y-3 max-w-2xl">
+          <div class="grid gap-3 md:grid-cols-2">
+            <div>
+              <label class="mb-1 block text-sm font-medium text-slate-700">Ticket ID (opsional)</label>
+              <input id="case-ticket" type="text" placeholder="uuid"
+                class="w-full rounded border border-slate-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium text-slate-700">Participant ID (opsional)</label>
+              <input id="case-participant" type="text" placeholder="uuid"
+                class="w-full rounded border border-slate-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium text-slate-700">Alasan <span class="text-red-600">*</span></label>
+            <textarea id="case-reason" rows="3" required
+              class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Contoh: Peserta membawa KTP atas nama orang lain"></textarea>
+          </div>
+          <button type="submit"
+            class="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">
+            Buat Kasus
+          </button>
+        </form>
+        <p id="create-case-msg" class="mt-2 text-sm text-slate-500"></p>
+      </section>
+
+      <section class="rounded-lg border border-slate-200 bg-white p-6">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 class="text-lg font-semibold">Daftar Kasus</h2>
+          <div id="filter-tabs" class="flex flex-wrap gap-2"></div>
+        </div>
+        <div id="cases-list" class="space-y-3">
+          <p class="text-sm text-slate-400">Memuat…</p>
+        </div>
+        <p id="cases-action-msg" class="mt-2 text-sm text-slate-500"></p>
+      </section>
+    `;
+
+    document.getElementById("create-case-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const ticketId = (document.getElementById("case-ticket") as HTMLInputElement).value.trim();
+      const participantId = (document.getElementById("case-participant") as HTMLInputElement).value.trim();
+      const reason = (document.getElementById("case-reason") as HTMLTextAreaElement).value.trim();
+      if (!reason) {
+        showMsg("create-case-msg", "Alasan wajib diisi.", true);
+        return;
+      }
+      if (!ticketId && !participantId) {
+        showMsg("create-case-msg", "Isi Ticket ID atau Participant ID.", true);
+        return;
+      }
+      try {
+        await createProblemCase(orgId, eventId, {
+          ticketId: ticketId || undefined,
+          participantId: participantId || undefined,
+          reason,
+        });
+        showMsg("create-case-msg", "Kasus berhasil dibuat.");
+        (document.getElementById("create-case-form") as HTMLFormElement).reset();
+        await loadCases();
+      } catch (err) {
+        showMsg("create-case-msg", (err as Error).message, true);
+      }
+    });
+
+    renderFilterTabs();
+    loadCases();
+  </script>
+</OrganizerLayout>

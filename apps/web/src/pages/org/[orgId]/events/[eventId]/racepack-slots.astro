@@ -1,0 +1,257 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+<OrganizerLayout title="Racepack Slot — ivyticketing">
+  <div id="racepack-slots" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
+    <p class="text-slate-500">Memuat data slot…</p>
+  </div>
+
+  <script>
+    import {
+      listSlots,
+      createSlot,
+      updateSlot,
+      type Slot,
+    } from "../../../../../lib/racepack";
+    import { esc } from "../../../../../lib/safe";
+
+    const root = document.getElementById("racepack-slots")!;
+    const orgId = root.dataset.orgId!;
+    const eventId = root.dataset.eventId!;
+
+    function showMsg(id: string, text: string, isError = false) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text;
+      el.className = isError
+        ? "mt-2 text-sm text-red-600"
+        : "mt-2 text-sm text-green-700";
+    }
+
+    function statusBadge(active: boolean): string {
+      const cls = active
+        ? "bg-green-100 text-green-800"
+        : "bg-slate-200 text-slate-700";
+      const label = active ? "Aktif" : "Nonaktif";
+      return `<span class="rounded px-2 py-0.5 text-xs font-medium ${cls}">${label}</span>`;
+    }
+
+    function progressBar(reserved: number, capacity: number): string {
+      const cap = Math.max(capacity, 0);
+      const pct = cap === 0 ? 0 : Math.min(100, Math.round((reserved / cap) * 100));
+      const color = pct >= 90 ? "bg-red-500" : pct >= 60 ? "bg-amber-500" : "bg-green-500";
+      return `
+        <div class="mt-1 h-2 w-full rounded-full bg-slate-200">
+          <div class="h-2 rounded-full ${color}" style="width: ${pct}%"></div>
+        </div>
+        <p class="mt-1 text-xs text-slate-500">${reserved}/${cap} (${pct}%)</p>`;
+    }
+
+    function groupByDate(slots: Slot[]): Record<string, Slot[]> {
+      const groups: Record<string, Slot[]> = {};
+      for (const s of slots) {
+        const key = s.pickupDate || "(tanpa tanggal)";
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(s);
+      }
+      // sort each group by startTime
+      for (const k of Object.keys(groups)) {
+        groups[k].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      }
+      return groups;
+    }
+
+    async function loadSlots() {
+      const container = document.getElementById("slots-list");
+      if (!container) return;
+      try {
+        const slots = await listSlots(orgId, eventId);
+        if (!slots || slots.length === 0) {
+          container.innerHTML = `<p class="text-sm text-slate-400">Belum ada slot pada event ini.</p>`;
+          return;
+        }
+        const groups = groupByDate(slots);
+        const dateKeys = Object.keys(groups).sort();
+
+        container.innerHTML = dateKeys
+          .map(
+            (date) => `
+          <div class="space-y-2">
+            <h3 class="text-sm font-semibold text-slate-600">${esc(date)}</h3>
+            ${groups[date]
+              .map(
+                (s) => `
+              <div class="rounded border border-slate-200 bg-slate-50 p-4 space-y-3" data-slot-id="${esc(s.id)}">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p class="font-medium">${esc(s.name)}</p>
+                    <p class="text-xs text-slate-500">${esc(s.startTime)}–${esc(s.endTime)} · Kapasitas ${s.capacity}</p>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    ${statusBadge(s.active)}
+                    <button data-act="toggle" class="rounded border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700 hover:bg-slate-100">
+                      ${s.active ? "Nonaktifkan" : "Aktifkan"}
+                    </button>
+                  </div>
+                </div>
+                ${progressBar(s.reservedCount ?? 0, s.capacity)}
+                <div class="grid gap-2 md:grid-cols-5">
+                  <input data-field="name" type="text" value="${esc(s.name)}" placeholder="Nama slot"
+                    class="rounded border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input data-field="pickupDate" type="date" value="${esc(s.pickupDate)}"
+                    class="rounded border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input data-field="startTime" type="time" value="${esc(s.startTime)}"
+                    class="rounded border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input data-field="endTime" type="time" value="${esc(s.endTime)}"
+                    class="rounded border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input data-field="capacity" type="number" min="0" value="${s.capacity}" placeholder="Kapasitas"
+                    class="rounded border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <button data-act="save" class="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700">Simpan</button>
+              </div>`
+              )
+              .join("")}
+          </div>`
+          )
+          .join("");
+
+        container.querySelectorAll<HTMLDivElement>("[data-slot-id]").forEach((row) => {
+          const id = row.dataset.slotId!;
+          const slot = slots.find((x) => x.id === id);
+          if (!slot) return;
+
+          const fieldVal = (field: string): string => {
+            const el = row.querySelector<HTMLInputElement>(`[data-field="${field}"]`);
+            return el ? el.value.trim() : "";
+          };
+
+          row.querySelector<HTMLButtonElement>('[data-act="save"]')?.addEventListener("click", async () => {
+            const name = fieldVal("name");
+            const pickupDate = fieldVal("pickupDate");
+            const startTime = fieldVal("startTime");
+            const endTime = fieldVal("endTime");
+            const capacity = parseInt(fieldVal("capacity"), 10);
+            if (!name || !pickupDate || !startTime || !endTime || isNaN(capacity) || capacity < 0) {
+              showMsg("slots-action-msg", "Semua field wajib diisi dan kapasitas harus >= 0.", true);
+              return;
+            }
+            try {
+              await updateSlot(orgId, eventId, id, {
+                name,
+                pickupDate,
+                startTime,
+                endTime,
+                capacity,
+              });
+              showMsg("slots-action-msg", `Slot "${name}" diperbarui.`);
+              await loadSlots();
+            } catch (e) {
+              showMsg("slots-action-msg", (e as Error).message, true);
+            }
+          });
+
+          row.querySelector<HTMLButtonElement>('[data-act="toggle"]')?.addEventListener("click", async () => {
+            try {
+              await updateSlot(orgId, eventId, id, { active: !slot.active });
+              showMsg("slots-action-msg", `Slot "${slot.name}" ${slot.active ? "dinonaktifkan" : "diaktifkan"}.`);
+              await loadSlots();
+            } catch (e) {
+              showMsg("slots-action-msg", (e as Error).message, true);
+            }
+          });
+        });
+      } catch (e) {
+        container.replaceChildren(
+          Object.assign(document.createElement("p"), {
+            className: "text-sm text-red-600",
+            textContent: (e as Error).message,
+          })
+        );
+      }
+    }
+
+    root.innerHTML = `
+      <h1 class="text-2xl font-bold text-slate-900">Racepack — Slot Manager</h1>
+
+      <section class="rounded-lg border border-slate-200 bg-white p-6">
+        <h2 class="mb-4 text-lg font-semibold">Tambah Slot</h2>
+        <form id="create-slot-form" class="space-y-3 max-w-3xl">
+          <div class="grid gap-3 md:grid-cols-5">
+            <div>
+              <label class="mb-1 block text-sm font-medium text-slate-700">Nama</label>
+              <input id="slot-name" type="text" placeholder="Sesi Pagi" required
+                class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium text-slate-700">Tanggal</label>
+              <input id="slot-date" type="date" required
+                class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium text-slate-700">Mulai</label>
+              <input id="slot-start" type="time" required
+                class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium text-slate-700">Selesai</label>
+              <input id="slot-end" type="time" required
+                class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm font-medium text-slate-700">Kapasitas</label>
+              <input id="slot-capacity" type="number" min="0" placeholder="100" required
+                class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+          <button type="submit"
+            class="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">
+            Tambah Slot
+          </button>
+        </form>
+        <p id="create-slot-msg" class="mt-2 text-sm text-slate-500"></p>
+      </section>
+
+      <section class="rounded-lg border border-slate-200 bg-white p-6">
+        <h2 class="mb-4 text-lg font-semibold">Daftar Slot</h2>
+        <div id="slots-list" class="space-y-4">
+          <p class="text-sm text-slate-400">Memuat…</p>
+        </div>
+        <p id="slots-action-msg" class="mt-2 text-sm text-slate-500"></p>
+      </section>
+    `;
+
+    document.getElementById("create-slot-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = (document.getElementById("slot-name") as HTMLInputElement).value.trim();
+      const pickupDate = (document.getElementById("slot-date") as HTMLInputElement).value;
+      const startTime = (document.getElementById("slot-start") as HTMLInputElement).value;
+      const endTime = (document.getElementById("slot-end") as HTMLInputElement).value;
+      const capacity = parseInt(
+        (document.getElementById("slot-capacity") as HTMLInputElement).value,
+        10
+      );
+      if (!name || !pickupDate || !startTime || !endTime || isNaN(capacity) || capacity < 0) {
+        showMsg("create-slot-msg", "Semua field wajib diisi dan kapasitas harus >= 0.", true);
+        return;
+      }
+      try {
+        const s = await createSlot(orgId, eventId, {
+          name,
+          pickupDate,
+          startTime,
+          endTime,
+          capacity,
+        });
+        showMsg("create-slot-msg", `Slot "${s.name}" berhasil dibuat.`);
+        (document.getElementById("create-slot-form") as HTMLFormElement).reset();
+        await loadSlots();
+      } catch (err) {
+        showMsg("create-slot-msg", (err as Error).message, true);
+      }
+    });
+
+    loadSlots();
+  </script>
+</OrganizerLayout>
