@@ -63,7 +63,6 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	// cardinality. Exposed at /metrics for Prometheus scraping.
 	appMetrics := metrics.New()
 	r.Use(appMetrics.Middleware)
-	r.Handle("/metrics", promhttp.HandlerFor(appMetrics.Registry(), promhttp.HandlerOpts{}))
 
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{cfg.WebOrigin},
@@ -71,6 +70,9 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-Id"},
 		AllowCredentials: true,
 	}))
+
+	// All middleware is registered above; routes below. chi requires this order.
+	r.Handle("/metrics", promhttp.HandlerFor(appMetrics.Registry(), promhttp.HandlerOpts{}))
 
 	// System (Phase 1).
 	system.NewHandler(pg, rdb).RegisterRoutes(r)

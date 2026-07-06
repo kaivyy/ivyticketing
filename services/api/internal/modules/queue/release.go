@@ -31,10 +31,16 @@ func (s *Service) Release(ctx context.Context, eventID uuid.UUID, n int, window 
 	promoted := 0
 	expiresAt := time.Now().Add(window)
 	for _, tok := range waiting {
+		skipped := false
 		err := s.repo.ExecTx(ctx, func(tx Repository) error {
 			allowed, err := tx.MarkAllowed(ctx, tok.ID)
 			if errors.Is(err, pgx.ErrNoRows) {
-				// already promoted concurrently — skip
+				// Already promoted by a concurrent Release. MarkAllowed's
+				// WHERE status='WAITING' guard makes the DB correct, but the
+				// closure returning nil is indistinguishable from a real
+				// promotion — so flag it and skip the side effects below
+				// (admission count, Redis move, notification) for this token.
+				skipped = true
 				return nil
 			}
 			if err != nil {
@@ -49,6 +55,9 @@ func (s *Service) Release(ctx context.Context, eventID uuid.UUID, n int, window 
 			return err
 		})
 		if err != nil {
+			continue
+		}
+		if skipped {
 			continue
 		}
 		if s.store != nil {

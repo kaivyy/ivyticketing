@@ -7,12 +7,11 @@
 package integration
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // TestRacepack_CounterLifecycle exercises Fix 1+2 (JSON contract) + Fix 4
@@ -198,11 +197,17 @@ func TestRacepack_ProblemCaseRequiresTarget(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	// Open a valid problem case with participant_id only.
+	// Open a valid problem case with participant_id only. participant_id is an
+	// FK to users(id), so it must reference a real user — reuse the owner's ID.
+	var participantID string
+	if err := pool.QueryRow(context.Background(),
+		`SELECT id FROM users WHERE email = 'race-owner4@x.com'`).Scan(&participantID); err != nil {
+		t.Fatalf("fetch participant id: %v", err)
+	}
 	resp = postJSON(t, client,
 		srv.URL+"/api/v1/organizations/"+orgID+"/events/"+eventID+"/racepack/problem-cases",
 		map[string]any{
-			"participantId": uuid.NewString(),
+			"participantId": participantID,
 			"reason":        "missing BIB",
 		}, token)
 	if resp.StatusCode != http.StatusCreated {

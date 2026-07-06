@@ -99,11 +99,13 @@ func TestPhase9_BlockUserViaAdmin(t *testing.T) {
 		t.Fatalf("blocked join = %d, want 403", joinResp.StatusCode)
 	}
 	var errBody struct {
-		Code string `json:"code"`
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
 	}
 	json.NewDecoder(joinResp.Body).Decode(&errBody)
-	if errBody.Code != "USER_BLOCKED" {
-		t.Fatalf("error code = %q, want USER_BLOCKED", errBody.Code)
+	if errBody.Error.Code != "USER_BLOCKED" {
+		t.Fatalf("error code = %q, want USER_BLOCKED", errBody.Error.Code)
 	}
 
 	// Verify abuse_log row exists for this user.
@@ -183,11 +185,13 @@ func TestPhase9_IPRuleDeny(t *testing.T) {
 		t.Fatalf("denied IP join = %d, want 403", joinResp.StatusCode)
 	}
 	var errBody struct {
-		Code string `json:"code"`
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
 	}
 	json.NewDecoder(joinResp.Body).Decode(&errBody)
-	if errBody.Code != "USER_BLOCKED" {
-		t.Fatalf("error code = %q, want USER_BLOCKED (IP block)", errBody.Code)
+	if errBody.Error.Code != "USER_BLOCKED" {
+		t.Fatalf("error code = %q, want USER_BLOCKED (IP block)", errBody.Error.Code)
 	}
 }
 
@@ -278,11 +282,13 @@ func TestPhase9_TurnstileGate(t *testing.T) {
 		t.Skip("Settings cache not yet refreshed; turnstile gate test inconclusive")
 	}
 	var errBody struct {
-		Code string `json:"code"`
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
 	}
 	json.NewDecoder(joinResp.Body).Decode(&errBody)
-	if errBody.Code != "CAPTCHA_REQUIRED" {
-		t.Fatalf("error code = %q, want CAPTCHA_REQUIRED", errBody.Code)
+	if errBody.Error.Code != "CAPTCHA_REQUIRED" {
+		t.Fatalf("error code = %q, want CAPTCHA_REQUIRED", errBody.Error.Code)
 	}
 
 	// Reset: disable turnstile.

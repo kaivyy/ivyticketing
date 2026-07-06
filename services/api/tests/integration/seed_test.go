@@ -14,8 +14,11 @@ func TestSeed_CatalogAndTemplatesPresent(t *testing.T) {
 	if err := pool.QueryRow(context.Background(), "SELECT count(*) FROM permissions").Scan(&permCount); err != nil {
 		t.Fatalf("count permissions: %v", err)
 	}
-	if permCount != 24 {
-		t.Errorf("permissions = %d, want 24", permCount)
+	// Baseline check, not an exact count: later phases add permissions to the
+	// catalog (24 at Phase 8, 35 by Phase 21). Asserting a floor verifies the
+	// seed ran without turning every RBAC addition into a test edit.
+	if permCount < 24 {
+		t.Errorf("permissions = %d, want >= 24 (seed catalog missing)", permCount)
 	}
 
 	var tmplCount int

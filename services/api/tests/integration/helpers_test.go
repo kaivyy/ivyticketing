@@ -38,7 +38,12 @@ func testPool(t *testing.T) *pgxpool.Pool {
 // truncate clears all tenant data but keeps the seeded catalog/templates.
 func truncate(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
+	// audit_logs is append-only in production (trigger from migration 00058).
+	// session_replication_role=replica disables ORIGIN triggers so test
+	// teardown can still clear it; requires superuser, which the local test
+	// role has.
 	_, err := pool.Exec(context.Background(), `
+		SET session_replication_role = replica;
 		DELETE FROM idempotency_keys;
 		DELETE FROM racepack_problem_cases;
 		DELETE FROM racepack_proxy_authorizations;
@@ -57,14 +62,42 @@ func truncate(t *testing.T, pool *pgxpool.Pool) {
 		DELETE FROM member_roles;
 		DELETE FROM organization_members;
 		DELETE FROM audit_logs;
+		DELETE FROM ip_reputation;
+		DELETE FROM abuse_log;
 		DELETE FROM refresh_tokens;
 		DELETE FROM role_permissions WHERE role_id IN (SELECT id FROM roles WHERE organization_id IS NOT NULL);
 		DELETE FROM roles WHERE organization_id IS NOT NULL;
 		DELETE FROM organizations;
 		DELETE FROM users;
+		SET session_replication_role = DEFAULT;
 	`)
 	if err != nil {
 		t.Fatalf("truncate: %v", err)
+	}
+	flushRateLimits(t)
+}
+
+// flushRateLimits clears the Redis rate-limit counters. truncate only clears
+// Postgres, but the abuse guard's per-IP/per-user counters live in Redis under
+// the "ratelimit:" prefix. All integration tests share one IP (127.0.0.1), so
+// without this the auth_register limit (5/IP/min) accumulates across tests in
+// the shared binary and starts denying logins mid-suite.
+func flushRateLimits(t *testing.T) {
+	t.Helper()
+	url := os.Getenv("REDIS_TEST_URL")
+	if url == "" {
+		url = "redis://localhost:6379"
+	}
+	opt, err := goredis.ParseURL(url)
+	if err != nil {
+		t.Fatalf("parse redis url: %v", err)
+	}
+	c := goredis.NewClient(opt)
+	defer c.Close()
+	ctx := context.Background()
+	iter := c.Scan(ctx, 0, "ratelimit:*", 0).Iterator()
+	for iter.Next(ctx) {
+		_ = c.Del(ctx, iter.Val()).Err()
 	}
 }
 
@@ -100,6 +133,11 @@ func newTestServer(t *testing.T, pool *pgxpool.Pool) *httptest.Server {
 		// Production defaults to 30s (ABUSE_SETTINGS_REFRESH); mirror that here so
 		// the hand-built test Config doesn't leave it at the zero value.
 		AbuseSettingsRefresh: 30 * time.Second,
+		// Mirror production reputation thresholds (REPUTATION_CHALLENGE_THRESHOLD /
+		// REPUTATION_DENY_THRESHOLD). Left at zero, denyThreshold=0 makes the
+		// reputation gate deny every request (score >= 0) before auth even runs.
+		ReputationChallengeThreshold: 10,
+		ReputationDenyThreshold:      25,
 	}
 
 	redisURL := os.Getenv("REDIS_TEST_URL")

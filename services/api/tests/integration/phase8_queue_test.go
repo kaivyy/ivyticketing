@@ -244,11 +244,15 @@ func TestPhase8_WAR_JoinStatusRelease(t *testing.T) {
 	if noTok.StatusCode != http.StatusForbidden {
 		t.Fatalf("checkout without token = %d, want 403", noTok.StatusCode)
 	}
-	var errBody struct{ Code string `json:"code"` }
+	var errBody struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
 	json.NewDecoder(noTok.Body).Decode(&errBody)
 	noTok.Body.Close()
-	if errBody.Code != "ADMISSION_REQUIRED" {
-		t.Fatalf("error code = %q, want ADMISSION_REQUIRED", errBody.Code)
+	if errBody.Error.Code != "ADMISSION_REQUIRED" {
+		t.Fatalf("error code = %q, want ADMISSION_REQUIRED", errBody.Error.Code)
 	}
 
 	// Checkout WITH X-Queue-Token → 201.
