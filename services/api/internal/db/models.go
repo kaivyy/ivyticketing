@@ -226,6 +226,25 @@ type EventRegistrationSetting struct {
 	UpdatedAt       pgtype.Timestamptz
 }
 
+type ExportJob struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	EventID        *uuid.UUID
+	RequestedBy    uuid.UUID
+	ReportType     string
+	Format         string
+	Params         []byte
+	Status         string
+	RowCount       pgtype.Int4
+	FileKey        pgtype.Text
+	FileUrl        pgtype.Text
+	Error          pgtype.Text
+	StartedAt      pgtype.Timestamptz
+	CompletedAt    pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type FormField struct {
 	ID             uuid.UUID
 	OrganizationID uuid.UUID

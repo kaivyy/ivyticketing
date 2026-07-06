@@ -1,0 +1,301 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+<OrganizerLayout title="Laporan & Ekspor — ivyticketing">
+  <div id="reports" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
+    <p class="text-slate-500">Memuat laporan…</p>
+  </div>
+
+  <script>
+    import {
+      getSummary,
+      listExports,
+      createExport,
+      REPORT_TYPES,
+      type ReportType,
+      type ExportJob,
+    } from "../../../../../lib/reports";
+    import { esc } from "../../../../../lib/safe";
+
+    const root = document.getElementById("reports")!;
+    const orgId = root.dataset.orgId!;
+    const eventId = root.dataset.eventId!;
+
+    let timer: ReturnType<typeof setInterval> | undefined;
+    let abortCtl: AbortController | undefined;
+    let selectedType: ReportType = REPORT_TYPES[0].value;
+
+    function typeLabel(t: string): string {
+      return REPORT_TYPES.find((r) => r.value === t)?.label ?? t;
+    }
+
+    function statusBadge(s: string): string {
+      const colors: Record<string, string> = {
+        PENDING: "bg-slate-100 text-slate-700",
+        PROCESSING: "bg-blue-100 text-blue-700",
+        READY: "bg-green-100 text-green-700",
+        FAILED: "bg-red-100 text-red-700",
+      };
+      const labels: Record<string, string> = {
+        PENDING: "Menunggu",
+        PROCESSING: "Diproses",
+        READY: "Siap",
+        FAILED: "Gagal",
+      };
+      const c = colors[s] ?? "bg-slate-100 text-slate-700";
+      return `<span class="rounded px-2 py-0.5 text-xs font-medium ${c}">${esc(labels[s] ?? s)}</span>`;
+    }
+
+    function fmtMoney(v: unknown): string {
+      const n = typeof v === "number" ? v : Number(v);
+      if (!isFinite(n)) return String(v ?? "—");
+      return "Rp " + n.toLocaleString("id-ID");
+    }
+
+    // Render the summary object as a simple key/value grid. Shapes vary per
+    // report type, so we walk the top-level fields generically.
+    function renderSummaryBody(summary: unknown): string {
+      if (summary == null) {
+        return `<p class="text-sm text-slate-400">Tidak ada data ringkasan.</p>`;
+      }
+      if (Array.isArray(summary)) {
+        if (summary.length === 0) {
+          return `<p class="text-sm text-slate-400">Belum ada data.</p>`;
+        }
+        const keys = Object.keys(summary[0] as Record<string, unknown>);
+        const head = keys
+          .map((k) => `<th class="py-2 pr-3 text-left">${esc(prettyKey(k))}</th>`)
+          .join("");
+        const body = summary
+          .map(
+            (row) =>
+              `<tr class="border-b border-slate-100">${keys
+                .map((k) => `<td class="py-2 pr-3">${esc(fmtCell(k, (row as Record<string, unknown>)[k]))}</td>`)
+                .join("")}</tr>`
+          )
+          .join("");
+        return `
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead><tr class="border-b border-slate-200 text-xs uppercase text-slate-500">${head}</tr></thead>
+              <tbody>${body}</tbody>
+            </table>
+          </div>`;
+      }
+      const entries = Object.entries(summary as Record<string, unknown>);
+      if (entries.length === 0) {
+        return `<p class="text-sm text-slate-400">Tidak ada data ringkasan.</p>`;
+      }
+      return `
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          ${entries
+            .map(
+              ([k, v]) => `
+              <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3">
+                <p class="text-xs uppercase text-slate-500">${esc(prettyKey(k))}</p>
+                <p class="mt-1 text-lg font-semibold text-slate-900">${esc(fmtCell(k, v))}</p>
+              </div>`
+            )
+            .join("")}
+        </div>`;
+    }
+
+    function prettyKey(k: string): string {
+      return k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+
+    function fmtCell(key: string, v: unknown): string {
+      const lk = key.toLowerCase();
+      if (
+        (lk.includes("revenue") ||
+          lk.includes("amount") ||
+          lk.includes("total") ||
+          lk.includes("discount") ||
+          lk.includes("subtotal") ||
+          lk.includes("fee")) &&
+        (typeof v === "number" || (typeof v === "string" && v !== "" && !isNaN(Number(v))))
+      ) {
+        return fmtMoney(v);
+      }
+      if (v == null) return "—";
+      if (typeof v === "boolean") return v ? "Ya" : "Tidak";
+      return String(v);
+    }
+
+    function renderExportRows(jobs: ExportJob[]): string {
+      if (jobs.length === 0) {
+        return `<p class="text-sm text-slate-400">Belum ada permintaan ekspor.</p>`;
+      }
+      return `
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                <th class="py-2 pr-3">Jenis</th>
+                <th class="py-2 pr-3">Status</th>
+                <th class="py-2 pr-3">Baris</th>
+                <th class="py-2 pr-3">Dibuat</th>
+                <th class="py-2 pr-3">Berkas</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${jobs
+                .map(
+                  (j) => `
+                  <tr class="border-b border-slate-100">
+                    <td class="py-2 pr-3">${esc(typeLabel(j.reportType))}</td>
+                    <td class="py-2 pr-3">${statusBadge(j.status)}</td>
+                    <td class="py-2 pr-3">${j.rowCount != null ? j.rowCount : "—"}</td>
+                    <td class="py-2 pr-3 text-xs text-slate-500">${esc(new Date(j.createdAt).toLocaleString("id-ID"))}</td>
+                    <td class="py-2 pr-3">${
+                      j.status === "READY" && j.fileUrl
+                        ? `<a href="${esc(j.fileUrl)}" class="text-blue-600 hover:underline" download>Unduh CSV</a>`
+                        : j.status === "FAILED"
+                          ? `<span class="text-xs text-red-600">${esc(j.error ?? "gagal")}</span>`
+                          : '<span class="text-xs text-slate-400">—</span>'
+                    }</td>
+                  </tr>`
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    function showMsg(text: string, isError = false) {
+      const el = document.getElementById("export-msg");
+      if (!el) return;
+      el.textContent = text;
+      el.className = isError ? "mt-2 text-sm text-red-600" : "mt-2 text-sm text-green-700";
+    }
+
+    function renderShell(summaryBody: string, jobs: ExportJob[]) {
+      const typeOptions = REPORT_TYPES.map(
+        (r) =>
+          `<option value="${esc(r.value)}"${r.value === selectedType ? " selected" : ""}>${esc(r.label)}</option>`
+      ).join("");
+
+      root.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h1 class="text-2xl font-bold text-slate-900">Laporan & Ekspor</h1>
+          <span class="text-xs text-slate-500">Ekspor diproses di latar belakang</span>
+        </div>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 class="text-lg font-semibold">Ringkasan</h2>
+            <select id="summary-type"
+              class="rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              ${typeOptions}
+            </select>
+          </div>
+          <div id="summary-body">${summaryBody}</div>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">Minta Ekspor CSV</h2>
+          <form id="export-form" class="flex flex-wrap items-end gap-3">
+            <div>
+              <label class="mb-1 block text-sm font-medium text-slate-700">Jenis Laporan</label>
+              <select id="export-type"
+                class="rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                ${REPORT_TYPES.map((r) => `<option value="${esc(r.value)}">${esc(r.label)}</option>`).join("")}
+              </select>
+            </div>
+            <button type="submit"
+              class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              Buat Ekspor
+            </button>
+          </form>
+          <p id="export-msg" class="mt-2 text-sm text-slate-500"></p>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">Riwayat Ekspor</h2>
+          <div id="export-list">${renderExportRows(jobs)}</div>
+        </section>
+
+        <p id="updated-at" class="text-xs text-slate-400">Terakhir diperbarui: ${new Date().toLocaleTimeString("id-ID")}</p>
+      `;
+
+      document.getElementById("summary-type")?.addEventListener("change", async (e) => {
+        selectedType = (e.target as HTMLSelectElement).value as ReportType;
+        const body = document.getElementById("summary-body");
+        if (body) body.innerHTML = `<p class="text-sm text-slate-400">Memuat…</p>`;
+        try {
+          const summary = await getSummary(orgId, selectedType, eventId);
+          const b = document.getElementById("summary-body");
+          if (b) b.innerHTML = renderSummaryBody(summary);
+        } catch (err) {
+          const b = document.getElementById("summary-body");
+          if (b) b.innerHTML = `<p class="text-sm text-red-600">${esc((err as Error).message)}</p>`;
+        }
+      });
+
+      document.getElementById("export-form")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const type = (document.getElementById("export-type") as HTMLSelectElement).value as ReportType;
+        try {
+          await createExport(orgId, type, eventId);
+          showMsg("Ekspor diminta. Berkas akan tersedia di riwayat setelah selesai.");
+          await refreshExports();
+        } catch (err) {
+          showMsg((err as Error).message, true);
+        }
+      });
+    }
+
+    async function refreshExports() {
+      try {
+        const jobs = await listExports(orgId, 50, 0);
+        const el = document.getElementById("export-list");
+        if (el) el.innerHTML = renderExportRows(jobs ?? []);
+        const at = document.getElementById("updated-at");
+        if (at) {
+          at.textContent = `Terakhir diperbarui: ${new Date().toLocaleTimeString("id-ID")}`;
+          at.className = "text-xs text-slate-400";
+        }
+      } catch {
+        // keep previous list; polling will retry
+      }
+    }
+
+    async function initialLoad() {
+      if (abortCtl) abortCtl.abort();
+      abortCtl = new AbortController();
+      const signal = abortCtl.signal;
+      try {
+        const [summary, jobs] = await Promise.all([
+          getSummary(orgId, selectedType, eventId).catch(() => null),
+          listExports(orgId, 50, 0).catch(() => [] as ExportJob[]),
+        ]);
+        if (signal.aborted) return;
+        renderShell(renderSummaryBody(summary), jobs ?? []);
+      } catch (e) {
+        if (signal.aborted) return;
+        root.innerHTML = `<p class="text-red-600">Gagal memuat: ${esc((e as Error).message)}</p>`;
+      }
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) void refreshExports();
+    });
+
+    void initialLoad();
+    // Poll only the export list (jobs move PENDING → READY in the background).
+    timer = setInterval(() => { void refreshExports(); }, 5000);
+
+    window.addEventListener("pagehide", () => {
+      if (timer) {
+        clearInterval(timer);
+        timer = undefined;
+      }
+      if (abortCtl) {
+        abortCtl.abort();
+        abortCtl = undefined;
+      }
+    });
+  </script>
+</OrganizerLayout>

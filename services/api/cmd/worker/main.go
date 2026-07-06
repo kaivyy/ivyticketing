@@ -13,11 +13,13 @@ import (
 	notiftmpl "github.com/varin/ivyticketing/services/api/internal/modules/notifications/templates"
 	ordersmod "github.com/varin/ivyticketing/services/api/internal/modules/orders"
 	queuemod "github.com/varin/ivyticketing/services/api/internal/modules/queue"
+	reportingmod "github.com/varin/ivyticketing/services/api/internal/modules/reporting"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 	"github.com/varin/ivyticketing/services/api/internal/platform/database"
 	"github.com/varin/ivyticketing/services/api/internal/platform/logger"
 	platformqueue "github.com/varin/ivyticketing/services/api/internal/platform/queue"
 	"github.com/varin/ivyticketing/services/api/internal/platform/redis"
+	"github.com/varin/ivyticketing/services/api/internal/platform/storage"
 	"github.com/varin/ivyticketing/services/api/internal/platform/worker"
 )
 
@@ -87,5 +89,27 @@ func main() {
 	log.Info("worker starting", "job", "notifications_retry", "interval", cfg.WorkerInterval.String())
 	go notifRetryRunner.Run(ctx)
 
+	// Report export worker (Phase 16). Drains PENDING export jobs, generates CSV,
+	// uploads to storage. Uses the same storage driver as the API.
+	store, err := storage.New(storage.Config{
+		Driver:        cfg.StorageDriver,
+		LocalPath:     cfg.StorageLocalPath,
+		PublicBaseURL: cfg.StoragePublicBaseURL,
+		Bucket:        cfg.StorageBucket,
+		Endpoint:      cfg.StorageEndpoint,
+		AccessKey:     cfg.StorageAccessKey,
+		SecretKey:     cfg.StorageSecretKey,
+		Region:        cfg.StorageRegion,
+	})
+	if err != nil {
+		log.Error("storage init failed", "error", err)
+		os.Exit(1)
+	}
+	reportingSvc := reportingmod.NewService(reportingmod.NewRepository(pg.Pool), store, auditLog, log)
+	exportRunner := worker.New("report_export", cfg.WorkerInterval, reportingSvc.ExportJob(10), log)
+	log.Info("worker starting", "job", "report_export", "interval", cfg.WorkerInterval.String())
+	go exportRunner.Run(ctx)
+
+	<-ctx.Done()
 	log.Info("worker exited")
 }
