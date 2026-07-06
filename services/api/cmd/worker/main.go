@@ -41,6 +41,7 @@ func main() {
 
 	auditLog := audit.NewLogger(db.New(pg.Pool), log)
 	svc := ordersmod.NewService(ordersmod.NewRepository(pg.Pool), auditLog, cfg.OrderExpiration, nil, nil)
+	svc.WithLogger(log)
 
 	rdb, err := redis.Connect(ctx, cfg.RedisURL)
 	if err != nil {
@@ -70,7 +71,15 @@ func main() {
 
 	// Notification retry worker
 	notifRepo := notifmod.NewRepository(pg.Pool)
-	notifSender := &notifemail.LogSender{Log: log}
+	notifSender := notifemail.NewSenderFromConfig(notifemail.SenderConfig{
+		Driver:      cfg.EmailDriver,
+		SMTPHost:    cfg.SMTPHost,
+		SMTPPort:    cfg.SMTPPort,
+		SMTPUser:    cfg.SMTPUser,
+		SMTPPass:    cfg.SMTPPass,
+		FromName:    cfg.EmailFromName,
+		FromAddress: cfg.EmailFromAddress,
+	}, log)
 	notifLookup := notifmod.NewParticipantLookup(db.New(pg.Pool))
 	notifResolver := notiftmpl.NewResolver(notifRepo)
 	notifRetrySvc := notifmod.NewRetryService(notifRepo, notifSender, notifLookup, notifResolver, log)
@@ -78,7 +87,5 @@ func main() {
 	log.Info("worker starting", "job", "notifications_retry", "interval", cfg.WorkerInterval.String())
 	go notifRetryRunner.Run(ctx)
 
-	log.Info("worker starting", "job", "expire_orders", "interval", cfg.WorkerInterval.String())
-	runner.Run(ctx)
 	log.Info("worker exited")
 }

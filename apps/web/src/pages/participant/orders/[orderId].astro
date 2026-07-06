@@ -57,7 +57,11 @@ import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
       }
       try {
         const t = await getTicketByOrder(orderId);
-        html += `<a href="/participant/tickets/${esc(t.id)}" class="block rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400">Lihat tiket: ${esc(t.ticketNumber)} (${esc(t.status)})</a>`;
+        const bibLine = t.bibNumber ? `<p class="mt-1 text-sm text-slate-900">BIB: <span class="font-mono font-bold">${esc(t.bibNumber)}</span></p>` : "";
+        html += `<a href="/participant/tickets/${esc(t.id)}" class="block rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-400">
+          <p>Lihat tiket: ${esc(t.ticketNumber)} (${esc(t.status)})</p>
+          ${bibLine}
+        </a>`;
       } catch { /* no ticket yet */ }
       detail.innerHTML = html;
     } catch (e) {

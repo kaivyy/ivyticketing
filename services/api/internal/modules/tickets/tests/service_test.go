@@ -53,6 +53,21 @@ func (f *fakeRepo) GetOrderByID(ctx context.Context, id uuid.UUID) (db.Order, er
 	return f.order, nil
 }
 
+// BIB method stubs — minimal, mostly used by the existing service tests which don't exercise BIB.
+// Returns ErrNoRows so any accidental BIB-path use fails loudly rather than silently succeeding.
+func (f *fakeRepo) AssignBib(ctx context.Context, ticketID uuid.UUID, bib string, assignedBy uuid.UUID, method string) (db.Ticket, error) {
+	return db.Ticket{}, pgx.ErrNoRows
+}
+func (f *fakeRepo) ClearBib(ctx context.Context, ticketID uuid.UUID) (db.Ticket, error) {
+	return db.Ticket{}, pgx.ErrNoRows
+}
+func (f *fakeRepo) GetNextBibNumeric(ctx context.Context, eventID uuid.UUID) (int64, error) {
+	return 0, nil
+}
+func (f *fakeRepo) ListUnassignedTicketsByEvent(ctx context.Context, eventID uuid.UUID) ([]db.Ticket, error) {
+	return nil, nil
+}
+
 func TestGetTicketForUser_OwnershipMismatch_404(t *testing.T) {
 	owner := uuid.New()
 	other := uuid.New()

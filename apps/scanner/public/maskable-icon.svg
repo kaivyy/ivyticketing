@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Ivy Scanner">
+  <!-- Maskable icon: keeps its glyph within the safe zone (inner ~80%). -->
+  <rect width="512" height="512" fill="#0f172a"/>
+  <g fill="none" stroke="#f1f5f9" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Scan-frame corners -->
+    <path d="M150 116 H116 V150"/>
+    <path d="M362 116 H396 V150"/>
+    <path d="M150 396 H116 V362"/>
+    <path d="M362 396 H396 V362"/>
+    <!-- Scan line -->
+    <path d="M150 256 H362"/>
+  </g>
+</svg>

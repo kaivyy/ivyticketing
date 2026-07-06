@@ -12,8 +12,36 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const getDefaultNotificationTemplate = `-- name: GetDefaultNotificationTemplate :one
+SELECT id, org_id, type, channel, subject, body_html, body_text, is_default, created_at, updated_at FROM notification_templates
+WHERE type = $1 AND channel = $2 AND is_default = TRUE
+`
+
+type GetDefaultNotificationTemplateParams struct {
+	Type    string
+	Channel string
+}
+
+func (q *Queries) GetDefaultNotificationTemplate(ctx context.Context, arg GetDefaultNotificationTemplateParams) (NotificationTemplate, error) {
+	row := q.db.QueryRow(ctx, getDefaultNotificationTemplate, arg.Type, arg.Channel)
+	var i NotificationTemplate
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.Type,
+		&i.Channel,
+		&i.Subject,
+		&i.BodyHtml,
+		&i.BodyText,
+		&i.IsDefault,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getNotificationByID = `-- name: GetNotificationByID :one
-SELECT id, participant_id, type, channel, status, payload, attempts, last_attempt_at, sent_at, created_at FROM notifications WHERE id = $1
+SELECT id, participant_id, type, channel, status, payload, attempts, last_attempt_at, sent_at, created_at, next_retry_at, last_error FROM notifications WHERE id = $1
 `
 
 func (q *Queries) GetNotificationByID(ctx context.Context, id uuid.UUID) (Notification, error) {
@@ -30,6 +58,8 @@ func (q *Queries) GetNotificationByID(ctx context.Context, id uuid.UUID) (Notifi
 		&i.LastAttemptAt,
 		&i.SentAt,
 		&i.CreatedAt,
+		&i.NextRetryAt,
+		&i.LastError,
 	)
 	return i, err
 }
@@ -37,7 +67,7 @@ func (q *Queries) GetNotificationByID(ctx context.Context, id uuid.UUID) (Notifi
 const insertNotification = `-- name: InsertNotification :one
 INSERT INTO notifications (participant_id, type, channel, status, payload)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, participant_id, type, channel, status, payload, attempts, last_attempt_at, sent_at, created_at
+RETURNING id, participant_id, type, channel, status, payload, attempts, last_attempt_at, sent_at, created_at, next_retry_at, last_error
 `
 
 type InsertNotificationParams struct {
@@ -68,12 +98,14 @@ func (q *Queries) InsertNotification(ctx context.Context, arg InsertNotification
 		&i.LastAttemptAt,
 		&i.SentAt,
 		&i.CreatedAt,
+		&i.NextRetryAt,
+		&i.LastError,
 	)
 	return i, err
 }
 
 const listPendingNotifications = `-- name: ListPendingNotifications :many
-SELECT id, participant_id, type, channel, status, payload, attempts, last_attempt_at, sent_at, created_at FROM notifications
+SELECT id, participant_id, type, channel, status, payload, attempts, last_attempt_at, sent_at, created_at, next_retry_at, last_error FROM notifications
 WHERE status = 'pending'
 ORDER BY created_at
 LIMIT $1
@@ -99,6 +131,8 @@ func (q *Queries) ListPendingNotifications(ctx context.Context, limit int32) ([]
 			&i.LastAttemptAt,
 			&i.SentAt,
 			&i.CreatedAt,
+			&i.NextRetryAt,
+			&i.LastError,
 		); err != nil {
 			return nil, err
 		}
@@ -108,6 +142,86 @@ func (q *Queries) ListPendingNotifications(ctx context.Context, limit int32) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const listRetryableNotifications = `-- name: ListRetryableNotifications :many
+SELECT id, participant_id, type, channel, status, payload, attempts, last_attempt_at, sent_at, created_at, next_retry_at, last_error FROM notifications
+WHERE status IN ('pending','failed')
+  AND attempts < $1
+  AND (next_retry_at IS NULL OR next_retry_at <= now())
+ORDER BY created_at
+FOR UPDATE SKIP LOCKED
+LIMIT $2
+`
+
+type ListRetryableNotificationsParams struct {
+	Attempts int32
+	Limit    int32
+}
+
+func (q *Queries) ListRetryableNotifications(ctx context.Context, arg ListRetryableNotificationsParams) ([]Notification, error) {
+	rows, err := q.db.Query(ctx, listRetryableNotifications, arg.Attempts, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Notification
+	for rows.Next() {
+		var i Notification
+		if err := rows.Scan(
+			&i.ID,
+			&i.ParticipantID,
+			&i.Type,
+			&i.Channel,
+			&i.Status,
+			&i.Payload,
+			&i.Attempts,
+			&i.LastAttemptAt,
+			&i.SentAt,
+			&i.CreatedAt,
+			&i.NextRetryAt,
+			&i.LastError,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateNotificationRetry = `-- name: UpdateNotificationRetry :exec
+UPDATE notifications
+SET status = $2,
+    attempts = $3,
+    last_attempt_at = now(),
+    last_error = $4,
+    next_retry_at = $5,
+    sent_at = $6
+WHERE id = $1
+`
+
+type UpdateNotificationRetryParams struct {
+	ID          uuid.UUID
+	Status      string
+	Attempts    int32
+	LastError   pgtype.Text
+	NextRetryAt pgtype.Timestamptz
+	SentAt      pgtype.Timestamptz
+}
+
+func (q *Queries) UpdateNotificationRetry(ctx context.Context, arg UpdateNotificationRetryParams) error {
+	_, err := q.db.Exec(ctx, updateNotificationRetry,
+		arg.ID,
+		arg.Status,
+		arg.Attempts,
+		arg.LastError,
+		arg.NextRetryAt,
+		arg.SentAt,
+	)
+	return err
 }
 
 const updateNotificationStatus = `-- name: UpdateNotificationStatus :exec

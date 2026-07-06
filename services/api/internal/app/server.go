@@ -26,7 +26,9 @@ import (
 	paymentsmod "github.com/varin/ivyticketing/services/api/internal/modules/payments"
 	publicmod "github.com/varin/ivyticketing/services/api/internal/modules/publiccatalog"
 	queuemod "github.com/varin/ivyticketing/services/api/internal/modules/queue"
+	racepackmod "github.com/varin/ivyticketing/services/api/internal/modules/racepack"
 	registrationmod "github.com/varin/ivyticketing/services/api/internal/modules/registration"
+	scannermod "github.com/varin/ivyticketing/services/api/internal/modules/scanner"
 	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
 	"github.com/varin/ivyticketing/services/api/internal/modules/system"
 	ticketsmod "github.com/varin/ivyticketing/services/api/internal/modules/tickets"
@@ -155,7 +157,15 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 
 	// Notifications (Phase 12)
 	notifRepo := notifmod.NewRepository(pool)
-	notifSender := selectEmailSender(cfg, log)
+	notifSender := notifemail.NewSenderFromConfig(notifemail.SenderConfig{
+		Driver:      cfg.EmailDriver,
+		SMTPHost:    cfg.SMTPHost,
+		SMTPPort:    cfg.SMTPPort,
+		SMTPUser:    cfg.SMTPUser,
+		SMTPPass:    cfg.SMTPPass,
+		FromName:    cfg.EmailFromName,
+		FromAddress: cfg.EmailFromAddress,
+	}, log)
 	notifLookup := notifmod.NewParticipantLookup(queries)
 	notifResolver := notiftmpl.NewResolver(notifRepo)
 	notifSvc := notifmod.NewService(notifRepo, notifSender, notifLookup, notifResolver, log)
@@ -163,16 +173,35 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	// Extract orders service to call WithNotifier on it.
 	ordersSvc := ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration, registrationGate, queueSvc)
 	ordersSvc.WithNotifier(notifSvc)
+	ordersSvc.WithLogger(log)
 	ordersHandler = ordersmod.NewHandler(ordersSvc)
 	paymentsProc.WithNotifier(notifSvc)
 	queueSvc.WithNotifier(notifSvc)
 	ballotSvc.WithNotifier(notifSvc)
 	waitlistSvc.WithNotifier(notifSvc)
 
-	// Notification status endpoint
+	// Notification status endpoint (mounted under /api/v1/admin/notifications/status with RequirePlatformAdmin)
 	smtpConfigured := cfg.EmailDriver == "smtp" && cfg.SMTPHost != "" && cfg.SMTPPort != ""
-	notifStatusHandler := notifmod.NewStatusHandler(cfg.EmailDriver, smtpConfigured, 5)
-	notifStatusHandler.RegisterRoutes(r)
+	notifStatusHandler := notifmod.NewStatusHandler(cfg.EmailDriver, smtpConfigured, notifmod.MaxRetryAttempts)
+
+	// Racepack (Phase 14)
+	racepackRepo := racepackmod.NewRepository(pool)
+	racepackSvc := racepackmod.NewService(racepackRepo, auditLog, log)
+	racepackHandler := racepackmod.NewHandler(racepackSvc)
+
+	// Scanner (Phase 15). Composes the SAME qr.Signer built for tickets above
+	// (the TICKET_QR_SECRET is never duplicated), a read-only ticket display
+	// surface, the racepack service as the pickup collaborator + pickup-status
+	// reader, and the shared audit logger. Routes are mounted below.
+	scannerSvc := scannermod.NewService(
+		qrSigner,
+		scannermod.NewTicketReader(pool),
+		racepackSvc,
+		scannermod.NewRepository(pool),
+		auditLog,
+		log,
+	)
+	scannerHandler := scannermod.NewHandler(scannerSvc)
 
 	// Anti-bot / abuse (Phase 9)
 	abuseRepo := abusemod.NewRepository(pool)
@@ -213,6 +242,15 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			queueHandler.RegisterRoutes(r, abuseGuard.Middleware(abusemod.CategoryQueueJoin))
 			ballotHandler.RegisterParticipantRoutes(r, abuseGuard.Middleware(abusemod.CategoryBallotApply))
 			accessHandler.RegisterParticipantRoutes(r)
+			racepackHandler.RegisterParticipantRoutes(r, func(h http.Handler) http.Handler {
+				return middleware.Authn(signer)(h)
+			})
+
+			// Scanner permitted-events listing (Phase 15). Authenticated but NOT
+			// org-scoped: GET /scan/events returns the caller's Permitted_Events
+			// across every org they belong to, so it is mounted here rather than
+			// under /organizations/{orgId}/events/{eventId}.
+			scannerHandler.RegisterUserRoutes(r)
 
 			// Super-admin abuse + access management.
 			r.Group(func(r chi.Router) {
@@ -221,6 +259,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 					abuseHandler.RegisterAdminRoutes(r)
 				})
 				accessHandler.RegisterAdminRoutes(r)
+				notifStatusHandler.RegisterRoutes(r)
 			})
 
 			// Per-org sub-resources, authz enforced per route.
@@ -234,8 +273,10 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 					ticketsHandler.RegisterEventRoutes(r, loader)
 					registrationHandler.RegisterEventRoutes(r, loader)
 					queueHandler.RegisterOrgRoutes(r, loader)
-				ballotHandler.RegisterOrganizerRoutes(r)
-				accessHandler.RegisterOrganizerRoutes(r)
+					ballotHandler.RegisterOrganizerRoutes(r)
+					accessHandler.RegisterOrganizerRoutes(r)
+					racepackHandler.RegisterEventRoutes(r, loader)
+					scannerHandler.RegisterEventRoutes(r, loader)
 				})
 				paymentsHandler.RegisterOrgRoutes(r, loader)
 			})
@@ -256,24 +297,4 @@ func StartServer(ctx context.Context, cfg Config, log *slog.Logger, handler http
 	srv := &http.Server{Addr: ":" + cfg.APIPort, Handler: handler}
 	log.Info("api listening", "port", cfg.APIPort)
 	return srv.ListenAndServe()
-}
-
-// selectEmailSender chooses between SMTP and Log sender based on config.
-// Never panics — falls back to LogSender if SMTP config is invalid.
-func selectEmailSender(cfg Config, log *slog.Logger) notifemail.Sender {
-	if cfg.EmailDriver == "smtp" && cfg.SMTPHost != "" && cfg.SMTPPort != "" {
-		log.Info("email driver: smtp", "host", cfg.SMTPHost, "port", cfg.SMTPPort)
-		return notifemail.NewSMTPSender(notifemail.SMTPConfig{
-			Host:     cfg.SMTPHost,
-			Port:     cfg.SMTPPort,
-			User:     cfg.SMTPUser,
-			Pass:     cfg.SMTPPass,
-			FromName: cfg.EmailFromName,
-			FromAddr: cfg.EmailFromAddress,
-		})
-	}
-	if cfg.EmailDriver == "smtp" {
-		log.Warn("email driver smtp but config incomplete, falling back to log")
-	}
-	return &notifemail.LogSender{Log: log}
 }

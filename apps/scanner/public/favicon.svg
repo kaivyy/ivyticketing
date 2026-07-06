@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="Ivy Scanner">
+  <rect width="32" height="32" rx="6" fill="#0f172a"/>
+  <g fill="none" stroke="#f1f5f9" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 8 H8 V11"/>
+    <path d="M21 8 H24 V11"/>
+    <path d="M11 24 H8 V21"/>
+    <path d="M21 24 H24 V21"/>
+    <path d="M9 16 H23"/>
+  </g>
+</svg>
