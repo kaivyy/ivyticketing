@@ -177,6 +177,17 @@ type CorporateAccount struct {
 	CreatedAt       pgtype.Timestamptz
 }
 
+type CustomDomain struct {
+	ID                uuid.UUID
+	OrganizationID    uuid.UUID
+	Domain            string
+	VerificationToken string
+	Status            string
+	VerifiedAt        pgtype.Timestamptz
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+}
+
 type Event struct {
 	ID              uuid.UUID
 	OrganizationID  uuid.UUID
@@ -372,6 +383,19 @@ type Order struct {
 	ExpiredAt      pgtype.Timestamptz
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
+}
+
+type OrgBranding struct {
+	OrganizationID    uuid.UUID
+	LogoObjectKey     string
+	ThemeColor        string
+	EmailFromName     string
+	EmailFromAddress  string
+	TermsText         string
+	FooterText        string
+	WhitelabelEnabled bool
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
 }
 
 type OrgSubscription struct {

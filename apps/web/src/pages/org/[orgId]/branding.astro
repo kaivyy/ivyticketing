@@ -1,0 +1,258 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../layouts/OrganizerLayout.astro";
+const { orgId } = Astro.params;
+---
+<OrganizerLayout title="Branding & Domain — ivyticketing">
+  <div id="branding" data-org-id={orgId} class="space-y-6">
+    <p class="text-slate-500">Memuat branding…</p>
+  </div>
+
+  <script>
+    import {
+      getBranding,
+      upsertBranding,
+      listDomains,
+      addDomain,
+      verifyDomain,
+      deleteDomain,
+      DOMAIN_STATUS_LABELS,
+      type Branding,
+      type Domain,
+    } from "../../../lib/whitelabel";
+    import { esc } from "../../../lib/safe";
+
+    const root = document.getElementById("branding")!;
+    const orgId = root.dataset.orgId!;
+
+    function fmtDate(v: string | null | undefined): string {
+      if (!v) return "—";
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return esc(v);
+      return d.toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" });
+    }
+
+    function domainStatusBadge(s: string): string {
+      const colors: Record<string, string> = {
+        PENDING: "bg-amber-100 text-amber-700",
+        VERIFIED: "bg-green-100 text-green-700",
+        FAILED: "bg-red-100 text-red-700",
+      };
+      const c = colors[s] ?? "bg-slate-100 text-slate-700";
+      return `<span class="rounded px-2 py-0.5 text-xs font-medium ${c}">${esc(DOMAIN_STATUS_LABELS[s] ?? s)}</span>`;
+    }
+
+    function renderBrandingForm(b: Branding): string {
+      return `
+        <form id="branding-form" class="space-y-4">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Warna Tema</span>
+              <div class="mt-1 flex items-center gap-2">
+                <input type="color" name="themeColor" value="${esc(b.themeColor || "#2563eb")}" class="h-9 w-12 rounded border border-slate-300" />
+                <input type="text" name="themeColorHex" value="${esc(b.themeColor || "#2563eb")}" class="w-28 rounded border border-slate-300 px-2 py-1.5 text-sm font-mono" />
+              </div>
+            </label>
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Logo (object key)</span>
+              <input type="text" name="logoObjectKey" value="${esc(b.logoObjectKey)}" placeholder="mis. branding/logo.png" class="mt-1 w-full rounded border border-slate-300 px-3 py-1.5 text-sm" />
+            </label>
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Nama Pengirim Email</span>
+              <input type="text" name="emailFromName" value="${esc(b.emailFromName)}" placeholder="mis. Panitia Event" class="mt-1 w-full rounded border border-slate-300 px-3 py-1.5 text-sm" />
+            </label>
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Alamat Email Pengirim</span>
+              <input type="email" name="emailFromAddress" value="${esc(b.emailFromAddress)}" placeholder="mis. no-reply@domain.com" class="mt-1 w-full rounded border border-slate-300 px-3 py-1.5 text-sm" />
+            </label>
+          </div>
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">Teks Syarat & Ketentuan</span>
+            <textarea name="termsText" rows="3" class="mt-1 w-full rounded border border-slate-300 px-3 py-1.5 text-sm">${esc(b.termsText)}</textarea>
+          </label>
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">Teks Footer</span>
+            <textarea name="footerText" rows="2" class="mt-1 w-full rounded border border-slate-300 px-3 py-1.5 text-sm">${esc(b.footerText)}</textarea>
+          </label>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" name="whitelabelEnabled" ${b.whitelabelEnabled ? "checked" : ""} class="h-4 w-4 rounded border-slate-300" />
+            <span class="text-sm text-slate-700">Aktifkan mode white label (sembunyikan branding platform)</span>
+          </label>
+          <div class="flex items-center gap-3">
+            <button type="submit" class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Simpan Branding</button>
+            <span id="branding-status" class="text-sm"></span>
+          </div>
+        </form>`;
+    }
+
+    function renderDomainRow(d: Domain): string {
+      const canVerify = d.status !== "VERIFIED";
+      return `
+        <div class="rounded border border-slate-200 bg-white p-4" data-domain-id="${esc(d.id)}">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-sm text-slate-900">${esc(d.domain)}</span>
+              ${domainStatusBadge(d.status)}
+            </div>
+            <div class="flex items-center gap-2">
+              ${canVerify ? `<button data-action="verify" class="rounded border border-blue-300 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100">Verifikasi</button>` : ""}
+              <button data-action="delete" class="rounded border border-red-300 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100">Hapus</button>
+            </div>
+          </div>
+          <div class="mt-3 rounded bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            <p class="font-medium text-slate-700">Tambahkan record DNS TXT berikut, lalu klik Verifikasi:</p>
+            <p class="mt-1"><span class="text-slate-400">Nama:</span> <span class="font-mono">${esc(d.verificationName)}</span></p>
+            <p><span class="text-slate-400">Nilai:</span> <span class="font-mono">${esc(d.verificationToken)}</span></p>
+            ${d.verifiedAt ? `<p class="mt-1 text-slate-400">Terverifikasi ${fmtDate(d.verifiedAt)}</p>` : ""}
+          </div>
+        </div>`;
+    }
+
+    function renderDomains(domains: Domain[]): string {
+      const list = domains.length
+        ? domains.map(renderDomainRow).join("")
+        : `<p class="text-sm text-slate-400">Belum ada domain kustom.</p>`;
+      return `
+        <form id="domain-form" class="mb-4 flex flex-wrap items-center gap-2">
+          <input type="text" name="domain" placeholder="mis. tiket.domainanda.com" class="flex-1 rounded border border-slate-300 px-3 py-2 text-sm" />
+          <button type="submit" class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Tambah Domain</button>
+        </form>
+        <div id="domain-list" class="space-y-3">${list}</div>
+        <p id="domain-status" class="mt-2 text-sm"></p>`;
+    }
+
+    function setStatus(el: HTMLElement | null, msg: string, ok: boolean) {
+      if (!el) return;
+      el.textContent = msg;
+      el.className = "text-sm " + (ok ? "text-green-600" : "text-red-600");
+    }
+
+    async function reloadDomains() {
+      const domains = await listDomains(orgId).catch(() => [] as Domain[]);
+      const list = document.getElementById("domain-list");
+      if (list) {
+        list.innerHTML = domains.length
+          ? domains.map(renderDomainRow).join("")
+          : `<p class="text-sm text-slate-400">Belum ada domain kustom.</p>`;
+      }
+    }
+
+    function wireBrandingForm() {
+      const form = document.getElementById("branding-form") as HTMLFormElement | null;
+      if (!form) return;
+      const color = form.elements.namedItem("themeColor") as HTMLInputElement;
+      const hex = form.elements.namedItem("themeColorHex") as HTMLInputElement;
+      color?.addEventListener("input", () => { hex.value = color.value; });
+      hex?.addEventListener("input", () => {
+        if (/^#[0-9A-Fa-f]{6}$/.test(hex.value)) color.value = hex.value;
+      });
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const status = document.getElementById("branding-status");
+        try {
+          await upsertBranding(orgId, {
+            logoObjectKey: String(fd.get("logoObjectKey") ?? ""),
+            themeColor: String(fd.get("themeColorHex") ?? "#2563eb"),
+            emailFromName: String(fd.get("emailFromName") ?? ""),
+            emailFromAddress: String(fd.get("emailFromAddress") ?? ""),
+            termsText: String(fd.get("termsText") ?? ""),
+            footerText: String(fd.get("footerText") ?? ""),
+            whitelabelEnabled: fd.get("whitelabelEnabled") === "on",
+          });
+          setStatus(status, "Tersimpan.", true);
+        } catch (err) {
+          setStatus(status, "Gagal: " + (err as Error).message, false);
+        }
+      });
+    }
+
+    function wireDomainForm() {
+      const form = document.getElementById("domain-form") as HTMLFormElement | null;
+      const status = document.getElementById("domain-status");
+      form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const domain = String(fd.get("domain") ?? "").trim();
+        if (!domain) return;
+        try {
+          await addDomain(orgId, domain);
+          (form.elements.namedItem("domain") as HTMLInputElement).value = "";
+          setStatus(status, "Domain ditambahkan. Tambahkan record TXT lalu verifikasi.", true);
+          await reloadDomains();
+        } catch (err) {
+          setStatus(status, "Gagal: " + (err as Error).message, false);
+        }
+      });
+
+      const list = document.getElementById("domain-list");
+      list?.addEventListener("click", async (e) => {
+        const btn = (e.target as HTMLElement).closest("button[data-action]") as HTMLButtonElement | null;
+        if (!btn) return;
+        const row = btn.closest("[data-domain-id]") as HTMLElement | null;
+        const id = row?.dataset.domainId;
+        if (!id) return;
+        const action = btn.dataset.action;
+        try {
+          if (action === "verify") {
+            btn.disabled = true;
+            btn.textContent = "Memverifikasi…";
+            await verifyDomain(orgId, id);
+            setStatus(status, "Domain terverifikasi.", true);
+          } else if (action === "delete") {
+            if (!confirm("Hapus domain ini?")) return;
+            await deleteDomain(orgId, id);
+            setStatus(status, "Domain dihapus.", true);
+          }
+          await reloadDomains();
+        } catch (err) {
+          setStatus(status, "Gagal: " + (err as Error).message, false);
+          await reloadDomains();
+        }
+      });
+    }
+
+    async function load() {
+      const [b, domains] = await Promise.all([
+        getBranding(orgId).catch(() => null),
+        listDomains(orgId).catch(() => [] as Domain[]),
+      ]);
+      const branding: Branding = b ?? {
+        organizationId: orgId,
+        logoObjectKey: "",
+        themeColor: "#2563eb",
+        emailFromName: "",
+        emailFromAddress: "",
+        termsText: "",
+        footerText: "",
+        whitelabelEnabled: false,
+        createdAt: "",
+        updatedAt: "",
+      };
+
+      root.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h1 class="text-2xl font-bold text-slate-900">Branding & Domain</h1>
+        </div>
+        <p class="text-sm text-slate-500">Fitur white label & domain kustom tersedia pada paket Enterprise.</p>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">Branding Organisasi</h2>
+          ${renderBrandingForm(branding)}
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">Domain Kustom</h2>
+          ${renderDomains(domains ?? [])}
+        </section>
+      `;
+
+      wireBrandingForm();
+      wireDomainForm();
+    }
+
+    load().catch((e) => {
+      root.innerHTML = `<p class="text-red-600">Gagal memuat: ${esc((e as Error).message)}</p>`;
+    });
+  </script>
+</OrganizerLayout>

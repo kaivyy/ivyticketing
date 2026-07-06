@@ -26,6 +26,7 @@ import (
 	notiftmpl "github.com/varin/ivyticketing/services/api/internal/modules/notifications/templates"
 	ordersmod "github.com/varin/ivyticketing/services/api/internal/modules/orders"
 	billingmod "github.com/varin/ivyticketing/services/api/internal/modules/billing"
+	whitelabelmod "github.com/varin/ivyticketing/services/api/internal/modules/whitelabel"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
 	paymentsmod "github.com/varin/ivyticketing/services/api/internal/modules/payments"
 	publicmod "github.com/varin/ivyticketing/services/api/internal/modules/publiccatalog"
@@ -216,6 +217,11 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	billingHandler := billingmod.NewHandler(billingSvc)
 	paymentsProc.WithFeeRecorder(billingSvc)
 
+	// White Label & Custom Domain (Phase 18). Per-org branding overrides and
+	// custom domains with DNS TXT verification, gated on branding.manage.
+	whitelabelSvc := whitelabelmod.NewService(whitelabelmod.NewRepository(pool), auditLog, log)
+	whitelabelHandler := whitelabelmod.NewHandler(whitelabelSvc)
+
 	// Anti-bot / abuse (Phase 9)
 	abuseRepo := abusemod.NewRepository(pool)
 	abuseSettings := abusemod.NewSettings(abuseRepo)
@@ -296,6 +302,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 				paymentsHandler.RegisterOrgRoutes(r, loader)
 				reportingHandler.RegisterOrgRoutes(r, loader)
 				billingHandler.RegisterOrgRoutes(r, loader)
+				whitelabelHandler.RegisterOrgRoutes(r, loader)
 			})
 		})
 	})
