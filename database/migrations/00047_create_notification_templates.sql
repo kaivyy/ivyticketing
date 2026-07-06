@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE notification_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
@@ -13,3 +14,6 @@ CREATE TABLE notification_templates (
 
 CREATE INDEX idx_notif_templates_org ON notification_templates(org_id);
 CREATE UNIQUE INDEX idx_notif_templates_default ON notification_templates(type, channel) WHERE is_default = TRUE;
+
+-- +goose Down
+DROP TABLE IF EXISTS notification_templates;

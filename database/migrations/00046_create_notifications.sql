@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   participant_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -13,3 +14,6 @@ CREATE TABLE notifications (
 
 CREATE INDEX idx_notifications_participant ON notifications(participant_id);
 CREATE INDEX idx_notifications_status_pending ON notifications(status) WHERE status = 'pending';
+
+-- +goose Down
+DROP TABLE IF EXISTS notifications;
