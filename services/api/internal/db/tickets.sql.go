@@ -9,7 +9,98 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const assignBib = `-- name: AssignBib :one
+UPDATE tickets SET
+    bib_number            = $2,
+    bib_assigned_at       = now(),
+    bib_assigned_by       = $3,
+    bib_assignment_method = $4
+WHERE id = $1
+RETURNING id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at, bib_number, bib_assigned_at, bib_assigned_by, bib_assignment_method
+`
+
+type AssignBibParams struct {
+	ID                  uuid.UUID
+	BibNumber           pgtype.Text
+	BibAssignedBy       *uuid.UUID
+	BibAssignmentMethod pgtype.Text
+}
+
+func (q *Queries) AssignBib(ctx context.Context, arg AssignBibParams) (Ticket, error) {
+	row := q.db.QueryRow(ctx, assignBib,
+		arg.ID,
+		arg.BibNumber,
+		arg.BibAssignedBy,
+		arg.BibAssignmentMethod,
+	)
+	var i Ticket
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.EventID,
+		&i.CategoryID,
+		&i.OrderID,
+		&i.ParticipantID,
+		&i.TicketNumber,
+		&i.Status,
+		&i.HolderName,
+		&i.HolderEmail,
+		&i.EventTitle,
+		&i.CategoryName,
+		&i.QrVersion,
+		&i.IssuedAt,
+		&i.UsedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BibNumber,
+		&i.BibAssignedAt,
+		&i.BibAssignedBy,
+		&i.BibAssignmentMethod,
+	)
+	return i, err
+}
+
+const clearBib = `-- name: ClearBib :one
+UPDATE tickets SET
+    bib_number            = NULL,
+    bib_assigned_at       = NULL,
+    bib_assigned_by       = NULL,
+    bib_assignment_method = NULL
+WHERE id = $1
+RETURNING id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at, bib_number, bib_assigned_at, bib_assigned_by, bib_assignment_method
+`
+
+func (q *Queries) ClearBib(ctx context.Context, id uuid.UUID) (Ticket, error) {
+	row := q.db.QueryRow(ctx, clearBib, id)
+	var i Ticket
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.EventID,
+		&i.CategoryID,
+		&i.OrderID,
+		&i.ParticipantID,
+		&i.TicketNumber,
+		&i.Status,
+		&i.HolderName,
+		&i.HolderEmail,
+		&i.EventTitle,
+		&i.CategoryName,
+		&i.QrVersion,
+		&i.IssuedAt,
+		&i.UsedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BibNumber,
+		&i.BibAssignedAt,
+		&i.BibAssignedBy,
+		&i.BibAssignmentMethod,
+	)
+	return i, err
+}
 
 const createTicket = `-- name: CreateTicket :one
 INSERT INTO tickets (
@@ -17,7 +108,7 @@ INSERT INTO tickets (
     ticket_number, holder_name, holder_email, event_title, category_name, qr_version
 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 ON CONFLICT (order_id) DO NOTHING
-RETURNING id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at
+RETURNING id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at, bib_number, bib_assigned_at, bib_assigned_by, bib_assignment_method
 `
 
 type CreateTicketParams struct {
@@ -67,12 +158,34 @@ func (q *Queries) CreateTicket(ctx context.Context, arg CreateTicketParams) (Tic
 		&i.UsedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BibNumber,
+		&i.BibAssignedAt,
+		&i.BibAssignedBy,
+		&i.BibAssignmentMethod,
 	)
 	return i, err
 }
 
+const getNextBibNumeric = `-- name: GetNextBibNumeric :one
+SELECT COALESCE(MAX(NULLIF(regexp_replace(bib_number, '[^0-9]', '', 'g'), '')::bigint), 0)::bigint AS next
+FROM tickets
+WHERE event_id = $1
+  AND bib_number IS NOT NULL
+  AND bib_number ~ '^[0-9]+$'
+`
+
+// Returns MAX(bib_number)::bigint among tickets with bib_number set for the event,
+// where bib_number is a purely numeric string (so non-numeric prefixed values are excluded).
+// Returns 0 if no numeric BIB exists yet for the event.
+func (q *Queries) GetNextBibNumeric(ctx context.Context, eventID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, getNextBibNumeric, eventID)
+	var next int64
+	err := row.Scan(&next)
+	return next, err
+}
+
 const getTicketByID = `-- name: GetTicketByID :one
-SELECT id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at FROM tickets WHERE id = $1
+SELECT id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at, bib_number, bib_assigned_at, bib_assigned_by, bib_assignment_method FROM tickets WHERE id = $1
 `
 
 func (q *Queries) GetTicketByID(ctx context.Context, id uuid.UUID) (Ticket, error) {
@@ -96,12 +209,16 @@ func (q *Queries) GetTicketByID(ctx context.Context, id uuid.UUID) (Ticket, erro
 		&i.UsedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BibNumber,
+		&i.BibAssignedAt,
+		&i.BibAssignedBy,
+		&i.BibAssignmentMethod,
 	)
 	return i, err
 }
 
 const getTicketByOrderID = `-- name: GetTicketByOrderID :one
-SELECT id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at FROM tickets WHERE order_id = $1
+SELECT id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at, bib_number, bib_assigned_at, bib_assigned_by, bib_assignment_method FROM tickets WHERE order_id = $1
 `
 
 func (q *Queries) GetTicketByOrderID(ctx context.Context, orderID uuid.UUID) (Ticket, error) {
@@ -125,12 +242,49 @@ func (q *Queries) GetTicketByOrderID(ctx context.Context, orderID uuid.UUID) (Ti
 		&i.UsedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BibNumber,
+		&i.BibAssignedAt,
+		&i.BibAssignedBy,
+		&i.BibAssignmentMethod,
+	)
+	return i, err
+}
+
+const getTicketDisplayInfo = `-- name: GetTicketDisplayInfo :one
+SELECT
+    holder_name   AS participant_name,
+    bib_number    AS bib_number,
+    category_name AS category_name,
+    status        AS ticket_status
+FROM tickets
+WHERE id = $1
+`
+
+type GetTicketDisplayInfoRow struct {
+	ParticipantName string
+	BibNumber       pgtype.Text
+	CategoryName    string
+	TicketStatus    string
+}
+
+// Non-sensitive display fields for the scanner PWA. Projects ONLY the
+// whitelisted columns (participant name, BIB number, category name, ticket
+// status) so no sensitive data (email, phone, payment, passwords) can leak to
+// the scanner client. BIB number is NULL when unassigned.
+func (q *Queries) GetTicketDisplayInfo(ctx context.Context, id uuid.UUID) (GetTicketDisplayInfoRow, error) {
+	row := q.db.QueryRow(ctx, getTicketDisplayInfo, id)
+	var i GetTicketDisplayInfoRow
+	err := row.Scan(
+		&i.ParticipantName,
+		&i.BibNumber,
+		&i.CategoryName,
+		&i.TicketStatus,
 	)
 	return i, err
 }
 
 const listTicketsByEvent = `-- name: ListTicketsByEvent :many
-SELECT id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at FROM tickets
+SELECT id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at, bib_number, bib_assigned_at, bib_assigned_by, bib_assignment_method FROM tickets
 WHERE organization_id = $1 AND event_id = $2
 ORDER BY issued_at DESC
 `
@@ -167,6 +321,10 @@ func (q *Queries) ListTicketsByEvent(ctx context.Context, arg ListTicketsByEvent
 			&i.UsedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.BibNumber,
+			&i.BibAssignedAt,
+			&i.BibAssignedBy,
+			&i.BibAssignmentMethod,
 		); err != nil {
 			return nil, err
 		}
@@ -179,7 +337,7 @@ func (q *Queries) ListTicketsByEvent(ctx context.Context, arg ListTicketsByEvent
 }
 
 const listTicketsByParticipant = `-- name: ListTicketsByParticipant :many
-SELECT id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at FROM tickets WHERE participant_id = $1 ORDER BY issued_at DESC
+SELECT id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at, bib_number, bib_assigned_at, bib_assigned_by, bib_assignment_method FROM tickets WHERE participant_id = $1 ORDER BY issued_at DESC
 `
 
 func (q *Queries) ListTicketsByParticipant(ctx context.Context, participantID uuid.UUID) ([]Ticket, error) {
@@ -209,6 +367,10 @@ func (q *Queries) ListTicketsByParticipant(ctx context.Context, participantID uu
 			&i.UsedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.BibNumber,
+			&i.BibAssignedAt,
+			&i.BibAssignedBy,
+			&i.BibAssignmentMethod,
 		); err != nil {
 			return nil, err
 		}
@@ -218,4 +380,100 @@ func (q *Queries) ListTicketsByParticipant(ctx context.Context, participantID uu
 		return nil, err
 	}
 	return items, nil
+}
+
+const listUnassignedTicketsByEvent = `-- name: ListUnassignedTicketsByEvent :many
+SELECT id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at, bib_number, bib_assigned_at, bib_assigned_by, bib_assignment_method FROM tickets
+WHERE event_id = $1
+  AND bib_number IS NULL
+  AND status = 'VALID'
+ORDER BY issued_at ASC
+`
+
+func (q *Queries) ListUnassignedTicketsByEvent(ctx context.Context, eventID uuid.UUID) ([]Ticket, error) {
+	rows, err := q.db.Query(ctx, listUnassignedTicketsByEvent, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Ticket
+	for rows.Next() {
+		var i Ticket
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
+			&i.EventID,
+			&i.CategoryID,
+			&i.OrderID,
+			&i.ParticipantID,
+			&i.TicketNumber,
+			&i.Status,
+			&i.HolderName,
+			&i.HolderEmail,
+			&i.EventTitle,
+			&i.CategoryName,
+			&i.QrVersion,
+			&i.IssuedAt,
+			&i.UsedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.BibNumber,
+			&i.BibAssignedAt,
+			&i.BibAssignedBy,
+			&i.BibAssignmentMethod,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markTicketUsed = `-- name: MarkTicketUsed :one
+UPDATE tickets SET
+    status  = 'USED',
+    used_at = COALESCE($2, now())
+WHERE id = $1 AND status = 'VALID'
+RETURNING id, organization_id, event_id, category_id, order_id, participant_id, ticket_number, status, holder_name, holder_email, event_title, category_name, qr_version, issued_at, used_at, created_at, updated_at, bib_number, bib_assigned_at, bib_assigned_by, bib_assignment_method
+`
+
+type MarkTicketUsedParams struct {
+	ID     uuid.UUID
+	UsedAt pgtype.Timestamptz
+}
+
+// Guarded VALID -> USED transition for event check-in. Only affects a ticket
+// that is currently VALID (idempotent no-op returns no row when already USED or
+// CANCELLED). used_at defaults to now() unless an original scan time is passed
+// (offline-synced check-ins carry their original scannedAt).
+func (q *Queries) MarkTicketUsed(ctx context.Context, arg MarkTicketUsedParams) (Ticket, error) {
+	row := q.db.QueryRow(ctx, markTicketUsed, arg.ID, arg.UsedAt)
+	var i Ticket
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.EventID,
+		&i.CategoryID,
+		&i.OrderID,
+		&i.ParticipantID,
+		&i.TicketNumber,
+		&i.Status,
+		&i.HolderName,
+		&i.HolderEmail,
+		&i.EventTitle,
+		&i.CategoryName,
+		&i.QrVersion,
+		&i.IssuedAt,
+		&i.UsedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BibNumber,
+		&i.BibAssignedAt,
+		&i.BibAssignedBy,
+		&i.BibAssignmentMethod,
+	)
+	return i, err
 }

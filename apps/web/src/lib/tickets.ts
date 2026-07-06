@@ -13,6 +13,9 @@ export interface Ticket {
   categoryName: string;
   issuedAt: string;
   usedAt?: string;
+  bibNumber?: string;
+  bibAssignedAt?: string;
+  bibAssignmentMethod?: "AUTO" | "MANUAL" | "OVERRIDE";
 }
 
 export interface TicketWithQR extends Ticket {

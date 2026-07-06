@@ -30,9 +30,22 @@ const navItems = [
 // Event-scoped nav items — only shown when eventId is available
 const eventBase = orgId && eventId ? `/org/${orgId}/events/${eventId}` : "";
 const eventNavItems = eventId ? [
-  { label: "Antrean", href: `${eventBase}/queue-controls`, prefix: `${eventBase}/queue-controls` },
-  { label: "Corporate", href: `${eventBase}/corporate`,   prefix: `${eventBase}/corporate`       },
+  { label: "Antrean",    href: `${eventBase}/queue-controls`,     prefix: `${eventBase}/queue-controls`     },
+  { label: "Corporate",  href: `${eventBase}/corporate`,           prefix: `${eventBase}/corporate`           },
+  { label: "Tiket",      href: `${eventBase}/tickets`,             prefix: `${eventBase}/tickets`             },
+  { label: "Racepack",   href: `${eventBase}/racepack-dashboard`,  prefix: `${eventBase}/racepack-`           },
 ] : [];
+
+// Sub-navigation for the Racepack group (shown when current page is racepack-*)
+const racepackSubItems = (orgId && eventId)
+  ? [
+      { label: "Dashboard",   href: `/org/${orgId}/events/${eventId}/racepack-dashboard`,  prefix: `/org/${orgId}/events/${eventId}/racepack-dashboard`  },
+      { label: "Counter",     href: `/org/${orgId}/events/${eventId}/racepack-counters`,   prefix: `/org/${orgId}/events/${eventId}/racepack-counters`   },
+      { label: "Slot",        href: `/org/${orgId}/events/${eventId}/racepack-slots`,      prefix: `/org/${orgId}/events/${eventId}/racepack-slots`      },
+      { label: "Problem Desk",href: `/org/${orgId}/events/${eventId}/racepack-problem-desk`, prefix: `/org/${orgId}/events/${eventId}/racepack-problem-desk` },
+    ]
+  : [];
+const showRacepackSub = path.startsWith(`${eventBase}/racepack-`);
 ---
 <!doctype html>
 <html lang="id">
@@ -107,6 +120,14 @@ const eventNavItems = eventId ? [
             {eventNavItems.map((item) => (
               <a href={item.href} class={navClass(item.prefix)}>
                 {item.label}
+              </a>
+            ))}
+            {showRacepackSub && racepackSubItems.map((sub) => (
+              <a
+                href={sub.href}
+                class={"ml-4 " + navClass(sub.prefix)}
+              >
+                <span class="text-xs">↳ {sub.label}</span>
               </a>
             ))}
           </>

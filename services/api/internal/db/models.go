@@ -253,6 +253,15 @@ type FormSchema struct {
 	UpdatedAt      pgtype.Timestamptz
 }
 
+type IdempotencyKey struct {
+	Key            string
+	Scope          string
+	RequestHash    string
+	ResponseStatus int32
+	ResponseBody   []byte
+	CreatedAt      pgtype.Timestamptz
+}
+
 type InventoryReservation struct {
 	ID             uuid.UUID
 	OrganizationID uuid.UUID
@@ -451,6 +460,78 @@ type QueueToken struct {
 	UpdatedAt      pgtype.Timestamptz
 }
 
+type RacepackCounter struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	EventID        uuid.UUID
+	Name           string
+	Location       pgtype.Text
+	Active         bool
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type RacepackPickupRecord struct {
+	ID              uuid.UUID
+	OrganizationID  uuid.UUID
+	EventID         uuid.UUID
+	TicketID        uuid.UUID
+	ParticipantID   uuid.UUID
+	BibNumber       string
+	CounterID       uuid.UUID
+	StaffID         uuid.UUID
+	PickupMethod    string
+	PickupTimestamp pgtype.Timestamptz
+	Notes           pgtype.Text
+	Status          string
+	SlotID          *uuid.UUID
+}
+
+type RacepackPickupSlot struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	EventID        uuid.UUID
+	Name           string
+	PickupDate     pgtype.Date
+	StartTime      pgtype.Timestamptz
+	EndTime        pgtype.Timestamptz
+	Capacity       int32
+	ReservedCount  int32
+	Active         bool
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type RacepackProblemCase struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	EventID        uuid.UUID
+	TicketID       *uuid.UUID
+	ParticipantID  *uuid.UUID
+	Status         string
+	Reason         string
+	Resolution     pgtype.Text
+	CreatedBy      uuid.UUID
+	ResolvedBy     *uuid.UUID
+	ResolvedAt     pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type RacepackProxyAuthorization struct {
+	ID                    uuid.UUID
+	OrganizationID        uuid.UUID
+	EventID               uuid.UUID
+	TicketID              uuid.UUID
+	PickupRecordID        *uuid.UUID
+	ProxyName             string
+	ProxyPhone            pgtype.Text
+	ProxyIdentity         string
+	AuthorizationDocument pgtype.Text
+	CreatedBy             uuid.UUID
+	CreatedAt             pgtype.Timestamptz
+}
+
 type RefreshToken struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
@@ -492,23 +573,27 @@ type SchemaHealth struct {
 }
 
 type Ticket struct {
-	ID             uuid.UUID
-	OrganizationID uuid.UUID
-	EventID        uuid.UUID
-	CategoryID     uuid.UUID
-	OrderID        uuid.UUID
-	ParticipantID  uuid.UUID
-	TicketNumber   string
-	Status         string
-	HolderName     string
-	HolderEmail    string
-	EventTitle     string
-	CategoryName   string
-	QrVersion      int32
-	IssuedAt       pgtype.Timestamptz
-	UsedAt         pgtype.Timestamptz
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
+	ID                  uuid.UUID
+	OrganizationID      uuid.UUID
+	EventID             uuid.UUID
+	CategoryID          uuid.UUID
+	OrderID             uuid.UUID
+	ParticipantID       uuid.UUID
+	TicketNumber        string
+	Status              string
+	HolderName          string
+	HolderEmail         string
+	EventTitle          string
+	CategoryName        string
+	QrVersion           int32
+	IssuedAt            pgtype.Timestamptz
+	UsedAt              pgtype.Timestamptz
+	CreatedAt           pgtype.Timestamptz
+	UpdatedAt           pgtype.Timestamptz
+	BibNumber           pgtype.Text
+	BibAssignedAt       pgtype.Timestamptz
+	BibAssignedBy       *uuid.UUID
+	BibAssignmentMethod pgtype.Text
 }
 
 type User struct {
