@@ -25,6 +25,7 @@ import (
 	notifemail "github.com/varin/ivyticketing/services/api/internal/modules/notifications/email"
 	notiftmpl "github.com/varin/ivyticketing/services/api/internal/modules/notifications/templates"
 	ordersmod "github.com/varin/ivyticketing/services/api/internal/modules/orders"
+	billingmod "github.com/varin/ivyticketing/services/api/internal/modules/billing"
 	orgsmod "github.com/varin/ivyticketing/services/api/internal/modules/organizations"
 	paymentsmod "github.com/varin/ivyticketing/services/api/internal/modules/payments"
 	publicmod "github.com/varin/ivyticketing/services/api/internal/modules/publiccatalog"
@@ -209,6 +210,12 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	reportingSvc := reportingmod.NewService(reportingmod.NewRepository(pool), store, auditLog, log)
 	reportingHandler := reportingmod.NewHandler(reportingSvc)
 
+	// Billing (Phase 17). Package catalog, per-org subscriptions, platform fee
+	// ledger (hooked into the payments PAID transition below), and invoices.
+	billingSvc := billingmod.NewService(billingmod.NewRepository(pool), auditLog, log)
+	billingHandler := billingmod.NewHandler(billingSvc)
+	paymentsProc.WithFeeRecorder(billingSvc)
+
 	// Anti-bot / abuse (Phase 9)
 	abuseRepo := abusemod.NewRepository(pool)
 	abuseSettings := abusemod.NewSettings(abuseRepo)
@@ -264,6 +271,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 				r.Route("/admin", func(r chi.Router) {
 					abuseHandler.RegisterAdminRoutes(r)
 					reportingHandler.RegisterAdminRoutes(r)
+					billingHandler.RegisterAdminRoutes(r)
 				})
 				accessHandler.RegisterAdminRoutes(r)
 				notifStatusHandler.RegisterRoutes(r)
@@ -287,6 +295,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 				})
 				paymentsHandler.RegisterOrgRoutes(r, loader)
 				reportingHandler.RegisterOrgRoutes(r, loader)
+				billingHandler.RegisterOrgRoutes(r, loader)
 			})
 		})
 	})

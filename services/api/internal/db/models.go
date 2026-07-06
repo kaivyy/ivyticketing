@@ -374,6 +374,17 @@ type Order struct {
 	UpdatedAt      pgtype.Timestamptz
 }
 
+type OrgSubscription struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	PackageID      uuid.UUID
+	Status         string
+	StartedAt      pgtype.Timestamptz
+	ExpiresAt      pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type Organization struct {
 	ID        uuid.UUID
 	Name      string
@@ -434,6 +445,32 @@ type Permission struct {
 	ID          uuid.UUID
 	Key         string
 	Description string
+}
+
+type PlatformFeeLedger struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	OrderID        uuid.UUID
+	OrderTotal     int64
+	FeeBps         int32
+	FeeAmount      int64
+	CreatedAt      pgtype.Timestamptz
+}
+
+type PlatformInvoice struct {
+	ID                 uuid.UUID
+	OrganizationID     uuid.UUID
+	InvoiceNumber      string
+	PeriodStart        pgtype.Date
+	PeriodEnd          pgtype.Date
+	SubscriptionAmount int64
+	FeeAmount          int64
+	TotalAmount        int64
+	Status             string
+	IssuedAt           pgtype.Timestamptz
+	PaidAt             pgtype.Timestamptz
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
 }
 
 type PlatformSetting struct {
@@ -589,6 +626,21 @@ type RolePermission struct {
 type SchemaHealth struct {
 	ID        int16
 	CheckedAt pgtype.Timestamptz
+}
+
+type SubscriptionPackage struct {
+	ID           uuid.UUID
+	Slug         string
+	Name         string
+	Description  string
+	PriceMonthly int64
+	MaxEvents    pgtype.Int4
+	FeeBps       int32
+	Features     []byte
+	IsActive     bool
+	SortOrder    int32
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
 }
 
 type Ticket struct {

@@ -1,0 +1,234 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../layouts/OrganizerLayout.astro";
+const { orgId } = Astro.params;
+---
+<OrganizerLayout title="Tagihan & Langganan — ivyticketing">
+  <div id="billing" data-org-id={orgId} class="space-y-6">
+    <p class="text-slate-500">Memuat tagihan…</p>
+  </div>
+
+  <script>
+    import {
+      getSubscription,
+      listActivePackages,
+      getFeeSummary,
+      listInvoices,
+      FEATURE_LABELS,
+      SUB_STATUS_LABELS,
+      INVOICE_STATUS_LABELS,
+      type Subscription,
+      type Package,
+      type FeeSummary,
+      type Invoice,
+    } from "../../../lib/billing";
+    import { esc } from "../../../lib/safe";
+
+    const root = document.getElementById("billing")!;
+    const orgId = root.dataset.orgId!;
+
+    function fmtMoney(v: unknown): string {
+      const n = typeof v === "number" ? v : Number(v);
+      if (!isFinite(n)) return "Rp 0";
+      return "Rp " + n.toLocaleString("id-ID");
+    }
+
+    function fmtDate(v: string | null | undefined): string {
+      if (!v) return "—";
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return esc(v);
+      return d.toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" });
+    }
+
+    function featureLabel(k: string): string {
+      return FEATURE_LABELS[k] ?? k;
+    }
+
+    function subStatusBadge(s: string): string {
+      const colors: Record<string, string> = {
+        ACTIVE: "bg-green-100 text-green-700",
+        CANCELLED: "bg-slate-100 text-slate-700",
+        EXPIRED: "bg-red-100 text-red-700",
+      };
+      const c = colors[s] ?? "bg-slate-100 text-slate-700";
+      return `<span class="rounded px-2 py-0.5 text-xs font-medium ${c}">${esc(SUB_STATUS_LABELS[s] ?? s)}</span>`;
+    }
+
+    function invoiceStatusBadge(s: string): string {
+      const colors: Record<string, string> = {
+        DRAFT: "bg-slate-100 text-slate-700",
+        ISSUED: "bg-amber-100 text-amber-700",
+        PAID: "bg-green-100 text-green-700",
+        VOID: "bg-red-100 text-red-700",
+      };
+      const c = colors[s] ?? "bg-slate-100 text-slate-700";
+      return `<span class="rounded px-2 py-0.5 text-xs font-medium ${c}">${esc(INVOICE_STATUS_LABELS[s] ?? s)}</span>`;
+    }
+
+    function renderSubscription(sub: Subscription | null): string {
+      if (!sub) {
+        return `
+          <div class="rounded border border-slate-200 bg-slate-50 px-4 py-6 text-center">
+            <p class="text-sm text-slate-500">Belum ada langganan aktif. Organisasi berjalan pada paket dasar.</p>
+          </div>`;
+      }
+      const feePct = (sub.package.feeBps / 100).toLocaleString("id-ID", { maximumFractionDigits: 2 });
+      const maxEvents = sub.package.maxEvents == null ? "Tak terbatas" : String(sub.package.maxEvents);
+      const feats = (sub.package.features ?? [])
+        .map((f) => `<span class="rounded bg-blue-50 px-2 py-0.5 text-xs text-blue-700">${esc(featureLabel(f))}</span>`)
+        .join(" ");
+      return `
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-xl font-bold text-slate-900">${esc(sub.package.name)}</h3>
+              ${subStatusBadge(sub.status)}
+            </div>
+            <p class="mt-1 text-sm text-slate-500">${esc(sub.package.description || "")}</p>
+          </div>
+          <div class="text-right">
+            <p class="text-2xl font-bold text-slate-900">${fmtMoney(sub.package.priceMonthly)}</p>
+            <p class="text-xs text-slate-500">per bulan</p>
+          </div>
+        </div>
+        <div class="mt-4 grid gap-3 sm:grid-cols-3">
+          <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3">
+            <p class="text-xs uppercase text-slate-500">Biaya Platform</p>
+            <p class="mt-1 text-lg font-semibold text-slate-900">${esc(feePct)}%</p>
+          </div>
+          <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3">
+            <p class="text-xs uppercase text-slate-500">Batas Event</p>
+            <p class="mt-1 text-lg font-semibold text-slate-900">${esc(maxEvents)}</p>
+          </div>
+          <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3">
+            <p class="text-xs uppercase text-slate-500">Berlaku Hingga</p>
+            <p class="mt-1 text-lg font-semibold text-slate-900">${fmtDate(sub.expiresAt)}</p>
+          </div>
+        </div>
+        ${feats ? `<div class="mt-4 flex flex-wrap gap-2">${feats}</div>` : ""}`;
+    }
+
+    function renderFeeSummary(fees: FeeSummary | null): string {
+      const f = fees ?? { entries: 0, grossOrders: 0, totalFees: 0 };
+      return `
+        <div class="grid gap-3 sm:grid-cols-3">
+          <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3">
+            <p class="text-xs uppercase text-slate-500">Total Pesanan Kotor</p>
+            <p class="mt-1 text-lg font-semibold text-slate-900">${fmtMoney(f.grossOrders)}</p>
+          </div>
+          <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3">
+            <p class="text-xs uppercase text-slate-500">Total Biaya Platform</p>
+            <p class="mt-1 text-lg font-semibold text-slate-900">${fmtMoney(f.totalFees)}</p>
+          </div>
+          <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3">
+            <p class="text-xs uppercase text-slate-500">Jumlah Transaksi</p>
+            <p class="mt-1 text-lg font-semibold text-slate-900">${esc(String(f.entries))}</p>
+          </div>
+        </div>`;
+    }
+
+    function renderPackages(pkgs: Package[], currentSlug: string | null): string {
+      if (pkgs.length === 0) {
+        return `<p class="text-sm text-slate-400">Belum ada paket tersedia.</p>`;
+      }
+      return `
+        <div class="grid gap-4 md:grid-cols-3">
+          ${pkgs
+            .map((p) => {
+              const isCurrent = p.slug === currentSlug;
+              const feePct = (p.feeBps / 100).toLocaleString("id-ID", { maximumFractionDigits: 2 });
+              const maxEvents = p.maxEvents == null ? "Tak terbatas" : `${p.maxEvents} event`;
+              const feats = (p.features ?? [])
+                .map((f) => `<li class="flex items-start gap-1"><span class="text-green-600">✓</span> ${esc(featureLabel(f))}</li>`)
+                .join("");
+              return `
+                <div class="rounded-lg border ${isCurrent ? "border-blue-500 ring-1 ring-blue-500" : "border-slate-200"} bg-white p-5">
+                  <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-slate-900">${esc(p.name)}</h3>
+                    ${isCurrent ? `<span class="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">Paket Anda</span>` : ""}
+                  </div>
+                  <p class="mt-2 text-2xl font-bold text-slate-900">${fmtMoney(p.priceMonthly)}<span class="text-sm font-normal text-slate-500">/bln</span></p>
+                  <p class="mt-1 text-xs text-slate-500">Biaya ${esc(feePct)}% · ${esc(maxEvents)}</p>
+                  <ul class="mt-4 space-y-1 text-sm text-slate-600">${feats}</ul>
+                </div>`;
+            })
+            .join("")}
+        </div>
+        <p class="mt-3 text-xs text-slate-400">Untuk mengubah paket, hubungi tim ivyticketing.</p>`;
+    }
+
+    function renderInvoices(invoices: Invoice[]): string {
+      if (invoices.length === 0) {
+        return `<p class="text-sm text-slate-400">Belum ada tagihan.</p>`;
+      }
+      const rows = invoices
+        .map(
+          (inv) => `
+          <tr class="border-b border-slate-100">
+            <td class="py-2 pr-3 font-mono text-xs">${esc(inv.invoiceNumber)}</td>
+            <td class="py-2 pr-3 text-xs text-slate-500">${fmtDate(inv.periodStart)} – ${fmtDate(inv.periodEnd)}</td>
+            <td class="py-2 pr-3">${fmtMoney(inv.totalAmount)}</td>
+            <td class="py-2 pr-3">${invoiceStatusBadge(inv.status)}</td>
+            <td class="py-2 pr-3 text-xs text-slate-500">${fmtDate(inv.paidAt)}</td>
+          </tr>`
+        )
+        .join("");
+      return `
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                <th class="py-2 pr-3">Nomor</th>
+                <th class="py-2 pr-3">Periode</th>
+                <th class="py-2 pr-3">Total</th>
+                <th class="py-2 pr-3">Status</th>
+                <th class="py-2 pr-3">Dibayar</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    async function load() {
+      const [sub, pkgs, fees, invoices] = await Promise.all([
+        getSubscription(orgId).catch(() => null),
+        listActivePackages(orgId).catch(() => [] as Package[]),
+        getFeeSummary(orgId).catch(() => null),
+        listInvoices(orgId, 50, 0).catch(() => [] as Invoice[]),
+      ]);
+
+      const currentSlug = sub?.package?.slug ?? null;
+
+      root.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h1 class="text-2xl font-bold text-slate-900">Tagihan & Langganan</h1>
+        </div>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">Langganan Saat Ini</h2>
+          ${renderSubscription(sub)}
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">Biaya Platform</h2>
+          ${renderFeeSummary(fees)}
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">Paket Tersedia</h2>
+          ${renderPackages(pkgs ?? [], currentSlug)}
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">Riwayat Tagihan</h2>
+          ${renderInvoices(invoices ?? [])}
+        </section>
+      `;
+    }
+
+    load().catch((e) => {
+      root.innerHTML = `<p class="text-red-600">Gagal memuat: ${esc((e as Error).message)}</p>`;
+    });
+  </script>
+</OrganizerLayout>

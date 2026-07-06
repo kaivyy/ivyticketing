@@ -94,12 +94,11 @@ type PickupRequest struct {
 	MethodCamel      string     `json:"method,omitempty"`
 	NotesCamel       string     `json:"notes,omitempty"`
 
-	// Snake-case aliases.
+	// Snake-case aliases. Method and Notes are single words whose snake_case
+	// form is identical to their camelCase form, so they need no snake alias.
 	TicketIDSnake    uuid.UUID  `json:"ticket_id"`
 	CounterIDSnake   uuid.UUID  `json:"counter_id"`
 	SlotIDSnake      *uuid.UUID `json:"slot_id,omitempty"`
-	MethodSnake      string     `json:"method,omitempty"`
-	NotesSnake       string     `json:"notes,omitempty"`
 }
 
 // UnmarshalJSON accepts both camelCase and snake_case keys; whichever is
@@ -134,14 +133,8 @@ func (r *PickupRequest) UnmarshalJSON(b []byte) error {
 	if r.Method == "" {
 		r.Method = r.MethodCamel
 	}
-	if r.Method == "" {
-		r.Method = r.MethodSnake
-	}
 	if r.Notes == "" {
 		r.Notes = r.NotesCamel
-	}
-	if r.Notes == "" {
-		r.Notes = r.NotesSnake
 	}
 	r.Method = strings.ToUpper(strings.TrimSpace(r.Method))
 	return nil

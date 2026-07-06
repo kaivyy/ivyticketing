@@ -34,6 +34,14 @@ type Notifier interface {
 	Enqueue(ctx context.Context, participantID uuid.UUID, typ string, data notifmod.TemplateData) error
 }
 
+// FeeRecorder records the platform fee for a just-PAID order, using the SAME tx
+// querier so the fee row commits atomically with the order transition.
+// Implemented by *billing.Service. Must be idempotent.
+// Declared here so payments does not import billing.
+type FeeRecorder interface {
+	RecordOrderFee(ctx context.Context, q *db.Queries, order db.Order) error
+}
+
 // Processor is the idempotent callback handler used by both the HTTP webhook
 // receiver and the manual reconcile path.
 type Processor struct {
@@ -41,6 +49,7 @@ type Processor struct {
 	audit    AuditRecorder
 	issuer   TicketIssuer
 	notifier Notifier
+	feeRec   FeeRecorder
 }
 
 func NewProcessor(repo Repository, recorder AuditRecorder, issuer TicketIssuer) *Processor {
@@ -49,6 +58,9 @@ func NewProcessor(repo Repository, recorder AuditRecorder, issuer TicketIssuer) 
 
 // WithNotifier attaches a Notifier to the Processor. Called from server.go after construction.
 func (p *Processor) WithNotifier(n Notifier) { p.notifier = n }
+
+// WithFeeRecorder attaches a FeeRecorder to the Processor. Called from server.go after construction.
+func (p *Processor) WithFeeRecorder(f FeeRecorder) { p.feeRec = f }
 
 // ProcessRaw stores the raw webhook first, then processes it.
 // Used by the webhook receiver binary.
@@ -234,6 +246,11 @@ func (p *Processor) applyPaid(ctx context.Context, tx Repository, webhookID uuid
 		}
 		if p.issuer != nil {
 			if err := p.issuer.IssueForOrder(ctx, tx.Querier(), order); err != nil {
+				return err
+			}
+		}
+		if p.feeRec != nil {
+			if err := p.feeRec.RecordOrderFee(ctx, tx.Querier(), order); err != nil {
 				return err
 			}
 		}

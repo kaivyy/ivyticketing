@@ -1,0 +1,300 @@
+---
+export const prerender = false;
+import "../../styles/global.css";
+---
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Billing Platform — ivyticketing</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header class="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
+      <span class="font-semibold text-slate-900">ivyticketing · Platform Admin</span>
+      <button id="logout-btn" class="text-sm text-slate-500 hover:text-slate-900">Keluar</button>
+    </header>
+    <main class="mx-auto max-w-6xl p-6">
+      <div id="billing" class="space-y-6">
+        <p class="text-slate-500">Memuat…</p>
+      </div>
+    </main>
+
+    <script>
+      import { getToken, logout } from "../../lib/auth";
+      import {
+        adminListPackages,
+        adminCreatePackage,
+        adminUpdatePackage,
+        adminRevenue,
+        adminAssignSubscription,
+        adminGenerateInvoice,
+        adminMarkInvoicePaid,
+        FEATURE_LABELS,
+        type Package,
+        type RevenueRow,
+        type UpsertPackage,
+      } from "../../lib/billing";
+      import { esc } from "../../lib/safe";
+
+      if (!getToken()) window.location.href = "/login";
+      document.getElementById("logout-btn")?.addEventListener("click", async () => {
+        await logout();
+        window.location.href = "/login";
+      });
+
+      const root = document.getElementById("billing")!;
+
+      function fmtMoney(v: number): string {
+        return "Rp " + (v ?? 0).toLocaleString("id-ID");
+      }
+      function fmtBps(bps: number): string {
+        return (bps / 100).toFixed(2).replace(/\.00$/, "") + "%";
+      }
+
+      function msg(text: string, isError = false) {
+        const el = document.getElementById("admin-msg");
+        if (!el) return;
+        el.textContent = text;
+        el.className = isError ? "text-sm text-red-600" : "text-sm text-green-700";
+      }
+
+      function featureChips(features: string[]): string {
+        if (!features || features.length === 0) {
+          return `<span class="text-xs text-slate-400">—</span>`;
+        }
+        return features
+          .map(
+            (f) =>
+              `<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">${esc(FEATURE_LABELS[f] ?? f)}</span>`
+          )
+          .join(" ");
+      }
+
+      function packageRows(pkgs: Package[]): string {
+        if (pkgs.length === 0) {
+          return `<p class="text-sm text-slate-400">Belum ada paket.</p>`;
+        }
+        return `
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                  <th class="py-2 pr-3">Slug</th>
+                  <th class="py-2 pr-3">Nama</th>
+                  <th class="py-2 pr-3">Harga/bln</th>
+                  <th class="py-2 pr-3">Maks Event</th>
+                  <th class="py-2 pr-3">Fee</th>
+                  <th class="py-2 pr-3">Fitur</th>
+                  <th class="py-2 pr-3">Aktif</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${pkgs
+                  .map(
+                    (p) => `
+                    <tr class="border-b border-slate-100">
+                      <td class="py-2 pr-3 font-mono text-xs">${esc(p.slug)}</td>
+                      <td class="py-2 pr-3">${esc(p.name)}</td>
+                      <td class="py-2 pr-3">${fmtMoney(p.priceMonthly)}</td>
+                      <td class="py-2 pr-3">${p.maxEvents == null ? "∞" : p.maxEvents}</td>
+                      <td class="py-2 pr-3">${fmtBps(p.feeBps)}</td>
+                      <td class="py-2 pr-3">${featureChips(p.features)}</td>
+                      <td class="py-2 pr-3">${p.isActive ? "Ya" : "Tidak"}</td>
+                    </tr>`
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>`;
+      }
+
+      function revenueRows(rows: RevenueRow[]): string {
+        if (rows.length === 0) {
+          return `<p class="text-sm text-slate-400">Belum ada pendapatan tercatat.</p>`;
+        }
+        const total = rows.reduce((s, r) => s + (r.totalFees ?? 0), 0);
+        return `
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                  <th class="py-2 pr-3">Organisasi</th>
+                  <th class="py-2 pr-3">Total Fee</th>
+                  <th class="py-2 pr-3">Nilai Order</th>
+                  <th class="py-2 pr-3">Jml Entri</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows
+                  .map(
+                    (r) => `
+                    <tr class="border-b border-slate-100">
+                      <td class="py-2 pr-3">${esc(r.organizationName)}</td>
+                      <td class="py-2 pr-3 font-medium">${fmtMoney(r.totalFees)}</td>
+                      <td class="py-2 pr-3">${fmtMoney(r.grossOrders)}</td>
+                      <td class="py-2 pr-3">${r.feeEntries}</td>
+                    </tr>`
+                  )
+                  .join("")}
+              </tbody>
+              <tfoot>
+                <tr class="border-t-2 border-slate-300 font-semibold">
+                  <td class="py-2 pr-3">Total Platform</td>
+                  <td class="py-2 pr-3">${fmtMoney(total)}</td>
+                  <td class="py-2 pr-3"></td>
+                  <td class="py-2 pr-3"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>`;
+      }
+
+      function featureCheckboxes(): string {
+        return Object.entries(FEATURE_LABELS)
+          .map(
+            ([key, label]) => `
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="feature" value="${esc(key)}" class="rounded border-slate-300" />
+              ${esc(label)}
+            </label>`
+          )
+          .join("");
+      }
+
+      function render(pkgs: Package[], rows: RevenueRow[]) {
+        root.innerHTML = `
+          <h1 class="text-2xl font-bold text-slate-900">Billing Platform</h1>
+
+          <section class="rounded-lg border border-slate-200 bg-white p-6">
+            <h2 class="mb-4 text-lg font-semibold">Pendapatan Platform (Fee)</h2>
+            <div id="revenue-list">${revenueRows(rows)}</div>
+          </section>
+
+          <section class="rounded-lg border border-slate-200 bg-white p-6">
+            <h2 class="mb-4 text-lg font-semibold">Katalog Paket</h2>
+            <div id="package-list">${packageRows(pkgs)}</div>
+          </section>
+
+          <section class="rounded-lg border border-slate-200 bg-white p-6">
+            <h2 class="mb-4 text-lg font-semibold">Buat Paket Baru</h2>
+            <form id="pkg-form" class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Slug</label>
+                <input name="slug" required class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="professional" />
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Nama</label>
+                <input name="name" required class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Professional" />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="mb-1 block text-sm font-medium text-slate-700">Deskripsi</label>
+                <input name="description" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Harga per Bulan (Rp)</label>
+                <input name="priceMonthly" type="number" min="0" value="0" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Fee (basis points, 100 = 1%)</label>
+                <input name="feeBps" type="number" min="0" max="10000" value="0" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Maks Event (kosong = tak terbatas)</label>
+                <input name="maxEvents" type="number" min="0" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Urutan Tampil</label>
+                <input name="sortOrder" type="number" min="0" value="0" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="mb-2 block text-sm font-medium text-slate-700">Fitur</label>
+                <div class="grid gap-2 sm:grid-cols-3">${featureCheckboxes()}</div>
+              </div>
+              <div class="sm:col-span-2 flex items-center gap-3">
+                <button type="submit" class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Buat Paket</button>
+                <span id="admin-msg" class="text-sm text-slate-500"></span>
+              </div>
+            </form>
+          </section>
+
+          <section class="rounded-lg border border-slate-200 bg-white p-6">
+            <h2 class="mb-4 text-lg font-semibold">Tetapkan Langganan Organisasi</h2>
+            <form id="assign-form" class="flex flex-wrap items-end gap-3">
+              <div class="flex-1 min-w-[200px]">
+                <label class="mb-1 block text-sm font-medium text-slate-700">Organization ID</label>
+                <input name="orgId" required class="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono text-xs" placeholder="UUID" />
+              </div>
+              <div class="min-w-[160px]">
+                <label class="mb-1 block text-sm font-medium text-slate-700">Paket</label>
+                <select name="packageId" class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+                  ${pkgs.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join("")}
+                </select>
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Kedaluwarsa (opsional)</label>
+                <input name="expiresAt" type="date" class="rounded border border-slate-300 px-3 py-2 text-sm" />
+              </div>
+              <button type="submit" class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900">Tetapkan</button>
+            </form>
+            <p id="assign-msg" class="mt-2 text-sm text-slate-500"></p>
+          </section>
+        `;
+
+        document.getElementById("pkg-form")?.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const form = e.target as HTMLFormElement;
+          const fd = new FormData(form);
+          const features = Array.from(form.querySelectorAll<HTMLInputElement>('input[name="feature"]:checked')).map((c) => c.value);
+          const maxEventsRaw = String(fd.get("maxEvents") ?? "").trim();
+          const body: UpsertPackage = {
+            slug: String(fd.get("slug") ?? "").trim(),
+            name: String(fd.get("name") ?? "").trim(),
+            description: String(fd.get("description") ?? "").trim(),
+            priceMonthly: Number(fd.get("priceMonthly") ?? 0),
+            feeBps: Number(fd.get("feeBps") ?? 0),
+            maxEvents: maxEventsRaw === "" ? null : Number(maxEventsRaw),
+            features,
+            isActive: true,
+            sortOrder: Number(fd.get("sortOrder") ?? 0),
+          };
+          try {
+            await adminCreatePackage(body);
+            msg("Paket dibuat.");
+            await reload();
+          } catch (err) {
+            msg((err as Error).message, true);
+          }
+        });
+
+        document.getElementById("assign-form")?.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const fd = new FormData(e.target as HTMLFormElement);
+          const orgId = String(fd.get("orgId") ?? "").trim();
+          const packageId = String(fd.get("packageId") ?? "");
+          const expRaw = String(fd.get("expiresAt") ?? "").trim();
+          const expiresAt = expRaw === "" ? null : new Date(expRaw + "T00:00:00Z").toISOString();
+          const el = document.getElementById("assign-msg");
+          try {
+            await adminAssignSubscription(orgId, packageId, expiresAt);
+            if (el) { el.textContent = "Langganan ditetapkan."; el.className = "mt-2 text-sm text-green-700"; }
+          } catch (err) {
+            if (el) { el.textContent = (err as Error).message; el.className = "mt-2 text-sm text-red-600"; }
+          }
+        });
+      }
+
+      async function reload() {
+        const [pkgs, rows] = await Promise.all([
+          adminListPackages().catch(() => [] as Package[]),
+          adminRevenue().catch(() => [] as RevenueRow[]),
+        ]);
+        render(pkgs ?? [], rows ?? []);
+      }
+
+      reload().catch((e) => {
+        root.innerHTML = `<p class="text-red-600">Gagal memuat: ${esc((e as Error).message)}</p>`;
+      });
+    </script>
+  </body>
+</html>
