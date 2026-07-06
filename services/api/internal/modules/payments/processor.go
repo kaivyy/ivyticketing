@@ -42,6 +42,17 @@ type FeeRecorder interface {
 	RecordOrderFee(ctx context.Context, q *db.Queries, order db.Order) error
 }
 
+// MetricsSink observes payment outcomes for the war-room dashboard. Satisfied
+// by *metrics.Metrics. Declared locally so payments does not import metrics.
+// A paid payment also marks checkout success; an expired/failed one marks
+// checkout failure, so the sink covers both dimensions.
+type MetricsSink interface {
+	IncPaymentSucceeded()
+	IncPaymentFailed()
+	IncCheckoutSucceeded()
+	IncCheckoutFailed()
+}
+
 // Processor is the idempotent callback handler used by both the HTTP webhook
 // receiver and the manual reconcile path.
 type Processor struct {
@@ -50,6 +61,7 @@ type Processor struct {
 	issuer   TicketIssuer
 	notifier Notifier
 	feeRec   FeeRecorder
+	metrics  MetricsSink
 }
 
 func NewProcessor(repo Repository, recorder AuditRecorder, issuer TicketIssuer) *Processor {
@@ -61,6 +73,9 @@ func (p *Processor) WithNotifier(n Notifier) { p.notifier = n }
 
 // WithFeeRecorder attaches a FeeRecorder to the Processor. Called from server.go after construction.
 func (p *Processor) WithFeeRecorder(f FeeRecorder) { p.feeRec = f }
+
+// WithMetrics attaches a MetricsSink to the Processor. Called from server.go after construction.
+func (p *Processor) WithMetrics(m MetricsSink) { p.metrics = m }
 
 // ProcessRaw stores the raw webhook first, then processes it.
 // Used by the webhook receiver binary.
@@ -188,6 +203,10 @@ func (p *Processor) apply(ctx context.Context, webhookID uuid.UUID, gatewayName 
 					ProcessedPaymentID: &id,
 				})
 			}
+			if p.metrics != nil {
+				p.metrics.IncPaymentFailed()
+				p.metrics.IncCheckoutFailed()
+			}
 			return nil
 		default:
 			if webhookID != uuid.Nil {
@@ -273,6 +292,10 @@ func (p *Processor) applyPaid(ctx context.Context, tx Repository, webhookID uuid
 
 	p.recordPaid(ctx, updated, note)
 	p.notifyPaid(ctx, updated, order)
+	if p.metrics != nil {
+		p.metrics.IncPaymentSucceeded()
+		p.metrics.IncCheckoutSucceeded()
+	}
 	return nil
 }
 

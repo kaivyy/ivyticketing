@@ -26,10 +26,17 @@ type Notifier interface {
 	Enqueue(ctx context.Context, participantID uuid.UUID, typ string, data notifmod.TemplateData) error
 }
 
+// MetricsSink observes checkout starts for the war-room dashboard. Satisfied by
+// *metrics.Metrics; nil when metrics are disabled.
+type MetricsSink interface {
+	IncCheckoutStarted()
+}
+
 type Service struct {
 	repo     Repository
 	audit    AuditRecorder
 	notifier Notifier
+	metrics  MetricsSink
 	ttl      time.Duration
 	gate     RegistrationGate
 	hook     CheckoutHook
@@ -49,6 +56,9 @@ func (s *Service) WithNotifier(n Notifier) { s.notifier = n }
 // WithLogger attaches a structured logger to the service. Optional — when unset,
 // warnings from notification enqueue helpers are dropped.
 func (s *Service) WithLogger(l *slog.Logger) { s.log = l }
+
+// WithMetrics attaches a MetricsSink to the service. Called from server.go after construction.
+func (s *Service) WithMetrics(m MetricsSink) { s.metrics = m }
 
 func (s *Service) Checkout(ctx context.Context, participantID, eventID, categoryID uuid.UUID, admissionToken string) (OrderResponse, error) {
 	if err := s.gate.Admit(ctx, participantID, eventID, categoryID, admissionToken); err != nil {
@@ -126,6 +136,9 @@ func (s *Service) Checkout(ctx context.Context, participantID, eventID, category
 	s.record(ctx, created, "ORDER_CREATED")
 	s.recordReservation(ctx, created, "RESERVATION_CREATED")
 	s.notifyOrderCreated(ctx, created)
+	if s.metrics != nil {
+		s.metrics.IncCheckoutStarted()
+	}
 	return toResponse(created), nil
 }
 

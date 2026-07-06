@@ -292,6 +292,25 @@ type IdempotencyKey struct {
 	CreatedAt      pgtype.Timestamptz
 }
 
+type Incident struct {
+	ID         uuid.UUID
+	Title      string
+	Impact     string
+	Status     string
+	StartedAt  pgtype.Timestamptz
+	ResolvedAt pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
+}
+
+type IncidentUpdate struct {
+	ID         uuid.UUID
+	IncidentID uuid.UUID
+	Status     string
+	Body       string
+	CreatedAt  pgtype.Timestamptz
+}
+
 type InventoryReservation struct {
 	ID             uuid.UUID
 	OrganizationID uuid.UUID
@@ -650,6 +669,14 @@ type RolePermission struct {
 type SchemaHealth struct {
 	ID        int16
 	CheckedAt pgtype.Timestamptz
+}
+
+type StatusComponent struct {
+	Key       string
+	Name      string
+	Status    string
+	SortOrder int32
+	UpdatedAt pgtype.Timestamptz
 }
 
 type SubscriptionPackage struct {

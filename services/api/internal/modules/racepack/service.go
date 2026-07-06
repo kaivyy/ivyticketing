@@ -32,17 +32,27 @@ type IdempotencyHit struct {
 	ResponseBody []byte
 }
 
+// MetricsSink observes racepack scans for the war-room dashboard. Satisfied by
+// *metrics.Metrics; nil when metrics are disabled.
+type MetricsSink interface {
+	IncRacepackScans()
+}
+
 // Service owns the business logic for the racepack module.
 type Service struct {
-	repo  Repository
-	audit AuditRecorder
-	log   *slog.Logger
+	repo    Repository
+	audit   AuditRecorder
+	log     *slog.Logger
+	metrics MetricsSink
 }
 
 // NewService constructs a Service. recorder and log may be nil.
 func NewService(repo Repository, auditRecorder AuditRecorder, log *slog.Logger) *Service {
 	return &Service{repo: repo, audit: auditRecorder, log: log}
 }
+
+// WithMetrics attaches a MetricsSink to the service. Called from server.go after construction.
+func (s *Service) WithMetrics(m MetricsSink) { s.metrics = m }
 
 // --- idempotency ---
 
@@ -369,6 +379,10 @@ func (s *Service) ExecutePickup(ctx context.Context, in ExecutePickupInput) (db.
 	})
 	if err != nil {
 		return db.RacepackPickupRecord{}, err
+	}
+
+	if s.metrics != nil {
+		s.metrics.IncRacepackScans()
 	}
 
 	s.recordAudit(ctx, in.OrgID, in.StaffID, "RACEPACK_PICKUP_COMPLETED", "pickup_record", record.ID.String(), map[string]any{

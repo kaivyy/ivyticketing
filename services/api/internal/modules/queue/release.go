@@ -57,14 +57,19 @@ func (s *Service) Release(ctx context.Context, eventID uuid.UUID, n int, window 
 		s.notifyAllowed(ctx, tok.ParticipantID)
 		promoted++
 	}
-	if promoted > 0 && s.audit != nil {
-		eid := eventID
-		s.audit.Record(ctx, audit.Entry{
-			Action:     "QUEUE_RELEASED",
-			TargetType: "event",
-			TargetID:   eid.String(),
-			Metadata:   map[string]any{"promoted": promoted},
-		})
+	if promoted > 0 {
+		if s.metrics != nil {
+			s.metrics.IncQueueReleased(promoted)
+		}
+		if s.audit != nil {
+			eid := eventID
+			s.audit.Record(ctx, audit.Entry{
+				Action:     "QUEUE_RELEASED",
+				TargetType: "event",
+				TargetID:   eid.String(),
+				Metadata:   map[string]any{"promoted": promoted},
+			})
+		}
 	}
 	return promoted, nil
 }

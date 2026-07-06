@@ -42,6 +42,9 @@ import (
 	waitlistmod "github.com/varin/ivyticketing/services/api/internal/modules/waitlist"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 	"github.com/varin/ivyticketing/services/api/internal/platform/captcha"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/varin/ivyticketing/services/api/internal/platform/metrics"
 	"github.com/varin/ivyticketing/services/api/internal/platform/middleware"
 	appmw "github.com/varin/ivyticketing/services/api/internal/platform/middleware"
 	platformqueue "github.com/varin/ivyticketing/services/api/internal/platform/queue"
@@ -54,6 +57,14 @@ import (
 func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.Checker, redisClient *goredis.Client) (http.Handler, error) {
 	r := chi.NewRouter()
 	r.Use(appmw.RequestID)
+
+	// Observability (Phase 20). One registry owns HTTP + domain metrics; the
+	// middleware labels by chi's matched route pattern so IDs never inflate
+	// cardinality. Exposed at /metrics for Prometheus scraping.
+	appMetrics := metrics.New()
+	r.Use(appMetrics.Middleware)
+	r.Handle("/metrics", promhttp.HandlerFor(appMetrics.Registry(), promhttp.HandlerOpts{}))
+
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{cfg.WebOrigin},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -63,6 +74,17 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 
 	// System (Phase 1).
 	system.NewHandler(pg, rdb).RegisterRoutes(r)
+
+	// Sample the Postgres pool into the metrics gauges once per second so the
+	// war-room dashboard can watch connection saturation live.
+	go func() {
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+		for range t.C {
+			s := pool.Stat()
+			appMetrics.SetDBConns(float64(s.AcquiredConns()), float64(s.IdleConns()))
+		}
+	}()
 
 	// Shared deps.
 	queries := db.New(pool)
@@ -193,6 +215,13 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	racepackSvc := racepackmod.NewService(racepackRepo, auditLog, log)
 	racepackHandler := racepackmod.NewHandler(racepackSvc)
 
+	// Observability (Phase 20). Feed the domain counters from the services that
+	// own each business event. Nil-safe: the setters just store the sink.
+	ordersSvc.WithMetrics(appMetrics)
+	paymentsProc.WithMetrics(appMetrics)
+	queueSvc.WithMetrics(appMetrics)
+	racepackSvc.WithMetrics(appMetrics)
+
 	// Scanner (Phase 15). Composes the SAME qr.Signer built for tickets above
 	// (the TICKET_QR_SECRET is never duplicated), a read-only ticket display
 	// surface, the racepack service as the pickup collaborator + pickup-status
@@ -286,6 +315,8 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 					reportingHandler.RegisterAdminRoutes(r)
 					billingHandler.RegisterAdminRoutes(r)
 					statusHandler.RegisterAdminRoutes(r)
+					// War-room snapshot (Phase 20): live metric values as JSON.
+					r.Get("/warroom", appMetrics.SnapshotHandler)
 				})
 				accessHandler.RegisterAdminRoutes(r)
 				notifStatusHandler.RegisterRoutes(r)

@@ -1,12 +1,15 @@
 package middleware
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"net/http"
 )
 
 const HeaderRequestID = "X-Request-Id"
+
+type requestIDKey struct{}
 
 func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -15,8 +18,16 @@ func RequestID(next http.Handler) http.Handler {
 			id = newID()
 		}
 		w.Header().Set(HeaderRequestID, id)
-		next.ServeHTTP(w, r)
+		ctx := context.WithValue(r.Context(), requestIDKey{}, id)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// RequestIDFromContext returns the request ID propagated by the RequestID
+// middleware, or "" if none is present.
+func RequestIDFromContext(ctx context.Context) string {
+	id, _ := ctx.Value(requestIDKey{}).(string)
+	return id
 }
 
 func newID() string {

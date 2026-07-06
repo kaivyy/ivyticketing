@@ -1,0 +1,146 @@
+---
+export const prerender = false;
+import "../../styles/global.css";
+---
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>War Room — ivyticketing</title>
+  </head>
+  <body class="min-h-screen bg-slate-950 text-slate-100">
+    <header class="sticky top-0 z-20 flex items-center justify-between border-b border-slate-800 bg-slate-900 px-6 py-3">
+      <div class="flex items-center gap-3">
+        <span class="font-semibold text-white">ivyticketing · War Room</span>
+        <span id="live-dot" class="inline-flex items-center gap-1.5 text-xs text-slate-400">
+          <span class="h-2 w-2 rounded-full bg-slate-600"></span> Menghubungkan…
+        </span>
+      </div>
+      <div class="flex items-center gap-4 text-sm">
+        <span id="captured" class="text-slate-500"></span>
+        <button id="logout-btn" class="text-slate-400 hover:text-white">Keluar</button>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl p-6">
+      <div id="root" class="space-y-6">
+        <p class="text-slate-400">Memuat…</p>
+      </div>
+    </main>
+
+    <script>
+      import { getToken, logout } from "../../lib/auth";
+      import { fetchWarRoom, type WarRoomSnapshot } from "../../lib/warroom";
+
+      if (!getToken()) window.location.href = "/login";
+      document.getElementById("logout-btn")?.addEventListener("click", async () => {
+        await logout();
+        window.location.href = "/login";
+      });
+
+      const root = document.getElementById("root")!;
+      const liveDot = document.getElementById("live-dot")!;
+      const capturedEl = document.getElementById("captured")!;
+      const REFRESH_MS = 5000;
+
+      const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+      const ms = (s: number) => `${(s * 1000).toFixed(0)} ms`;
+      const num = (v: number) => Math.round(v).toLocaleString("id-ID");
+
+      // Health thresholds → tile accent colour.
+      function errorTone(rate: number): string {
+        if (rate >= 0.05) return "border-red-500/40 bg-red-500/10 text-red-300";
+        if (rate >= 0.01) return "border-amber-500/40 bg-amber-500/10 text-amber-300";
+        return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+      }
+      function successTone(rate: number, total: number): string {
+        if (total === 0) return "border-slate-700 bg-slate-900 text-slate-300";
+        if (rate >= 0.95) return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+        if (rate >= 0.8) return "border-amber-500/40 bg-amber-500/10 text-amber-300";
+        return "border-red-500/40 bg-red-500/10 text-red-300";
+      }
+      function latencyTone(s: number): string {
+        if (s >= 1) return "border-red-500/40 bg-red-500/10 text-red-300";
+        if (s >= 0.5) return "border-amber-500/40 bg-amber-500/10 text-amber-300";
+        return "border-emerald-500/30 bg-emerald-500/10 text-emerald-300";
+      }
+      function dbTone(inUse: number, idle: number): string {
+        const total = inUse + idle;
+        const frac = total > 0 ? inUse / total : 0;
+        if (frac >= 0.9) return "border-red-500/40 bg-red-500/10 text-red-300";
+        if (frac >= 0.7) return "border-amber-500/40 bg-amber-500/10 text-amber-300";
+        return "border-slate-700 bg-slate-900 text-slate-300";
+      }
+
+      function tile(label: string, value: string, tone: string, sub = ""): string {
+        return `
+          <div class="rounded-xl border ${tone} p-5">
+            <p class="text-xs uppercase tracking-wide opacity-70">${label}</p>
+            <p class="mt-2 text-3xl font-bold tabular-nums">${value}</p>
+            ${sub ? `<p class="mt-1 text-xs opacity-60">${sub}</p>` : ""}
+          </div>`;
+      }
+
+      function render(s: WarRoomSnapshot) {
+        const checkoutTotal = s.checkoutSucceeded + s.checkoutFailed;
+        const paymentTotal = s.paymentSucceeded + s.paymentFailed;
+
+        root.innerHTML = `
+          <section>
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Kesehatan Sistem</h2>
+            <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+              ${tile("Error Rate (5xx)", pct(s.errorRate), errorTone(s.errorRate), `${num(s.httpErrors)} dari ${num(s.httpRequests)} request`)}
+              ${tile("Latensi API p95", ms(s.httpP95Seconds), latencyTone(s.httpP95Seconds), "perkiraan lintas rute")}
+              ${tile("Request Berjalan", num(s.httpInFlight), "border-slate-700 bg-slate-900 text-slate-300", "in-flight saat ini")}
+              ${tile("Koneksi DB", `${num(s.dbConnsInUse)} / ${num(s.dbConnsInUse + s.dbConnsIdle)}`, dbTone(s.dbConnsInUse, s.dbConnsIdle), "dipakai / total pool")}
+            </div>
+          </section>
+
+          <section>
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Alur Tiket</h2>
+            <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+              ${tile("Antrean Aktif", num(s.activeQueueUsers), "border-sky-500/30 bg-sky-500/10 text-sky-300", "pengguna di ruang tunggu")}
+              ${tile("Total Rilis Antrean", num(s.queueReleased), "border-slate-700 bg-slate-900 text-slate-300", "sejak restart")}
+              ${tile("Checkout Sukses", pct(s.checkoutSuccessRate), successTone(s.checkoutSuccessRate, checkoutTotal), `${num(s.checkoutSucceeded)} sukses · ${num(s.checkoutFailed)} gagal`)}
+              ${tile("Pembayaran Sukses", pct(s.paymentSuccessRate), successTone(s.paymentSuccessRate, paymentTotal), `${num(s.paymentSucceeded)} sukses · ${num(s.paymentFailed)} gagal`)}
+            </div>
+          </section>
+
+          <section>
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Volume</h2>
+            <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+              ${tile("Checkout Dimulai", num(s.checkoutStarted), "border-slate-700 bg-slate-900 text-slate-300", "order dibuat")}
+              ${tile("Total Request", num(s.httpRequests), "border-slate-700 bg-slate-900 text-slate-300", "sejak restart")}
+              ${tile("Scan Racepack", num(s.racepackScans), "border-violet-500/30 bg-violet-500/10 text-violet-300", "pickup diproses")}
+              ${tile("Pembayaran Total", num(paymentTotal), "border-slate-700 bg-slate-900 text-slate-300", "sukses + gagal")}
+            </div>
+          </section>
+        `;
+      }
+
+      function setLive(ok: boolean) {
+        liveDot.innerHTML = ok
+          ? `<span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> Live`
+          : `<span class="h-2 w-2 rounded-full bg-red-500"></span> Terputus`;
+      }
+
+      async function tick() {
+        try {
+          const s = await fetchWarRoom();
+          render(s);
+          setLive(true);
+          capturedEl.textContent = new Date(s.capturedAt).toLocaleTimeString("id-ID");
+        } catch (e) {
+          setLive(false);
+          if (!root.querySelector("section")) {
+            root.innerHTML = `<p class="text-red-400">Gagal memuat: ${(e as Error).message}</p>`;
+          }
+        }
+      }
+
+      tick();
+      setInterval(tick, REFRESH_MS);
+    </script>
+  </body>
+</html>

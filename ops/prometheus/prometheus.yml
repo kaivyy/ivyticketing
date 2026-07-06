@@ -1,0 +1,40 @@
+# Prometheus scrape configuration for ivyticketing (Phase 20 — Observability).
+#
+# The API exposes metrics at GET /metrics (no auth; bind it to an internal
+# network or scrape over the private interface only). Business metrics
+# (queue/checkout/payment/racepack) plus HTTP RED metrics and Go/process
+# collectors are all served from the one registry.
+#
+# Usage:
+#   prometheus --config.file=ops/prometheus/prometheus.yml
+
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 15s
+  external_labels:
+    service: ivyticketing
+    env: production
+
+rule_files:
+  - alerts.yml
+
+scrape_configs:
+  - job_name: ivyticketing-api
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          # Adjust to the API host:port. Multiple targets when horizontally
+          # scaled (Phase 25 split); Prometheus aggregates across instances.
+          - api:8080
+        labels:
+          component: api
+
+  # Alertmanager wiring (optional). Point at your Alertmanager instance so the
+  # error-rate / payment-failure alerts below can page on-call.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            # - alertmanager:9093
+            []

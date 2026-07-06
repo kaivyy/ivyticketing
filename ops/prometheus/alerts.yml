@@ -1,0 +1,106 @@
+# Alert rules for ivyticketing (Phase 20 — Observability).
+#
+# Goal (masterplan): detect problems before they go viral. The rules below
+# cover the acceptance criteria — an active error-rate alert and payment
+# incident visibility — plus queue/DB saturation early-warnings for war day.
+#
+# Load via rule_files in prometheus.yml. Tune thresholds/`for` windows to your
+# traffic profile before go-live.
+
+groups:
+  - name: ivyticketing-availability
+    rules:
+      # ── HTTP error rate (5xx) ────────────────────────────────────────────
+      # Warns at 1% over 5m; pages at 5% over 5m. Uses request rate so a burst
+      # of errors during low traffic still fires proportionally.
+      - alert: HighErrorRateWarning
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_requests_total[5m])), 1)
+            > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Error rate 5xx > 1% (5m)"
+          description: "5xx share is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      - alert: HighErrorRateCritical
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_requests_total[5m])), 1)
+            > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Error rate 5xx > 5% (5m)"
+          description: "5xx share is {{ $value | humanizePercentage }}. Page on-call."
+
+      # ── API latency ──────────────────────────────────────────────────────
+      - alert: HighAPILatencyP95
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency > 1s (5m window)"
+          description: "p95 is {{ $value }}s across all routes."
+
+  - name: ivyticketing-payments
+    rules:
+      # ── Payment failures ─────────────────────────────────────────────────
+      # A payment incident is analysable: this alert fires on a sustained
+      # failure share, and the war-room dashboard + audit log (PAYMENT_PAID /
+      # PAYMENT_CALLBACK_REJECTED) give the drill-down.
+      - alert: PaymentFailureSpike
+        expr: |
+          sum(rate(payment_failed_total[10m]))
+            / clamp_min(sum(rate(payment_succeeded_total[10m])) + sum(rate(payment_failed_total[10m])), 1)
+            > 0.2
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Payment failure share > 20% (10m)"
+          description: "Failed/(failed+succeeded) is {{ $value | humanizePercentage }}. Check gateway status and webhook processing."
+
+      # ── Gateway webhook processing delay ─────────────────────────────────
+      - alert: WebhookProcessingSlow
+        expr: |
+          histogram_quantile(0.95, sum(rate(gateway_webhook_delay_seconds_bucket[10m])) by (le)) > 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gateway webhook p95 delay > 10s"
+          description: "Webhooks are being processed slowly ({{ $value }}s p95); paid orders may lag."
+
+  - name: ivyticketing-capacity
+    rules:
+      # ── DB pool saturation ───────────────────────────────────────────────
+      - alert: DBPoolSaturation
+        expr: |
+          db_connections_in_use
+            / clamp_min(db_connections_in_use + db_connections_idle, 1)
+            > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres pool > 90% utilised (5m)"
+          description: "{{ $value | humanizePercentage }} of pool connections in use; risk of checkout stalls."
+
+      # ── Checkout success collapse (war-day canary) ───────────────────────
+      - alert: CheckoutSuccessDrop
+        expr: |
+          sum(rate(checkout_succeeded_total[10m]))
+            / clamp_min(sum(rate(checkout_succeeded_total[10m])) + sum(rate(checkout_failed_total[10m])), 1)
+            < 0.8
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Checkout success rate < 80% (10m)"
+          description: "Success share is {{ $value | humanizePercentage }}. Inventory, queue, or gateway degradation likely."

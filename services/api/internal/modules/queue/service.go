@@ -34,11 +34,18 @@ type Notifier interface {
 	Enqueue(ctx context.Context, participantID uuid.UUID, typ string, data notifmod.TemplateData) error
 }
 
+// MetricsSink observes queue releases for the war-room dashboard. Satisfied by
+// *metrics.Metrics; nil when metrics are disabled.
+type MetricsSink interface {
+	IncQueueReleased(n int)
+}
+
 type Service struct {
 	repo        Repository
 	store       *Store
 	audit       AuditRecorder
 	notifier    Notifier
+	metrics     MetricsSink
 	events      EventReader
 	resolver    EventModeResolver
 	defaultRate int32
@@ -50,6 +57,9 @@ func NewService(repo Repository, store *Store, recorder AuditRecorder, events Ev
 
 // WithNotifier attaches a Notifier to the service. Called from server.go after construction.
 func (s *Service) WithNotifier(n Notifier) { s.notifier = n }
+
+// WithMetrics attaches a MetricsSink to the service. Called from server.go after construction.
+func (s *Service) WithMetrics(m MetricsSink) { s.metrics = m }
 
 // Join issues (or returns existing) a queue token for the participant. Idempotent:
 // refresh/reconnect/mobile-sleep safe — same token returned on repeated calls.
