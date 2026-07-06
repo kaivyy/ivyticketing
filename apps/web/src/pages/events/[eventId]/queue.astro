@@ -2,10 +2,12 @@
 export const prerender = false;
 import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
 import WaitingRoom from "../../../components/queue/WaitingRoom.astro";
+import StatusBanner from "../../../components/StatusBanner.astro";
 const { eventId } = Astro.params;
 ---
 <ParticipantLayout title="Antrean Tiket">
   <div class="max-w-md mx-auto mt-12 px-4">
+    <StatusBanner />
     <h1 class="text-xl font-bold mb-6 text-center">Ruang Tunggu</h1>
     {eventId
       ? <WaitingRoom eventId={eventId} />

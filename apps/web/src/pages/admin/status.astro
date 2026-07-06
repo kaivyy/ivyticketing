@@ -1,0 +1,235 @@
+---
+export const prerender = false;
+import "../../styles/global.css";
+---
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Manajemen Status — ivyticketing</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header class="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
+      <span class="font-semibold text-slate-900">ivyticketing · Platform Admin</span>
+      <button id="logout-btn" class="text-sm text-slate-500 hover:text-slate-900">Keluar</button>
+    </header>
+    <main class="mx-auto max-w-4xl p-6">
+      <div id="root" class="space-y-6">
+        <p class="text-slate-500">Memuat…</p>
+      </div>
+    </main>
+
+    <script>
+      import { getToken, logout } from "../../lib/auth";
+      import {
+        fetchPublicStatus,
+        listIncidentsAdmin,
+        createIncident,
+        addIncidentUpdate,
+        updateComponent,
+        COMPONENT_STATUS_LABELS,
+        IMPACT_LABELS,
+        INCIDENT_STATUS_LABELS,
+        type Component,
+        type Incident,
+      } from "../../lib/status";
+      import { esc } from "../../lib/safe";
+
+      if (!getToken()) window.location.href = "/login";
+      document.getElementById("logout-btn")?.addEventListener("click", async () => {
+        await logout();
+        window.location.href = "/login";
+      });
+
+      const root = document.getElementById("root")!;
+
+      function fmtDate(s: string | null): string {
+        if (!s) return "—";
+        try {
+          return new Date(s).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+        } catch {
+          return s;
+        }
+      }
+
+      function msg(id: string, text: string, isError = false) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = text;
+        el.className = isError ? "text-sm text-red-600" : "text-sm text-green-700";
+      }
+
+      const COMP_STATUSES = ["OPERATIONAL", "DEGRADED", "DOWN"];
+      const IMPACTS = ["MINOR", "MAJOR", "CRITICAL", "NONE"];
+      const INC_STATUSES = ["INVESTIGATING", "IDENTIFIED", "MONITORING", "RESOLVED"];
+
+      function componentControls(components: Component[]): string {
+        return `
+          <section class="rounded-lg border border-slate-200 bg-white p-6">
+            <h2 class="mb-4 text-lg font-semibold">Komponen Sistem</h2>
+            <div class="space-y-3">
+              ${components
+                .map(
+                  (c) => `
+                  <div class="flex items-center justify-between gap-3">
+                    <span class="font-medium text-slate-800">${esc(c.name)}</span>
+                    <select data-comp="${esc(c.key)}" class="rounded border border-slate-300 px-3 py-1.5 text-sm">
+                      ${COMP_STATUSES.map(
+                        (s) =>
+                          `<option value="${s}" ${s === c.status ? "selected" : ""}>${esc(COMPONENT_STATUS_LABELS[s] ?? s)}</option>`,
+                      ).join("")}
+                    </select>
+                  </div>`,
+                )
+                .join("")}
+            </div>
+            <p id="comp-msg" class="mt-3 text-sm text-slate-500"></p>
+          </section>`;
+      }
+
+      function createForm(): string {
+        return `
+          <section class="rounded-lg border border-slate-200 bg-white p-6">
+            <h2 class="mb-4 text-lg font-semibold">Buka Insiden Baru</h2>
+            <form id="create-form" class="space-y-4">
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Judul</label>
+                <input name="title" required class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Gangguan pada sistem pembayaran" />
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Dampak</label>
+                <select name="impact" class="rounded border border-slate-300 px-3 py-2 text-sm">
+                  ${IMPACTS.map((i) => `<option value="${i}">${esc(IMPACT_LABELS[i] ?? i)}</option>`).join("")}
+                </select>
+              </div>
+              <div>
+                <label class="mb-1 block text-sm font-medium text-slate-700">Keterangan Awal</label>
+                <textarea name="body" required rows="2" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Kami sedang menyelidiki..."></textarea>
+              </div>
+              <div class="flex items-center gap-3">
+                <button type="submit" class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Buka Insiden</button>
+                <span id="create-msg" class="text-sm text-slate-500"></span>
+              </div>
+            </form>
+          </section>`;
+      }
+
+      function incidentRows(incidents: Incident[]): string {
+        if (incidents.length === 0) {
+          return `<p class="text-sm text-slate-400">Belum ada insiden.</p>`;
+        }
+        return incidents
+          .map((inc) => {
+            const updates = (inc.updates ?? [])
+              .map(
+                (u) => `
+                  <li class="border-l-2 border-slate-200 pl-3">
+                    <div class="text-xs font-medium text-slate-500">${esc(INCIDENT_STATUS_LABELS[u.status] ?? u.status)} · ${esc(fmtDate(u.createdAt))}</div>
+                    <p class="text-sm text-slate-700">${esc(u.body)}</p>
+                  </li>`,
+              )
+              .join("");
+            const resolved = inc.status === "RESOLVED";
+            return `
+              <article class="rounded-lg border border-slate-200 bg-white p-5">
+                <div class="flex items-start justify-between gap-3">
+                  <h3 class="font-semibold text-slate-900">${esc(inc.title)}</h3>
+                  <span class="text-xs text-slate-500">${esc(IMPACT_LABELS[inc.impact] ?? inc.impact)} · ${esc(INCIDENT_STATUS_LABELS[inc.status] ?? inc.status)}</span>
+                </div>
+                <p class="mt-1 text-xs text-slate-500">Mulai ${esc(fmtDate(inc.startedAt))}${inc.resolvedAt ? ` · Selesai ${esc(fmtDate(inc.resolvedAt))}` : ""}</p>
+                ${updates ? `<ul class="mt-3 space-y-2">${updates}</ul>` : ""}
+                ${
+                  resolved
+                    ? ""
+                    : `
+                  <form data-incident="${esc(inc.id)}" class="update-form mt-4 flex flex-wrap items-end gap-3 border-t border-slate-100 pt-4">
+                    <div class="min-w-[160px]">
+                      <label class="mb-1 block text-xs font-medium text-slate-600">Status Baru</label>
+                      <select name="status" class="rounded border border-slate-300 px-3 py-1.5 text-sm">
+                        ${INC_STATUSES.map((s) => `<option value="${s}" ${s === inc.status ? "selected" : ""}>${esc(INCIDENT_STATUS_LABELS[s] ?? s)}</option>`).join("")}
+                      </select>
+                    </div>
+                    <div class="flex-1 min-w-[220px]">
+                      <label class="mb-1 block text-xs font-medium text-slate-600">Keterangan</label>
+                      <input name="body" required class="w-full rounded border border-slate-300 px-3 py-1.5 text-sm" placeholder="Perkembangan terbaru..." />
+                    </div>
+                    <button type="submit" class="rounded bg-slate-800 px-4 py-1.5 text-sm font-medium text-white hover:bg-slate-900">Kirim</button>
+                  </form>`
+                }
+              </article>`;
+          })
+          .join("");
+      }
+
+      function render(components: Component[], incidents: Incident[]) {
+        root.innerHTML = `
+          <h1 class="text-2xl font-bold text-slate-900">Manajemen Status</h1>
+          ${componentControls(components)}
+          ${createForm()}
+          <section class="space-y-3">
+            <h2 class="text-lg font-semibold text-slate-900">Insiden</h2>
+            <div id="incident-list" class="space-y-3">${incidentRows(incidents)}</div>
+          </section>
+        `;
+
+        root.querySelectorAll<HTMLSelectElement>("select[data-comp]").forEach((sel) => {
+          sel.addEventListener("change", async () => {
+            const key = sel.dataset.comp!;
+            try {
+              await updateComponent(key, sel.value);
+              msg("comp-msg", `Komponen "${key}" diperbarui.`);
+            } catch (err) {
+              msg("comp-msg", (err as Error).message, true);
+            }
+          });
+        });
+
+        document.getElementById("create-form")?.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const fd = new FormData(e.target as HTMLFormElement);
+          try {
+            await createIncident({
+              title: String(fd.get("title") ?? "").trim(),
+              impact: String(fd.get("impact") ?? "MINOR"),
+              body: String(fd.get("body") ?? "").trim(),
+            });
+            msg("create-msg", "Insiden dibuka.");
+            await reload();
+          } catch (err) {
+            msg("create-msg", (err as Error).message, true);
+          }
+        });
+
+        root.querySelectorAll<HTMLFormElement>("form.update-form").forEach((form) => {
+          form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const fd = new FormData(form);
+            const incidentId = form.dataset.incident!;
+            try {
+              await addIncidentUpdate(incidentId, {
+                status: String(fd.get("status") ?? ""),
+                body: String(fd.get("body") ?? "").trim(),
+              });
+              await reload();
+            } catch (err) {
+              alert((err as Error).message);
+            }
+          });
+        });
+      }
+
+      async function reload() {
+        const [page, incidents] = await Promise.all([
+          fetchPublicStatus(),
+          listIncidentsAdmin(50, 0).catch(() => [] as Incident[]),
+        ]);
+        render(page.components ?? [], incidents ?? []);
+      }
+
+      reload().catch((e) => {
+        root.innerHTML = `<p class="text-red-600">Gagal memuat: ${esc((e as Error).message)}</p>`;
+      });
+    </script>
+  </body>
+</html>

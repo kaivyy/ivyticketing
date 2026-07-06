@@ -32,6 +32,7 @@ import (
 	publicmod "github.com/varin/ivyticketing/services/api/internal/modules/publiccatalog"
 	queuemod "github.com/varin/ivyticketing/services/api/internal/modules/queue"
 	racepackmod "github.com/varin/ivyticketing/services/api/internal/modules/racepack"
+	statusmod "github.com/varin/ivyticketing/services/api/internal/modules/status"
 	registrationmod "github.com/varin/ivyticketing/services/api/internal/modules/registration"
 	reportingmod "github.com/varin/ivyticketing/services/api/internal/modules/reporting"
 	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
@@ -222,6 +223,9 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	whitelabelSvc := whitelabelmod.NewService(whitelabelmod.NewRepository(pool), auditLog, log)
 	whitelabelHandler := whitelabelmod.NewHandler(whitelabelSvc)
 
+	statusSvc := statusmod.NewService(statusmod.NewRepository(pool), auditLog, log)
+	statusHandler := statusmod.NewHandler(statusSvc)
+
 	// Anti-bot / abuse (Phase 9)
 	abuseRepo := abusemod.NewRepository(pool)
 	abuseSettings := abusemod.NewSettings(abuseRepo)
@@ -246,6 +250,9 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 
 		// Public read-only (no auth).
 		publicHandler.RegisterRoutes(r)
+
+		// Public status page (no auth).
+		statusHandler.RegisterRoutes(r)
 
 		// Security config (public, no auth).
 		r.Get("/security/config", securityConfigHandler.Get)
@@ -278,6 +285,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 					abuseHandler.RegisterAdminRoutes(r)
 					reportingHandler.RegisterAdminRoutes(r)
 					billingHandler.RegisterAdminRoutes(r)
+					statusHandler.RegisterAdminRoutes(r)
 				})
 				accessHandler.RegisterAdminRoutes(r)
 				notifStatusHandler.RegisterRoutes(r)

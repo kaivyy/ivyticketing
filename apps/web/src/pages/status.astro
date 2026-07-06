@@ -1,0 +1,172 @@
+---
+export const prerender = false;
+import "../styles/global.css";
+---
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Status Sistem — ivyticketing</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header class="border-b border-slate-200 bg-white">
+      <div class="mx-auto max-w-3xl px-6 py-4">
+        <span class="font-semibold text-slate-900">ivyticketing · Status Sistem</span>
+      </div>
+    </header>
+    <main class="mx-auto max-w-3xl p-6">
+      <div id="status" class="space-y-6">
+        <p class="text-slate-500">Memuat…</p>
+      </div>
+    </main>
+
+    <script>
+      import {
+        fetchPublicStatus,
+        fetchPublicIncidents,
+        COMPONENT_STATUS_LABELS,
+        OVERALL_LABELS,
+        IMPACT_LABELS,
+        INCIDENT_STATUS_LABELS,
+        type StatusPage,
+        type Incident,
+      } from "../lib/status";
+      import { esc } from "../lib/safe";
+
+      const root = document.getElementById("status")!;
+
+      function fmtDate(s: string | null): string {
+        if (!s) return "—";
+        try {
+          return new Date(s).toLocaleString("id-ID", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          });
+        } catch {
+          return s;
+        }
+      }
+
+      const DOT: Record<string, string> = {
+        OPERATIONAL: "bg-green-500",
+        DEGRADED: "bg-amber-500",
+        DOWN: "bg-red-500",
+      };
+      const BANNER: Record<string, string> = {
+        OPERATIONAL: "border-green-200 bg-green-50 text-green-800",
+        DEGRADED: "border-amber-200 bg-amber-50 text-amber-800",
+        DOWN: "border-red-200 bg-red-50 text-red-800",
+      };
+      const IMPACT_BADGE: Record<string, string> = {
+        NONE: "bg-slate-100 text-slate-600",
+        MINOR: "bg-amber-100 text-amber-700",
+        MAJOR: "bg-orange-100 text-orange-700",
+        CRITICAL: "bg-red-100 text-red-700",
+      };
+
+      function overallBanner(page: StatusPage): string {
+        const cls = BANNER[page.overall] ?? BANNER.OPERATIONAL;
+        const label = OVERALL_LABELS[page.overall] ?? page.overall;
+        const dot = DOT[page.overall] ?? DOT.OPERATIONAL;
+        return `
+          <section class="rounded-lg border ${cls} p-5">
+            <div class="flex items-center gap-3">
+              <span class="h-3 w-3 rounded-full ${dot}"></span>
+              <h1 class="text-xl font-bold">${esc(label)}</h1>
+            </div>
+            ${page.lastUpdated ? `<p class="mt-1 text-sm opacity-80">Terakhir diperbarui: ${esc(fmtDate(page.lastUpdated))}</p>` : ""}
+          </section>`;
+      }
+
+      function componentList(page: StatusPage): string {
+        if (page.components.length === 0) {
+          return `<p class="text-sm text-slate-400">Tidak ada komponen.</p>`;
+        }
+        return `
+          <section class="rounded-lg border border-slate-200 bg-white">
+            <ul class="divide-y divide-slate-100">
+              ${page.components
+                .map((c) => {
+                  const dot = DOT[c.status] ?? DOT.OPERATIONAL;
+                  const label = COMPONENT_STATUS_LABELS[c.status] ?? c.status;
+                  return `
+                    <li class="flex items-center justify-between px-5 py-4">
+                      <span class="font-medium text-slate-800">${esc(c.name)}</span>
+                      <span class="flex items-center gap-2 text-sm text-slate-600">
+                        <span class="h-2.5 w-2.5 rounded-full ${dot}"></span>
+                        ${esc(label)}
+                      </span>
+                    </li>`;
+                })
+                .join("")}
+            </ul>
+          </section>`;
+      }
+
+      function incidentCard(inc: Incident): string {
+        const badge = IMPACT_BADGE[inc.impact] ?? IMPACT_BADGE.MINOR;
+        const statusLabel = INCIDENT_STATUS_LABELS[inc.status] ?? inc.status;
+        const impactLabel = IMPACT_LABELS[inc.impact] ?? inc.impact;
+        const updates = (inc.updates ?? [])
+          .map(
+            (u) => `
+              <li class="border-l-2 border-slate-200 pl-3">
+                <div class="text-xs font-medium text-slate-500">
+                  ${esc(INCIDENT_STATUS_LABELS[u.status] ?? u.status)} · ${esc(fmtDate(u.createdAt))}
+                </div>
+                <p class="text-sm text-slate-700">${esc(u.body)}</p>
+              </li>`,
+          )
+          .join("");
+        return `
+          <article class="rounded-lg border border-slate-200 bg-white p-5">
+            <div class="flex items-start justify-between gap-3">
+              <h3 class="font-semibold text-slate-900">${esc(inc.title)}</h3>
+              <span class="rounded px-2 py-0.5 text-xs font-medium ${badge}">${esc(impactLabel)}</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">
+              ${esc(statusLabel)} · Mulai ${esc(fmtDate(inc.startedAt))}${inc.resolvedAt ? ` · Selesai ${esc(fmtDate(inc.resolvedAt))}` : ""}
+            </p>
+            ${updates ? `<ul class="mt-3 space-y-2">${updates}</ul>` : ""}
+          </article>`;
+      }
+
+      function activeIncidents(page: StatusPage): string {
+        if (page.incidents.length === 0) return "";
+        return `
+          <section class="space-y-3">
+            <h2 class="text-lg font-semibold text-slate-900">Insiden Aktif</h2>
+            ${page.incidents.map(incidentCard).join("")}
+          </section>`;
+      }
+
+      function history(incidents: Incident[]): string {
+        const past = incidents.filter((i) => i.resolvedAt);
+        if (past.length === 0) return "";
+        return `
+          <section class="space-y-3">
+            <h2 class="text-lg font-semibold text-slate-900">Riwayat Insiden</h2>
+            ${past.map(incidentCard).join("")}
+          </section>`;
+      }
+
+      async function load() {
+        const [page, incidents] = await Promise.all([
+          fetchPublicStatus(),
+          fetchPublicIncidents(20, 0).catch(() => [] as Incident[]),
+        ]);
+        root.innerHTML = `
+          ${overallBanner(page)}
+          ${componentList(page)}
+          ${activeIncidents(page)}
+          ${history(incidents ?? [])}
+        `;
+      }
+
+      load().catch((e) => {
+        root.innerHTML = `<p class="text-red-600">Gagal memuat status: ${esc((e as Error).message)}</p>`;
+      });
+    </script>
+  </body>
+</html>

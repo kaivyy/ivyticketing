@@ -1,11 +1,13 @@
 ---
 export const prerender = false;
 import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
+import StatusBanner from "../../../components/StatusBanner.astro";
 const { eventId } = Astro.params;
 ---
 <ParticipantLayout title="Checkout">
   <div class="max-w-lg mx-auto mt-12 px-4">
     <a id="back-link" href={`/events/${eventId}`} class="text-sm text-slate-500">← Kembali ke event</a>
+    <StatusBanner />
     <h1 class="text-xl font-bold mt-4 mb-6">Checkout</h1>
     <div id="checkout-root" data-event-id={eventId}>
       <p class="text-slate-500 text-center">Memuat…</p>

@@ -1,0 +1,42 @@
+---
+// Public system-status banner. Renders only when the platform is not fully
+// operational or an incident is active. Safe to embed on any participant page;
+// fetches the public status endpoint (no auth) and stays silent on error.
+---
+<div id="status-banner" class="hidden"></div>
+
+<script>
+  import { fetchPublicStatus, OVERALL_LABELS } from "../lib/status";
+  import { esc } from "../lib/safe";
+
+  const el = document.getElementById("status-banner")!;
+
+  const BANNER: Record<string, string> = {
+    DEGRADED: "border-amber-200 bg-amber-50 text-amber-800",
+    DOWN: "border-red-200 bg-red-50 text-red-800",
+  };
+
+  (async () => {
+    try {
+      const page = await fetchPublicStatus();
+      const hasIncident = (page.incidents?.length ?? 0) > 0;
+      if (page.overall === "OPERATIONAL" && !hasIncident) return;
+
+      const cls = BANNER[page.overall] ?? BANNER.DEGRADED;
+      const label = OVERALL_LABELS[page.overall] ?? page.overall;
+      const headline =
+        page.incidents && page.incidents.length > 0
+          ? esc(page.incidents[0].title)
+          : esc(label);
+
+      el.className = `mb-4 rounded-lg border ${cls} px-4 py-3 text-sm`;
+      el.innerHTML = `
+        <div class="flex items-center justify-between gap-3">
+          <span class="font-medium">${headline}</span>
+          <a href="/status" class="shrink-0 underline">Lihat status</a>
+        </div>`;
+    } catch {
+      /* stay silent — status banner is best-effort */
+    }
+  })();
+</script>
