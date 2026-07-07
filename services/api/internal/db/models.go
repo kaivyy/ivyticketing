@@ -89,6 +89,19 @@ type AccessPoolMember struct {
 	RevokedAt       pgtype.Timestamptz
 }
 
+type ApiKey struct {
+	ID              uuid.UUID
+	OrganizationID  uuid.UUID
+	Name            string
+	KeyPrefix       string
+	KeyHash         string
+	Scopes          []byte
+	RateLimitPerMin int32
+	LastUsedAt      pgtype.Timestamptz
+	RevokedAt       pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+}
+
 type AuditLog struct {
 	ID             uuid.UUID
 	OrganizationID *uuid.UUID
@@ -162,6 +175,20 @@ type CategoryRegistrationSetting struct {
 	OverrideEnabled  bool
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
+}
+
+type CertificateTemplate struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	EventID        uuid.UUID
+	Name           string
+	Title          string
+	Subtitle       string
+	BodyTemplate   string
+	BackgroundUrl  pgtype.Text
+	IsActive       bool
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
 }
 
 type CorporateAccount struct {
@@ -559,6 +586,30 @@ type QueueToken struct {
 	UpdatedAt      pgtype.Timestamptz
 }
 
+type RaceResult struct {
+	ID              uuid.UUID
+	OrganizationID  uuid.UUID
+	EventID         uuid.UUID
+	CategoryID      *uuid.UUID
+	TicketID        *uuid.UUID
+	BibNumber       string
+	ParticipantName string
+	Gender          pgtype.Text
+	Age             pgtype.Int4
+	AgeGroup        pgtype.Text
+	Status          string
+	ChipTimeMs      pgtype.Int8
+	GunTimeMs       pgtype.Int8
+	RankOverall     pgtype.Int4
+	RankGender      pgtype.Int4
+	RankCategory    pgtype.Int4
+	RankAgeGroup    pgtype.Int4
+	Source          string
+	FinishedAt      pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+}
+
 type RacepackCounter struct {
 	ID             uuid.UUID
 	OrganizationID uuid.UUID
@@ -761,4 +812,31 @@ type WaitlistEntry struct {
 	AccessGrantID        *uuid.UUID
 	PromotionWindowHours pgtype.Int4
 	CreatedAt            pgtype.Timestamptz
+}
+
+type WebhookDelivery struct {
+	ID             uuid.UUID
+	EndpointID     uuid.UUID
+	OrganizationID uuid.UUID
+	EventType      string
+	EventKey       string
+	Payload        []byte
+	Status         string
+	Attempts       int32
+	LastError      pgtype.Text
+	NextAttemptAt  pgtype.Timestamptz
+	DeliveredAt    pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type WebhookEndpoint struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	Url            string
+	Secret         string
+	Events         []byte
+	IsActive       bool
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
 }

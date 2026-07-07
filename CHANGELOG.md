@@ -4,6 +4,83 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
+## [Phase 23–27] — 2026-07-07
+
+### Phase 23 — Enterprise API & Integration
+
+Per-org API keys, outbound webhook subscriptions, and an idempotent delivery
+ledger. A versioned public read API is mounted at `/api/public/v1` on a separate
+auth domain (API-key + per-key rate limit) so integrators hit a stable surface
+distinct from the participant/organizer `/api/v1`.
+
+#### Added
+- Migration `00060_create_enterprise_api` (reversible): `api_keys` (sha256-hashed,
+  raw key shown once at creation; `key_prefix` for UI display; per-key
+  `rate_limit_per_min`), `webhook_endpoints` (HMAC-SHA256 signing secret,
+  subscribed event-type array), and `webhook_deliveries` — an idempotent ledger
+  with `UNIQUE(endpoint_id, event_key)` guaranteeing at-most-once enqueue per
+  endpoint per business event.
+- Backend module `internal/modules/enterprise`: API-key auth middleware
+  (`apikeyauth.go`), key generation/hashing (`keygen.go`), webhook `dispatcher.go`
+  (drains PENDING deliveries, POSTs each payload HMAC-signed with the endpoint
+  secret, reschedules failures with exponential backoff, parks as DEAD after the
+  attempt ceiling), and the public read API surface (`publicapi.go`).
+- Worker: a `webhook_dispatch` runner (`cmd/worker/main.go`) alongside the
+  existing report-export runner.
+- Frontend: organizer `org/[orgId]/enterprise.astro` (API-key + webhook
+  management, Indonesian) plus `lib/enterprise.ts` client.
+
+### Phase 24 — Race Results, Ranking & Certificates
+
+CSV timing import with idempotent upsert, server-side ranking, and a
+placeholder-driven certificate renderer.
+
+#### Added
+- Migration `00061_create_race_results` (reversible): `race_results`
+  (`UNIQUE(event_id, bib_number)`, status CHECK `FINISHED/DNF/DNS`, elapsed times
+  as `bigint` ms, nullable rank columns) and `certificate_templates` (partial
+  unique index on the active template per event). Grants a new `results.manage`
+  permission to the owner/manager role templates.
+- Backend module `internal/modules/results`: idempotent CSV import (UPSERT on
+  `(event, bib)`; case-insensitive header with Indonesian column aliases; per-row
+  errors reported without aborting the batch; a `FINISHED` row with no time is
+  coerced to `DNF` so it is never ranked), four idempotent ranking passes
+  (overall/gender/category/age-group; chip time preferred over gun time via
+  `COALESCE`), certificate-template CRUD, and a placeholder renderer
+  (`{{name}} {{time}} {{rank}} {{category}} {{bib}}`).
+- Participant self-service routes `GET /tickets/{id}/result` and
+  `GET /tickets/{id}/certificate`: ownership is verified through an injected
+  `TicketOwnershipFunc` wrapping the tickets service. The results module never
+  imports tickets and **`TICKET_QR_SECRET` is never duplicated** — the resolver
+  reuses the single `qr.Signer` already composed for tickets/scanner.
+- Frontend: organizer `results.astro` (CSV upload, filterable + paginated
+  leaderboard, recompute, delete-all, template CRUD) with a "Hasil" nav entry;
+  participant `certificate/[ticketId].astro` (result card + printable certificate)
+  linked from the ticket detail page. Both Indonesian.
+
+#### Tests
+- Pure-function unit tests for duration parsing, gender/status normalization,
+  column-alias resolution, placeholder substitution, and finish-time formatting.
+
+#### Deferred
+- Timing-vendor API ingest (`SourceTimingAPI` / `ErrInvalidTimingToken`) is
+  scaffolded but not wired — only CSV import is live.
+
+### Phases 25–27 — Operations documentation (no code)
+
+- **Phase 25** [`docs/SCALE_SPLIT.md`](docs/SCALE_SPLIT.md): when (and when not) to
+  extract services from the modular monolith, measurable split triggers, per-service
+  API contracts, and per-service monitoring — preserving the single-`qr.Signer`
+  invariant across any split.
+- **Phase 26** [`docs/LAUNCH_CHECKLIST.md`](docs/LAUNCH_CHECKLIST.md):
+  Before-Launch / War-Day / Rollback checklists mapped to real tooling (k6, War
+  Room, Grafana War Day dashboard, status page, incident runbook) plus a launch
+  rehearsal script.
+- **Phase 27** [`docs/POST_EVENT_REPORT.md`](docs/POST_EVENT_REPORT.md): post-event
+  report + improvement-backlog template with concrete data sources per metric.
+
+---
+
 ## [Phase 15] — 2026-06-21
 
 ### Scanner PWA — offline-capable on-site scanning (racepack pickup + event check-in)

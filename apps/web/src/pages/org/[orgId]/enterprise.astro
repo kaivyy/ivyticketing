@@ -1,0 +1,372 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../layouts/OrganizerLayout.astro";
+const { orgId } = Astro.params;
+---
+<OrganizerLayout title="API & Webhook — ivyticketing">
+  <div id="enterprise" data-org-id={orgId} class="space-y-6">
+    <p class="text-slate-500">Memuat…</p>
+  </div>
+
+  <script>
+    import {
+      listAPIKeys,
+      createAPIKey,
+      revokeAPIKey,
+      listWebhooks,
+      createWebhook,
+      deleteWebhook,
+      listDeliveries,
+      API_SCOPES,
+      WEBHOOK_EVENTS,
+      DELIVERY_STATUS_LABELS,
+      type APIKey,
+      type Webhook,
+      type WebhookDelivery,
+    } from "../../../lib/enterprise";
+    import { esc } from "../../../lib/safe";
+
+    const root = document.getElementById("enterprise")!;
+    const orgId = root.dataset.orgId!;
+
+    function fmtDate(v: string | null | undefined): string {
+      if (!v) return "—";
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return esc(v);
+      return d.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    function setStatus(el: HTMLElement | null, msg: string, ok: boolean) {
+      if (!el) return;
+      el.textContent = msg;
+      el.className = "text-sm " + (ok ? "text-green-600" : "text-red-600");
+    }
+
+    // --- API keys ---
+
+    function keyRow(k: APIKey): string {
+      const revoked = !!k.revokedAt;
+      const statusBadge = revoked
+        ? `<span class="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">Dicabut</span>`
+        : `<span class="rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Aktif</span>`;
+      return `
+        <div class="rounded border border-slate-200 bg-white p-4" data-key-id="${esc(k.id)}">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-slate-900">${esc(k.name)}</span>
+              ${statusBadge}
+            </div>
+            ${revoked ? "" : `<button data-action="revoke" class="rounded border border-red-300 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100">Cabut</button>`}
+          </div>
+          <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+            <span class="font-mono text-slate-700">${esc(k.keyPrefix)}…</span>
+            <span>Scope: ${k.scopes.length ? k.scopes.map((s) => esc(s)).join(", ") : "—"}</span>
+            <span>Limit: ${k.rateLimitPerMin}/mnt</span>
+            <span>Dibuat ${fmtDate(k.createdAt)}</span>
+            <span>Dipakai ${fmtDate(k.lastUsedAt)}</span>
+          </div>
+        </div>`;
+    }
+
+    function renderKeys(keys: APIKey[]): string {
+      const list = keys.length
+        ? keys.map(keyRow).join("")
+        : `<p class="text-sm text-slate-400">Belum ada API key.</p>`;
+      const scopeBoxes = API_SCOPES.map(
+        (s) => `<label class="flex items-center gap-1.5 text-sm text-slate-700">
+          <input type="checkbox" name="scope" value="${esc(s.value)}" class="h-4 w-4 rounded border-slate-300" /> ${esc(s.label)}
+        </label>`
+      ).join("");
+      return `
+        <form id="key-form" class="mb-4 space-y-3 rounded border border-slate-200 bg-slate-50 p-4">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Nama Key</span>
+              <input type="text" name="name" placeholder="mis. Integrasi CRM" required class="mt-1 w-full rounded border border-slate-300 px-3 py-1.5 text-sm" />
+            </label>
+            <label class="block">
+              <span class="text-sm font-medium text-slate-700">Rate Limit (per menit)</span>
+              <input type="number" name="rateLimitPerMin" value="120" min="1" max="10000" class="mt-1 w-full rounded border border-slate-300 px-3 py-1.5 text-sm" />
+            </label>
+          </div>
+          <div>
+            <span class="text-sm font-medium text-slate-700">Scope Akses</span>
+            <div class="mt-1 flex flex-wrap gap-4">${scopeBoxes}</div>
+          </div>
+          <div class="flex items-center gap-3">
+            <button type="submit" class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Buat API Key</button>
+            <span id="key-status" class="text-sm"></span>
+          </div>
+        </form>
+        <div id="key-reveal"></div>
+        <div id="key-list" class="space-y-3">${list}</div>`;
+    }
+
+    function revealKey(raw: string): string {
+      return `
+        <div class="mb-4 rounded border border-amber-300 bg-amber-50 p-4">
+          <p class="text-sm font-medium text-amber-800">Simpan API key ini sekarang — hanya ditampilkan sekali.</p>
+          <div class="mt-2 flex items-center gap-2">
+            <code class="flex-1 break-all rounded bg-white px-3 py-2 font-mono text-sm text-slate-900">${esc(raw)}</code>
+            <button data-action="copy-key" class="rounded border border-amber-400 bg-amber-100 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-200">Salin</button>
+          </div>
+        </div>`;
+    }
+
+    // --- webhooks ---
+
+    function statusBadge(s: string): string {
+      const colors: Record<string, string> = {
+        PENDING: "bg-amber-100 text-amber-700",
+        DELIVERED: "bg-green-100 text-green-700",
+        FAILED: "bg-red-100 text-red-700",
+        DEAD: "bg-slate-200 text-slate-600",
+      };
+      const c = colors[s] ?? "bg-slate-100 text-slate-700";
+      return `<span class="rounded px-2 py-0.5 text-xs font-medium ${c}">${esc(DELIVERY_STATUS_LABELS[s] ?? s)}</span>`;
+    }
+
+    function webhookRow(wh: Webhook): string {
+      return `
+        <div class="rounded border border-slate-200 bg-white p-4" data-webhook-id="${esc(wh.id)}">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="break-all font-mono text-sm text-slate-900">${esc(wh.url)}</span>
+            <button data-action="delete-webhook" class="rounded border border-red-300 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100">Hapus</button>
+          </div>
+          <div class="mt-2 text-xs text-slate-500">
+            <span>Event: ${wh.events.length ? wh.events.map((e) => esc(e)).join(", ") : "—"}</span>
+            <span class="ml-3">Dibuat ${fmtDate(wh.createdAt)}</span>
+          </div>
+        </div>`;
+    }
+
+    function renderWebhooks(hooks: Webhook[]): string {
+      const list = hooks.length
+        ? hooks.map(webhookRow).join("")
+        : `<p class="text-sm text-slate-400">Belum ada webhook.</p>`;
+      const eventBoxes = WEBHOOK_EVENTS.map(
+        (e) => `<label class="flex items-center gap-1.5 text-sm text-slate-700">
+          <input type="checkbox" name="event" value="${esc(e.value)}" class="h-4 w-4 rounded border-slate-300" /> ${esc(e.label)}
+        </label>`
+      ).join("");
+      return `
+        <form id="webhook-form" class="mb-4 space-y-3 rounded border border-slate-200 bg-slate-50 p-4">
+          <label class="block">
+            <span class="text-sm font-medium text-slate-700">URL Endpoint (HTTPS)</span>
+            <input type="url" name="url" placeholder="https://contoh.com/webhook" required class="mt-1 w-full rounded border border-slate-300 px-3 py-1.5 text-sm" />
+          </label>
+          <div>
+            <span class="text-sm font-medium text-slate-700">Event yang Dilanggan</span>
+            <div class="mt-1 flex flex-wrap gap-4">${eventBoxes}</div>
+          </div>
+          <div class="flex items-center gap-3">
+            <button type="submit" class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Tambah Webhook</button>
+            <span id="webhook-status" class="text-sm"></span>
+          </div>
+        </form>
+        <div id="webhook-reveal"></div>
+        <div id="webhook-list" class="space-y-3">${list}</div>`;
+    }
+
+    function revealSecret(secret: string): string {
+      return `
+        <div class="mb-4 rounded border border-amber-300 bg-amber-50 p-4">
+          <p class="text-sm font-medium text-amber-800">Signing secret webhook — hanya ditampilkan sekali. Gunakan untuk verifikasi HMAC-SHA256 (header <span class="font-mono">X-IvyTicketing-Signature</span>).</p>
+          <div class="mt-2 flex items-center gap-2">
+            <code class="flex-1 break-all rounded bg-white px-3 py-2 font-mono text-sm text-slate-900">${esc(secret)}</code>
+            <button data-action="copy-secret" class="rounded border border-amber-400 bg-amber-100 px-3 py-2 text-xs font-medium text-amber-800 hover:bg-amber-200">Salin</button>
+          </div>
+        </div>`;
+    }
+
+    function deliveryRow(d: WebhookDelivery): string {
+      return `
+        <tr class="border-t border-slate-100">
+          <td class="px-3 py-2 font-mono text-xs text-slate-700">${esc(d.eventType)}</td>
+          <td class="px-3 py-2">${statusBadge(d.status)}</td>
+          <td class="px-3 py-2 text-xs text-slate-500">${d.attempts}</td>
+          <td class="px-3 py-2 text-xs text-slate-500">${fmtDate(d.deliveredAt ?? d.nextAttemptAt)}</td>
+          <td class="px-3 py-2 text-xs text-red-500">${d.lastError ? esc(d.lastError) : ""}</td>
+        </tr>`;
+    }
+
+    function renderDeliveries(rows: WebhookDelivery[]): string {
+      if (!rows.length) return `<p class="text-sm text-slate-400">Belum ada pengiriman.</p>`;
+      return `
+        <div class="overflow-x-auto rounded border border-slate-200">
+          <table class="min-w-full text-left text-sm">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th class="px-3 py-2">Event</th>
+                <th class="px-3 py-2">Status</th>
+                <th class="px-3 py-2">Percobaan</th>
+                <th class="px-3 py-2">Waktu</th>
+                <th class="px-3 py-2">Error Terakhir</th>
+              </tr>
+            </thead>
+            <tbody>${rows.map(deliveryRow).join("")}</tbody>
+          </table>
+        </div>`;
+    }
+
+    async function reloadKeys() {
+      const keys = await listAPIKeys(orgId).catch(() => [] as APIKey[]);
+      const list = document.getElementById("key-list");
+      if (list) {
+        list.innerHTML = keys.length
+          ? keys.map(keyRow).join("")
+          : `<p class="text-sm text-slate-400">Belum ada API key.</p>`;
+      }
+    }
+
+    async function reloadWebhooks() {
+      const hooks = await listWebhooks(orgId).catch(() => [] as Webhook[]);
+      const list = document.getElementById("webhook-list");
+      if (list) {
+        list.innerHTML = hooks.length
+          ? hooks.map(webhookRow).join("")
+          : `<p class="text-sm text-slate-400">Belum ada webhook.</p>`;
+      }
+    }
+
+    async function reloadDeliveries() {
+      const rows = await listDeliveries(orgId).catch(() => [] as WebhookDelivery[]);
+      const box = document.getElementById("delivery-box");
+      if (box) box.innerHTML = renderDeliveries(rows);
+    }
+
+    function wireKeyForm() {
+      const form = document.getElementById("key-form") as HTMLFormElement | null;
+      const status = document.getElementById("key-status");
+      form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const name = String(fd.get("name") ?? "").trim();
+        const scopes = fd.getAll("scope").map(String);
+        const rate = Number(fd.get("rateLimitPerMin") ?? 120);
+        if (!name) return;
+        try {
+          const key = await createAPIKey(orgId, { name, scopes, rateLimitPerMin: rate });
+          form.reset();
+          setStatus(status, "API key dibuat.", true);
+          const reveal = document.getElementById("key-reveal");
+          if (reveal && key.rawKey) reveal.innerHTML = revealKey(key.rawKey);
+          await reloadKeys();
+        } catch (err) {
+          setStatus(status, "Gagal: " + (err as Error).message, false);
+        }
+      });
+
+      const list = document.getElementById("key-list");
+      list?.addEventListener("click", async (e) => {
+        const btn = (e.target as HTMLElement).closest("button[data-action='revoke']") as HTMLButtonElement | null;
+        if (!btn) return;
+        const row = btn.closest("[data-key-id]") as HTMLElement | null;
+        const id = row?.dataset.keyId;
+        if (!id) return;
+        if (!confirm("Cabut API key ini? Integrasi yang memakainya akan langsung berhenti.")) return;
+        try {
+          await revokeAPIKey(orgId, id);
+          await reloadKeys();
+        } catch (err) {
+          setStatus(status, "Gagal: " + (err as Error).message, false);
+        }
+      });
+    }
+
+    function wireWebhookForm() {
+      const form = document.getElementById("webhook-form") as HTMLFormElement | null;
+      const status = document.getElementById("webhook-status");
+      form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const url = String(fd.get("url") ?? "").trim();
+        const events = fd.getAll("event").map(String);
+        if (!url) return;
+        if (!events.length) { setStatus(status, "Pilih minimal satu event.", false); return; }
+        try {
+          const wh = await createWebhook(orgId, { url, events });
+          form.reset();
+          setStatus(status, "Webhook ditambahkan.", true);
+          const reveal = document.getElementById("webhook-reveal");
+          if (reveal && wh.secret) reveal.innerHTML = revealSecret(wh.secret);
+          await reloadWebhooks();
+        } catch (err) {
+          setStatus(status, "Gagal: " + (err as Error).message, false);
+        }
+      });
+
+      const list = document.getElementById("webhook-list");
+      list?.addEventListener("click", async (e) => {
+        const btn = (e.target as HTMLElement).closest("button[data-action='delete-webhook']") as HTMLButtonElement | null;
+        if (!btn) return;
+        const row = btn.closest("[data-webhook-id]") as HTMLElement | null;
+        const id = row?.dataset.webhookId;
+        if (!id) return;
+        if (!confirm("Hapus webhook ini?")) return;
+        try {
+          await deleteWebhook(orgId, id);
+          await reloadWebhooks();
+        } catch (err) {
+          setStatus(status, "Gagal: " + (err as Error).message, false);
+        }
+      });
+    }
+
+    function wireCopy() {
+      root.addEventListener("click", (e) => {
+        const btn = (e.target as HTMLElement).closest("button[data-action^='copy']") as HTMLButtonElement | null;
+        if (!btn) return;
+        const code = btn.previousElementSibling as HTMLElement | null;
+        if (!code) return;
+        navigator.clipboard.writeText(code.textContent ?? "").then(() => {
+          const orig = btn.textContent;
+          btn.textContent = "Tersalin";
+          setTimeout(() => { btn.textContent = orig; }, 1500);
+        });
+      });
+    }
+
+    async function load() {
+      const [keys, hooks, deliveries] = await Promise.all([
+        listAPIKeys(orgId).catch(() => [] as APIKey[]),
+        listWebhooks(orgId).catch(() => [] as Webhook[]),
+        listDeliveries(orgId).catch(() => [] as WebhookDelivery[]),
+      ]);
+
+      root.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h1 class="text-2xl font-bold text-slate-900">API & Webhook</h1>
+        </div>
+        <p class="text-sm text-slate-500">Integrasi enterprise: API key untuk membaca data event/order/pembayaran (<span class="font-mono">/api/public/v1</span>) dan webhook keluar untuk notifikasi event bisnis.</p>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">API Keys</h2>
+          ${renderKeys(keys)}
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-4 text-lg font-semibold">Webhook</h2>
+          ${renderWebhooks(hooks)}
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <div class="mb-4 flex items-center justify-between">
+            <h2 class="text-lg font-semibold">Riwayat Pengiriman</h2>
+            <button id="refresh-deliveries" class="rounded border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50">Muat Ulang</button>
+          </div>
+          <div id="delivery-box">${renderDeliveries(deliveries)}</div>
+        </section>
+      `;
+
+      wireKeyForm();
+      wireWebhookForm();
+      wireCopy();
+      document.getElementById("refresh-deliveries")?.addEventListener("click", reloadDeliveries);
+    }
+
+    load().catch((e) => {
+      root.innerHTML = `<p class="text-red-600">Gagal memuat: ${esc((e as Error).message)}</p>`;
+    });
+  </script>
+</OrganizerLayout>

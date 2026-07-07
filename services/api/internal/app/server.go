@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	goredis "github.com/redis/go-redis/v9"
 
@@ -17,6 +18,7 @@ import (
 	authmod "github.com/varin/ivyticketing/services/api/internal/modules/auth"
 	ballotmod "github.com/varin/ivyticketing/services/api/internal/modules/ballot"
 	categoriesmod "github.com/varin/ivyticketing/services/api/internal/modules/categories"
+	enterprisemod "github.com/varin/ivyticketing/services/api/internal/modules/enterprise"
 	eventsmod "github.com/varin/ivyticketing/services/api/internal/modules/events"
 	formsmod "github.com/varin/ivyticketing/services/api/internal/modules/forms"
 	lifecyclemod "github.com/varin/ivyticketing/services/api/internal/modules/lifecycle"
@@ -35,6 +37,7 @@ import (
 	statusmod "github.com/varin/ivyticketing/services/api/internal/modules/status"
 	registrationmod "github.com/varin/ivyticketing/services/api/internal/modules/registration"
 	reportingmod "github.com/varin/ivyticketing/services/api/internal/modules/reporting"
+	resultsmod "github.com/varin/ivyticketing/services/api/internal/modules/results"
 	rolesmod "github.com/varin/ivyticketing/services/api/internal/modules/roles"
 	scannermod "github.com/varin/ivyticketing/services/api/internal/modules/scanner"
 	"github.com/varin/ivyticketing/services/api/internal/modules/system"
@@ -272,6 +275,35 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	abuseHandler := abusemod.NewHandler(abuseSvc)
 	securityConfigHandler := abusemod.NewSecurityConfigHandler(abuseSvc)
 
+	// Enterprise API (Phase 23). API-key lifecycle + outbound webhook
+	// subscriptions (organizer-managed), plus a versioned, API-key-authenticated
+	// public read API. The Emit fan-out is exposed via enterpriseSvc for other
+	// modules to call on business events; the dispatcher runs in cmd/worker.
+	enterpriseSvc := enterprisemod.NewService(enterprisemod.NewRepository(pool), auditLog, log)
+	enterpriseHandler := enterprisemod.NewHandler(enterpriseSvc)
+	enterprisePublicAPI := enterprisemod.NewPublicAPI(enterprisemod.NewRepository(pool))
+
+	// Results, certificates & timing integration (Phase 24). Event-scoped:
+	// organizer imports a timing CSV, ranks are recomputed server-side, and
+	// participants look up their finish + download a rendered certificate.
+	resultsSvc := resultsmod.NewService(resultsmod.NewRepository(pool), auditLog, log)
+	resultsHandler := resultsmod.NewHandler(resultsSvc)
+	// Participant self-service certificate/result routes verify ticket ownership
+	// through the tickets service (the SAME instance that owns the qr.Signer);
+	// results never imports tickets and the TICKET_QR_SECRET is never duplicated.
+	resultsHandler.SetTicketOwnership(func(ctx context.Context, userID, ticketID uuid.UUID) (uuid.UUID, error) {
+		tw, err := ticketsSvc.GetTicketForUser(ctx, ticketsRepo, userID, ticketID)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		return uuid.Parse(tw.EventID)
+	})
+
+	// Versioned public read API (Phase 23). Separate auth domain: API-key +
+	// per-key rate limit, mounted at the router root (/api/public/v1) so
+	// integrators hit a stable, versioned surface distinct from /api/v1.
+	enterprisemod.RegisterPublicAPIRoutes(r, enterpriseSvc, enterprisePublicAPI, rateLimiter)
+
 	r.Route("/api/v1", func(r chi.Router) {
 		// Auth (mixed public/protected; mounts its own /me behind authn).
 		authHandler.RegisterRoutes(r, signer,
@@ -296,6 +328,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			ordersHandler.RegisterRoutes(r)
 			paymentsHandler.RegisterRoutes(r)
 			ticketsHandler.RegisterRoutes(r)
+			resultsHandler.RegisterRoutes(r)
 			queueHandler.RegisterRoutes(r, abuseGuard.Middleware(abusemod.CategoryQueueJoin))
 			ballotHandler.RegisterParticipantRoutes(r, abuseGuard.Middleware(abusemod.CategoryBallotApply))
 			accessHandler.RegisterParticipantRoutes(r)
@@ -339,11 +372,13 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 					accessHandler.RegisterOrganizerRoutes(r)
 					racepackHandler.RegisterEventRoutes(r, loader)
 					scannerHandler.RegisterEventRoutes(r, loader)
+					resultsHandler.RegisterEventRoutes(r, loader)
 				})
 				paymentsHandler.RegisterOrgRoutes(r, loader)
 				reportingHandler.RegisterOrgRoutes(r, loader)
 				billingHandler.RegisterOrgRoutes(r, loader)
 				whitelabelHandler.RegisterOrgRoutes(r, loader)
+				enterpriseHandler.RegisterOrgRoutes(r, loader)
 			})
 		})
 	})

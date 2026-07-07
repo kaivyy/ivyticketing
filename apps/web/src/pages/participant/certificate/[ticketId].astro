@@ -1,0 +1,97 @@
+---
+export const prerender = false;
+import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
+---
+<ParticipantLayout title="Sertifikat Finisher">
+  <a href="/participant/tickets" class="text-sm text-slate-500">← Kembali ke tiket</a>
+  <div id="cert-root" class="mt-4"><p class="text-slate-500">Memuat…</p></div>
+
+  <script>
+    import { getMyResult, getMyCertificate, STATUS_LABELS, GENDER_LABELS } from "../../../lib/results";
+    import type { ResultRow, CertificateRender } from "../../../lib/results";
+    import { esc } from "../../../lib/safe";
+
+    const ticketId = window.location.pathname.split("/").pop()!;
+    const root = document.getElementById("cert-root")!;
+
+    function fmtRank(n?: number): string {
+      if (n == null) return "—";
+      const medal = n === 1 ? "🥇 " : n === 2 ? "🥈 " : n === 3 ? "🥉 " : "";
+      return `${medal}${n}`;
+    }
+
+    function resultCard(res: ResultRow): string {
+      const time = res.chipTime || res.gunTime || "—";
+      const status = STATUS_LABELS[res.status] ?? res.status;
+      const gender = res.gender ? GENDER_LABELS[res.gender] ?? res.gender : "—";
+      return `
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          ${statBox("Waktu (net)", esc(time), "font-mono")}
+          ${statBox("Status", esc(status))}
+          ${statBox("Peringkat Umum", fmtRank(res.rankOverall))}
+          ${statBox("Peringkat Gender", fmtRank(res.rankGender))}
+          ${statBox("BIB", esc(res.bibNumber), "font-mono")}
+          ${statBox("Gender", esc(gender))}
+          ${statBox("Kel. Umur", res.ageGroup ? esc(res.ageGroup) : "—")}
+          ${statBox("Peringkat Kel.", fmtRank(res.rankAgeGroup))}
+        </div>`;
+    }
+
+    function statBox(label: string, value: string, valueClass = ""): string {
+      return `
+        <div class="rounded-lg border border-slate-200 bg-white p-3 text-center">
+          <p class="text-[11px] uppercase tracking-wide text-slate-400">${label}</p>
+          <p class="mt-1 text-lg font-semibold text-slate-900 ${valueClass}">${value}</p>
+        </div>`;
+    }
+
+    function certificate(cert: CertificateRender): string {
+      const bg = cert.backgroundUrl
+        ? `style="background-image:url('${esc(cert.backgroundUrl)}');background-size:cover;background-position:center"`
+        : "";
+      const bgClass = cert.backgroundUrl ? "text-white" : "bg-gradient-to-br from-blue-50 to-indigo-100";
+      return `
+        <div id="cert-print" class="relative overflow-hidden rounded-xl border-4 border-double border-blue-900/40 p-10 text-center shadow-sm ${bgClass}" ${bg}>
+          ${cert.backgroundUrl ? '<div class="absolute inset-0 bg-black/30"></div>' : ""}
+          <div class="relative">
+            <p class="text-3xl font-bold tracking-wide">${esc(cert.title)}</p>
+            ${cert.subtitle ? `<p class="mt-2 text-lg">${esc(cert.subtitle)}</p>` : ""}
+            <p class="mx-auto mt-6 max-w-xl whitespace-pre-line text-base leading-relaxed">${esc(cert.body)}</p>
+          </div>
+        </div>
+        <div class="mt-4 flex justify-center">
+          <button id="print-btn" class="rounded bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700">Cetak / Simpan PDF</button>
+        </div>`;
+    }
+
+    async function render() {
+      let res: ResultRow;
+      try {
+        res = await getMyResult(ticketId);
+      } catch (e) {
+        root.innerHTML = `<div class="rounded-lg border border-slate-200 bg-white p-6 text-center text-slate-500">
+          Belum ada hasil untuk tiket ini. Hasil akan muncul setelah panitia mengunggah data timing.</div>`;
+        return;
+      }
+
+      let certHtml = "";
+      try {
+        const cert = await getMyCertificate(ticketId);
+        certHtml = certificate(cert);
+      } catch (e) {
+        const m = (e as Error).message;
+        certHtml = `<div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-700">
+          Sertifikat belum tersedia${res.status !== "FINISHED" ? " (hanya untuk finisher berstatus Selesai)" : ""}: ${esc(m)}</div>`;
+      }
+
+      root.innerHTML = `
+        <h1 class="mb-4 text-2xl font-bold text-slate-900">${esc(res.participantName)}</h1>
+        <section class="mb-6">${resultCard(res)}</section>
+        <section>${certHtml}</section>`;
+
+      document.getElementById("print-btn")?.addEventListener("click", () => window.print());
+    }
+
+    void render();
+  </script>
+</ParticipantLayout>

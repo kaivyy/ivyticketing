@@ -26,6 +26,7 @@ const navItems = [
   { label: "Notifikasi",  href: orgId ? `${base}/notifications`  : "#",  prefix: `${base}/notifications`,  soon: false  },
   { label: "Tagihan",     href: orgId ? `${base}/billing`        : "#",  prefix: `${base}/billing`,        soon: !orgId },
   { label: "Branding",    href: orgId ? `${base}/branding`       : "#",  prefix: `${base}/branding`,       soon: !orgId },
+  { label: "API & Webhook", href: orgId ? `${base}/enterprise`   : "#",  prefix: `${base}/enterprise`,     soon: !orgId },
   { label: "Pengaturan",  href: orgId ? `${base}/settings`       : "#",  prefix: `${base}/settings`,       soon: !orgId },
 ];
 
@@ -37,6 +38,7 @@ const eventNavItems = eventId ? [
   { label: "Tiket",      href: `${eventBase}/tickets`,             prefix: `${eventBase}/tickets`             },
   { label: "Racepack",   href: `${eventBase}/racepack-dashboard`,  prefix: `${eventBase}/racepack-`           },
   { label: "Laporan",    href: `${eventBase}/reports`,             prefix: `${eventBase}/reports`             },
+  { label: "Hasil",      href: `${eventBase}/results`,             prefix: `${eventBase}/results`             },
 ] : [];
 
 // Sub-navigation for the Racepack group (shown when current page is racepack-*)

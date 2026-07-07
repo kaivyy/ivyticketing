@@ -1,0 +1,342 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+<OrganizerLayout title="Hasil Lomba — ivyticketing">
+  <div id="results-root" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
+    <p class="text-slate-500">Memuat hasil…</p>
+  </div>
+
+  <script>
+    import {
+      listResults,
+      importCSV,
+      recompute,
+      deleteResults,
+      listTemplates,
+      createTemplate,
+      updateTemplate,
+      deleteTemplate,
+      STATUS_LABELS,
+      GENDER_LABELS,
+      type ResultRow,
+      type CertificateTemplate,
+    } from "../../../../../lib/results";
+    import { esc } from "../../../../../lib/safe";
+
+    const root = document.getElementById("results-root")!;
+    const orgId = root.dataset.orgId!;
+    const eventId = root.dataset.eventId!;
+
+    let genderFilter = "";
+    let editingTemplateId: string | null = null;
+
+    function msg(id: string, text: string, isError = false) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text;
+      el.className = isError ? "mt-2 text-sm text-red-600" : "mt-2 text-sm text-green-700";
+    }
+
+    function statusBadge(s: string): string {
+      const colors: Record<string, string> = {
+        FINISHED: "bg-green-100 text-green-700",
+        DNF: "bg-amber-100 text-amber-700",
+        DNS: "bg-slate-100 text-slate-600",
+      };
+      const c = colors[s] ?? "bg-slate-100 text-slate-600";
+      return `<span class="rounded px-1.5 py-0.5 text-[10px] ${c}">${esc(STATUS_LABELS[s] ?? s)}</span>`;
+    }
+
+    function rankCell(n?: number): string {
+      if (n == null) return '<span class="text-slate-300">—</span>';
+      const medal = n === 1 ? "🥇" : n === 2 ? "🥈" : n === 3 ? "🥉" : "";
+      return `${medal} ${n}`;
+    }
+
+    function timeCell(r: ResultRow): string {
+      if (r.chipTime) return `<span class="font-mono">${esc(r.chipTime)}</span>`;
+      if (r.gunTime) return `<span class="font-mono text-slate-500">${esc(r.gunTime)}</span>`;
+      return '<span class="text-slate-300">—</span>';
+    }
+
+    function resultsTable(rows: ResultRow[], total: number): string {
+      if (rows.length === 0) {
+        return `<p class="text-sm text-slate-400">Belum ada hasil. Impor CSV timing untuk mulai.</p>`;
+      }
+      return `
+        <p class="mb-2 text-xs text-slate-500">${total} peserta</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
+                <th class="py-2 pr-3">Peringkat</th>
+                <th class="py-2 pr-3">BIB</th>
+                <th class="py-2 pr-3">Nama</th>
+                <th class="py-2 pr-3">Gender</th>
+                <th class="py-2 pr-3">Kel. Umur</th>
+                <th class="py-2 pr-3">Waktu (net)</th>
+                <th class="py-2 pr-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows
+                .map(
+                  (r) => `
+                <tr class="border-b border-slate-100">
+                  <td class="py-2 pr-3 font-medium">${rankCell(r.rankOverall)}</td>
+                  <td class="py-2 pr-3 font-mono text-xs">${esc(r.bibNumber)}</td>
+                  <td class="py-2 pr-3">${esc(r.participantName)}</td>
+                  <td class="py-2 pr-3 text-xs">${r.gender ? esc(GENDER_LABELS[r.gender] ?? r.gender) : "—"}</td>
+                  <td class="py-2 pr-3 text-xs">${r.ageGroup ? esc(r.ageGroup) : "—"}</td>
+                  <td class="py-2 pr-3">${timeCell(r)}</td>
+                  <td class="py-2 pr-3">${statusBadge(r.status)}</td>
+                </tr>`
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    function templateList(templates: CertificateTemplate[]): string {
+      if (templates.length === 0) {
+        return `<p class="text-sm text-slate-400">Belum ada template sertifikat.</p>`;
+      }
+      return templates
+        .map(
+          (t) => `
+        <div class="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-4 py-3">
+          <div>
+            <p class="text-sm font-medium">${esc(t.name)} ${
+              t.isActive ? '<span class="ml-1 rounded bg-green-100 px-1.5 py-0.5 text-[10px] text-green-700">Aktif</span>' : ""
+            }</p>
+            <p class="text-xs text-slate-500">${esc(t.title)}</p>
+          </div>
+          <div class="flex gap-2">
+            <button data-edit-tmpl="${esc(t.id)}" class="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100">Edit</button>
+            <button data-del-tmpl="${esc(t.id)}" class="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50">Hapus</button>
+          </div>
+        </div>`
+        )
+        .join("");
+    }
+
+    async function render() {
+      let page;
+      let tmplResp;
+      try {
+        [page, tmplResp] = await Promise.all([
+          listResults(orgId, eventId, { gender: genderFilter || undefined, limit: 200 }),
+          listTemplates(orgId, eventId),
+        ]);
+      } catch (e) {
+        root.innerHTML = `<p class="text-red-600">Gagal memuat: ${esc((e as Error).message)}</p>`;
+        return;
+      }
+      const templates = tmplResp.templates ?? [];
+
+      root.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h1 class="text-2xl font-bold text-slate-900">Hasil Lomba & Sertifikat</h1>
+        </div>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-3 text-lg font-semibold">Impor Hasil (CSV)</h2>
+          <p class="mb-3 text-sm text-slate-500">
+            Kolom yang dikenali: <span class="font-mono text-xs">bib, name, gender, age, age_group, status, chip_time, gun_time, finished_at</span>.
+            Hanya <span class="font-mono text-xs">bib</span> yang wajib. Waktu boleh format jam (mis. <span class="font-mono text-xs">1:23:45</span>) atau milidetik.
+            Impor ulang bib yang sama akan menimpa datanya.
+          </p>
+          <div class="flex flex-wrap items-center gap-3">
+            <input id="csv-file" type="file" accept=".csv,text/csv"
+              class="text-sm file:mr-3 file:rounded file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-sm file:text-white hover:file:bg-blue-700" />
+            <button id="import-btn"
+              class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Impor & Ranking</button>
+          </div>
+          <p id="import-msg" class="mt-2 text-sm text-slate-500"></p>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 class="text-lg font-semibold">Klasemen</h2>
+            <div class="flex items-center gap-2">
+              <select id="gender-filter" class="rounded border border-slate-300 px-2 py-1 text-sm">
+                <option value="">Semua Gender</option>
+                <option value="M" ${genderFilter === "M" ? "selected" : ""}>Pria</option>
+                <option value="F" ${genderFilter === "F" ? "selected" : ""}>Wanita</option>
+                <option value="X" ${genderFilter === "X" ? "selected" : ""}>Lainnya</option>
+              </select>
+              <button id="recompute-btn" class="rounded border border-slate-300 px-3 py-1 text-sm hover:bg-slate-100">Hitung Ulang</button>
+              <button id="delete-btn" class="rounded border border-red-300 px-3 py-1 text-sm text-red-600 hover:bg-red-50">Hapus Semua</button>
+            </div>
+          </div>
+          <div id="results-table">${resultsTable(page.results, page.total)}</div>
+          <p id="table-msg" class="mt-2 text-sm text-slate-500"></p>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-6">
+          <h2 class="mb-3 text-lg font-semibold">Template Sertifikat</h2>
+          <div class="mb-4 space-y-2">${templateList(templates)}</div>
+          <form id="tmpl-form" class="space-y-3 max-w-2xl border-t border-slate-100 pt-4">
+            <p class="text-sm font-medium text-slate-700" id="tmpl-form-title">Template Baru</p>
+            <div class="grid gap-3 md:grid-cols-2">
+              <div>
+                <label class="mb-1 block text-sm text-slate-600">Nama Template</label>
+                <input id="tmpl-name" type="text" required class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label class="mb-1 block text-sm text-slate-600">Judul</label>
+                <input id="tmpl-title" type="text" placeholder="Certificate of Completion" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div>
+              <label class="mb-1 block text-sm text-slate-600">Subjudul</label>
+              <input id="tmpl-subtitle" type="text" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="mb-1 block text-sm text-slate-600">Isi (gunakan {{name}}, {{time}}, {{rank}}, {{category}}, {{bib}})</label>
+              <textarea id="tmpl-body" rows="3" class="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono"></textarea>
+            </div>
+            <div>
+              <label class="mb-1 block text-sm text-slate-600">URL Gambar Latar (opsional)</label>
+              <input id="tmpl-bg" type="url" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+            </div>
+            <label class="flex items-center gap-2 text-sm text-slate-700">
+              <input id="tmpl-active" type="checkbox" checked /> Jadikan template aktif
+            </label>
+            <div class="flex gap-2">
+              <button type="submit" class="rounded bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">Simpan Template</button>
+              <button type="button" id="tmpl-cancel" class="hidden rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100">Batal</button>
+            </div>
+          </form>
+          <p id="tmpl-msg" class="mt-2 text-sm text-slate-500"></p>
+        </section>
+      `;
+
+      wire(templates);
+    }
+
+    function wire(templates: CertificateTemplate[]) {
+      document.getElementById("gender-filter")?.addEventListener("change", (e) => {
+        genderFilter = (e.target as HTMLSelectElement).value;
+        void render();
+      });
+
+      document.getElementById("import-btn")?.addEventListener("click", async () => {
+        const input = document.getElementById("csv-file") as HTMLInputElement;
+        const file = input.files?.[0];
+        if (!file) {
+          msg("import-msg", "Pilih file CSV terlebih dahulu.", true);
+          return;
+        }
+        msg("import-msg", "Mengimpor…");
+        try {
+          const text = await file.text();
+          const summary = await importCSV(orgId, eventId, text);
+          const errs = summary.errors?.length
+            ? ` (${summary.errors.length} kesalahan: ${summary.errors.slice(0, 3).join("; ")})`
+            : "";
+          msg("import-msg", `Berhasil impor ${summary.imported}, dilewati ${summary.skipped}${errs}. Ranking diperbarui.`);
+          await render();
+        } catch (e) {
+          msg("import-msg", (e as Error).message, true);
+        }
+      });
+
+      document.getElementById("recompute-btn")?.addEventListener("click", async () => {
+        try {
+          await recompute(orgId, eventId);
+          msg("table-msg", "Ranking dihitung ulang.");
+          await render();
+        } catch (e) {
+          msg("table-msg", (e as Error).message, true);
+        }
+      });
+
+      document.getElementById("delete-btn")?.addEventListener("click", async () => {
+        if (!confirm("Hapus SEMUA hasil untuk event ini? Tindakan ini tidak dapat dibatalkan.")) return;
+        try {
+          await deleteResults(orgId, eventId);
+          await render();
+        } catch (e) {
+          msg("table-msg", (e as Error).message, true);
+        }
+      });
+
+      const form = document.getElementById("tmpl-form") as HTMLFormElement;
+      const cancelBtn = document.getElementById("tmpl-cancel")!;
+      const formTitle = document.getElementById("tmpl-form-title")!;
+
+      const resetForm = () => {
+        editingTemplateId = null;
+        form.reset();
+        (document.getElementById("tmpl-active") as HTMLInputElement).checked = true;
+        formTitle.textContent = "Template Baru";
+        cancelBtn.classList.add("hidden");
+      };
+
+      cancelBtn.addEventListener("click", resetForm);
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const body = {
+          name: (document.getElementById("tmpl-name") as HTMLInputElement).value.trim(),
+          title: (document.getElementById("tmpl-title") as HTMLInputElement).value.trim(),
+          subtitle: (document.getElementById("tmpl-subtitle") as HTMLInputElement).value.trim(),
+          bodyTemplate: (document.getElementById("tmpl-body") as HTMLTextAreaElement).value,
+          backgroundUrl: (document.getElementById("tmpl-bg") as HTMLInputElement).value.trim(),
+          isActive: (document.getElementById("tmpl-active") as HTMLInputElement).checked,
+        };
+        if (!body.name) {
+          msg("tmpl-msg", "Nama template wajib diisi.", true);
+          return;
+        }
+        try {
+          if (editingTemplateId) {
+            await updateTemplate(orgId, eventId, editingTemplateId, body);
+          } else {
+            await createTemplate(orgId, eventId, body);
+          }
+          msg("tmpl-msg", "Template tersimpan.");
+          resetForm();
+          await render();
+        } catch (err) {
+          msg("tmpl-msg", (err as Error).message, true);
+        }
+      });
+
+      root.querySelectorAll<HTMLButtonElement>("[data-edit-tmpl]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const t = templates.find((x) => x.id === btn.dataset.editTmpl);
+          if (!t) return;
+          editingTemplateId = t.id;
+          (document.getElementById("tmpl-name") as HTMLInputElement).value = t.name;
+          (document.getElementById("tmpl-title") as HTMLInputElement).value = t.title;
+          (document.getElementById("tmpl-subtitle") as HTMLInputElement).value = t.subtitle;
+          (document.getElementById("tmpl-body") as HTMLTextAreaElement).value = t.bodyTemplate;
+          (document.getElementById("tmpl-bg") as HTMLInputElement).value = t.backgroundUrl ?? "";
+          (document.getElementById("tmpl-active") as HTMLInputElement).checked = t.isActive;
+          formTitle.textContent = `Edit: ${t.name}`;
+          cancelBtn.classList.remove("hidden");
+          document.getElementById("tmpl-form")?.scrollIntoView({ behavior: "smooth" });
+        });
+      });
+
+      root.querySelectorAll<HTMLButtonElement>("[data-del-tmpl]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("Hapus template ini?")) return;
+          try {
+            await deleteTemplate(orgId, eventId, btn.dataset.delTmpl!);
+            await render();
+          } catch (e) {
+            msg("tmpl-msg", (e as Error).message, true);
+          }
+        });
+      });
+    }
+
+    void render();
+  </script>
+</OrganizerLayout>

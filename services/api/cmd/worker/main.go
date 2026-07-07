@@ -8,6 +8,7 @@ import (
 
 	"github.com/varin/ivyticketing/services/api/internal/app"
 	"github.com/varin/ivyticketing/services/api/internal/db"
+	enterprisemod "github.com/varin/ivyticketing/services/api/internal/modules/enterprise"
 	notifmod "github.com/varin/ivyticketing/services/api/internal/modules/notifications"
 	notifemail "github.com/varin/ivyticketing/services/api/internal/modules/notifications/email"
 	notiftmpl "github.com/varin/ivyticketing/services/api/internal/modules/notifications/templates"
@@ -109,6 +110,14 @@ func main() {
 	exportRunner := worker.New("report_export", cfg.WorkerInterval, reportingSvc.ExportJob(10), log)
 	log.Info("worker starting", "job", "report_export", "interval", cfg.WorkerInterval.String())
 	go exportRunner.Run(ctx)
+
+	// Webhook dispatcher (Phase 23). Drains the PENDING delivery ledger, POSTs
+	// each payload HMAC-signed with the endpoint secret, and reschedules failures
+	// with exponential backoff (parking as DEAD after the attempt ceiling).
+	webhookDispatcher := enterprisemod.NewDispatcher(enterprisemod.NewRepository(pg.Pool), log, 50)
+	webhookRunner := worker.New("webhook_dispatch", cfg.WorkerInterval, webhookDispatcher.DispatchJob(), log)
+	log.Info("worker starting", "job", "webhook_dispatch", "interval", cfg.WorkerInterval.String())
+	go webhookRunner.Run(ctx)
 
 	<-ctx.Done()
 	log.Info("worker exited")
