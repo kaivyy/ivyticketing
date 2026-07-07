@@ -1,263 +1,127 @@
 # ivyticketing
 
-Race registration & event ticketing platform. Go modular monolith + Astro frontend.
+Race registration and event ticketing platform for high-traffic events (marathons,
+fun runs, mass-participation races). Built as a Go modular monolith with an Astro
+frontend and an installable scanner PWA. Designed for "war ticket" launches — tens of
+thousands of participants hitting checkout at the same second — without oversell or
+double payment.
 
-## Phase 15 — Scanner PWA
+All 27 masterplan phases are complete. See [`docs/masterplan.md`](docs/masterplan.md)
+for the phase-by-phase plan and [`CHANGELOG.md`](CHANGELOG.md) for what shipped.
 
-Installable, offline-capable scanner app for on-site staff: racepack pickup and
-event check-in. A new backend `scanner` module reuses Phase 7 `tickets/qr`
-(HMAC-SHA256) for signature verification and Phase 14 `racepack.ExecutePickup`
-for pickups, and adds an idempotent `VALID → USED` check-in path. The HMAC secret
-stays server-only — the server is the single source of truth for signature
-validation and the no-duplicate guarantee.
+## Architecture
 
-### New endpoints
+- **`services/api`** — Go modular monolith (Chi router, pgx v5, sqlc, goose). One
+  codebase, three deployment binaries:
+  - `cmd/api` — the request-path API (default `:8080`)
+  - `cmd/webhook` — payment-callback receiver, isolated so a checkout spike can't drop
+    a gateway callback (`:8090`)
+  - `cmd/worker` — background runners: notification dispatch, retries, order expiration
+- **`apps/web`** — Astro + Tailwind frontend: public catalog, participant dashboard,
+  organizer console, super-admin platform tools. UI copy is Indonesian.
+- **`apps/scanner`** — offline-capable scanner PWA for on-site staff (racepack pickup,
+  check-in). Queues scans in IndexedDB and replays them exactly-once.
+- **`packages/ui`** — shared design-system foundation.
+- **`database/`** — goose migrations (`migrations/`) and sqlc query sources (`queries/`).
+- **`ops/`** — k6 load-test scenarios, Prometheus alert rules, Grafana War Day dashboard.
 
-- `POST /api/v1/organizations/{orgId}/events/{eventId}/scan/verify` —
-  validate a QR token, return whitelisted participant display info + duplicate
-  flags. Requires `racepack.execute` OR `checkin.execute`.
-- `POST /api/v1/organizations/{orgId}/events/{eventId}/scan/check-in` —
-  idempotent `VALID → USED` transition (`Idempotency-Key` header). Requires
-  `checkin.execute`.
-- `GET /api/v1/scan/events` — the caller's permitted events across all their
-  organizations (authenticated).
-- Pickups reuse the existing `POST .../racepack/pickups` unchanged.
+### Golden invariants
 
-Migration `00053_seed_checkin_rbac` adds the `checkin.execute` permission and
-grants it to the `racepack-staff` and `manager` role templates.
+These are enforced in code and must survive any refactor or future service split
+(see [`docs/SCALE_SPLIT.md`](docs/SCALE_SPLIT.md)):
 
-### New env
-
-None new for the backend — QR signing continues to use the existing
-`TICKET_QR_SECRET`. The scanner app reads its API base URL from
-`VITE_API_BASE_URL` (defaults to `http://localhost:8080`).
-
-### Run the scanner app
-
-```bash
-pnpm --filter @ivyticketing/scanner dev        # Vite dev server
-pnpm --filter @ivyticketing/scanner build      # production PWA build
-pnpm --filter @ivyticketing/scanner test       # unit + property tests (fast-check)
-pnpm --filter @ivyticketing/scanner test:pwa   # PWA build smoke/integration tests
-```
-
-Set `VITE_API_BASE_URL` (see `apps/scanner/.env.example`) to point the app at
-your API. Offline scans are queued in IndexedDB and replayed with a
-client-generated `Idempotency-Key`, so sync is exactly-once regardless of
-retries; forged tokens that pass structural checks are rejected server-side at
-sync and surfaced for manual resolution.
-
-## Phase 6 — Payment Gateway V1
-
-Duitku + Xendit payment integration. Order `PENDING_PAYMENT` → `PAID` via callback. Webhook receiver as a separate binary on a different port. Idempotent callback processing.
-
-### New env
-```bash
-WEBHOOK_PORT=8090
-PAYMENT_CALLBACK_BASE_URL=http://localhost:8090
-PAYMENT_DEFAULT_EXPIRY=15m
-
-DUITKU_ENABLED=false
-DUITKU_MERCHANT_CODE=
-DUITKU_API_KEY=
-DUITKU_ENV=sandbox
-
-XENDIT_ENABLED=false
-XENDIT_SECRET_KEY=
-XENDIT_CALLBACK_TOKEN=
-XENDIT_ENV=sandbox
-```
-
-### Run the webhook receiver
-```bash
-make webhook   # starts on WEBHOOK_PORT (default 8090)
-```
-
-### Smoke test (with a gateway enabled)
-```bash
-# Create payment for an existing PENDING_PAYMENT order
-curl -s -X POST localhost:8080/api/v1/orders/<orderId>/payments \
-  -H "authorization: Bearer <accessToken>" \
-  -H "content-type: application/json" \
-  -d '{"gateway":"duitku","method":"qris"}'
-# → 201 { status: "PENDING", merchantReference: "PAY-...", qrString: "..." }
-
-# Check payment status
-curl -s localhost:8080/api/v1/payments/<paymentId> \
-  -H "authorization: Bearer <accessToken>"
-```
-
-## Phase 5 — Orders, Inventory & Checkout
-
-Participant checkout with atomic oversold-prevention, reservation system, and an
-expiration worker. Plus `packages/ui` design-system foundation. No payment yet (Phase 6).
-
-### New env
-
-```bash
-ORDER_EXPIRATION=15m
-WORKER_INTERVAL=1m
-```
-
-### Run the expiration worker
-
-```bash
-make worker   # ticks every WORKER_INTERVAL, expires stale PENDING_PAYMENT orders
-```
-
-### Smoke test
-
-```bash
-# as a logged-in participant (access token from login)
-curl -s -X POST localhost:8080/api/v1/organizations/<orgId>/events/<eventId>/categories/<categoryId>/checkout \
-  -H "authorization: Bearer <accessToken>"
-# → 201 { orderNumber: "ORD-...", status: "PENDING_PAYMENT", total: 100000 }
-
-curl -s localhost:8080/api/v1/orders -H "authorization: Bearer <accessToken>"
-curl -s -X DELETE localhost:8080/api/v1/orders/<orderId> -H "authorization: Bearer <accessToken>"
-```
-
-## Phase 4 — Custom Registration Form Builder
-
-Per-event form builder: fields (text/email/dropdown/etc), per-field validation,
-AND/OR conditional logic, per-category field scoping, and a preview/dry-run validator.
-Builder only — participant submission arrives in Phase 5.
-
-### Smoke test
-
-```bash
-# auto-create form + add a field (needs form.manage; use an Owner token)
-curl -s localhost:8080/api/v1/organizations/<orgId>/events/<eventId>/form \
-  -H "authorization: Bearer <accessToken>"
-
-curl -s -X POST localhost:8080/api/v1/organizations/<orgId>/events/<eventId>/form/fields \
-  -H "authorization: Bearer <accessToken>" -H 'content-type: application/json' \
-  -d '{"fieldType":"dropdown","label":"WNA","fieldKey":"wna","options":["Ya","Tidak"]}'
-
-# dry-run validate
-curl -s -X POST "localhost:8080/api/v1/organizations/<orgId>/events/<eventId>/form/preview/validate" \
-  -H "authorization: Bearer <accessToken>" -H 'content-type: application/json' \
-  -d '{"answers":{"wna":"Ya"}}'
-```
-
-## Phase 3 — Event & Category Management
-
-Event CRUD with draft/published/archived lifecycle, categories, pluggable storage
-(local now; R2/Tencent via presigned URL later), and a public read-only catalog.
-
-### New env
-
-```bash
-STORAGE_DRIVER=local                       # local | r2 | tencent | s3
-STORAGE_LOCAL_PATH=./var/media
-STORAGE_PUBLIC_BASE_URL=http://localhost:8080
-STORAGE_UPLOAD_MAX_BYTES=5242880
-# cloud (when used): STORAGE_BUCKET, STORAGE_ENDPOINT, STORAGE_ACCESS_KEY, STORAGE_SECRET_KEY, STORAGE_REGION
-```
-
-### Smoke test
-
-```bash
-# create event (needs event.create; use an Owner access token from Phase 2 login)
-curl -s -X POST localhost:8080/api/v1/organizations/<orgId>/events \
-  -H "authorization: Bearer <accessToken>" -H 'content-type: application/json' \
-  -d '{"name":"Jakarta Marathon 2026","eventType":"marathon"}'
-
-# add a category
-curl -s -X POST localhost:8080/api/v1/organizations/<orgId>/events/<eventId>/categories \
-  -H "authorization: Bearer <accessToken>" -H 'content-type: application/json' \
-  -d '{"name":"42K","price":350000,"capacity":2000,"registrationOpensAt":"2026-07-01T00:00:00Z","registrationClosesAt":"2026-08-01T00:00:00Z","maxOrderPerUser":1}'
-
-# publish, then view publicly
-curl -s -X POST localhost:8080/api/v1/organizations/<orgId>/events/<eventId>/publish \
-  -H "authorization: Bearer <accessToken>"
-curl -s localhost:8080/api/v1/public/organizations/<orgSlug>/events
-```
-
-## Phase 2 — Auth, RBAC & Multi-Tenant
-
-Backend auth (hybrid token), multi-tenant orgs, and custom-role RBAC.
-
-### New env vars
-
-```bash
-JWT_SECRET=change-me        # REQUIRED — API won't start without it
-ACCESS_TOKEN_TTL=15m
-REFRESH_TOKEN_TTL=168h
-```
-
-Add these to your `.env` file.
-
-### Smoke test
-
-```bash
-# register + login
-curl -s -X POST localhost:8080/api/v1/auth/register \
-  -H 'content-type: application/json' \
-  -d '{"email":"a@b.com","password":"pw123456","fullName":"A"}'
-
-curl -s -c cookies.txt -X POST localhost:8080/api/v1/auth/login \
-  -H 'content-type: application/json' \
-  -d '{"email":"a@b.com","password":"pw123456"}'
-# → { "accessToken": "...", "expiresIn": 900, "user": {...} }
-
-# create org (use the accessToken from login)
-curl -s -X POST localhost:8080/api/v1/organizations \
-  -H "authorization: Bearer <accessToken>" \
-  -H 'content-type: application/json' \
-  -d '{"name":"Jakarta Marathon"}'
-```
-
-### Integration tests
-
-```bash
-make test-db-setup       # create + migrate ivyticketing_test
-make test-integration    # run -tags=integration suite
-```
-
-## Phase 1 — Foundation
-
-Thin-but-live monorepo proving `web → api → Postgres + Redis`.
+- **No oversell.** Inventory is gated by a `FOR UPDATE` row lock in `inventory.CheckAndLock`.
+- **No double payment.** `payments.Processor` is idempotent on the order state machine;
+  duplicate gateway callbacks are safe.
+- **No secret duplication.** `TICKET_QR_SECRET` composes exactly one `qr.Signer`, shared
+  by the tickets and scanner modules. Never mint a second signer or copy the secret.
 
 ## Prerequisites
 
-- macOS with Homebrew
+- macOS with Homebrew (Linux works with equivalent Postgres/Redis)
 - Go 1.25+
 - Node 20+ and pnpm
 
 ## Setup from zero
 
 ```bash
-make setup    # install + start Postgres/Redis, create db, install tools, migrate, pnpm install
-make dev      # API on :8080, web on :4321
+cp .env.example .env    # then set JWT_SECRET and TICKET_QR_SECRET
+make setup              # install + start Postgres/Redis, create db, migrate, pnpm install
+make dev                # API on :8080, web on :4321
 ```
 
 Open http://localhost:4321 — you should see Postgres ✅ and Redis ✅.
+
+Two secrets are required before the API will start:
+
+- `JWT_SECRET` — access/refresh token signing.
+- `TICKET_QR_SECRET` — HMAC secret for QR ticket signing (separate from `JWT_SECRET`).
+
+See [`.env.example`](.env.example) for the full list, grouped by phase.
+
+## Make targets
+
+| Target | What it does |
+| --- | --- |
+| `setup` | Install deps, start Postgres/Redis, create db, migrate, pnpm install |
+| `dev` | Run API + web together |
+| `api` / `worker` / `webhook` | Run a single backend binary |
+| `web` | Run the Astro dev server |
+| `migrate-up` / `migrate-down` | Apply / roll back goose migrations |
+| `sqlc` | Regenerate typed query code |
+| `test` | `go test ./...` |
+| `test-db-setup` / `test-integration` | Migrate the test db, run the `-tags=integration` suite |
+| `lint` / `fmt` | `go vet` / `go fmt` + prettier |
+
+### Scanner PWA
+
+```bash
+pnpm --filter @ivyticketing/scanner dev        # Vite dev server
+pnpm --filter @ivyticketing/scanner build      # production PWA build
+pnpm --filter @ivyticketing/scanner test       # unit + property tests
+```
+
+Set `VITE_API_BASE_URL` (see `apps/scanner/.env.example`) to point the app at your API.
 
 ## Smoke test (verify the chain is live)
 
 ```bash
 curl -s localhost:8080/healthz          # {"status":"ok"}
-curl -s localhost:8080/readyz | jq      # both checks "ok"
-
-brew services stop redis
-curl -s -o /dev/null -w "%{http_code}\n" localhost:8080/readyz   # 503
-brew services start redis
+curl -s localhost:8080/readyz | jq      # db + redis checks "ok"
 ```
 
-## Project structure
+## What's built (by phase)
 
-- `apps/web` — Astro frontend (public site, participant UI)
-- `services/api` — Go modular monolith (Chi, pgx, sqlc)
-- `database/migrations` — goose migrations
-- `database/queries` — sqlc query sources
-- `scripts/dev` — local setup/run scripts
-- `docs/` — PRD, struktur, masterplan, specs, plans
+| Phase | Area | Phase | Area |
+| --- | --- | --- | --- |
+| 1 | Monorepo & dev foundation | 15 | Scanner PWA |
+| 2 | Auth, RBAC & multi-tenant | 16 | Reporting & CSV export |
+| 3 | Event & category management | 17 | Super-admin platform billing |
+| 4 | Custom registration form builder | 18 | White label & custom domain |
+| 5 | Inventory, order & checkout | 19 | Public status & incident system |
+| 6 | Payment gateway (Duitku, Xendit) | 20 | Observability & war room |
+| 7 | Participant dashboard & ticket | 21 | Load testing & reliability |
+| 8 | Queue / war ticket system | 22 | Security hardening |
+| 9 | Anti-bot & abuse protection | 23 | Enterprise API & integration |
+| 10 | Ballot / lottery system | 24 | Result, certificate & timing |
+| 11 | Coupon, invitation & community slot | 25 | Enterprise scale split (guide) |
+| 12 | Notification system | 26 | Production launch checklist |
+| 13 | BIB management | 27 | Continuous improvement |
+| 14 | Racepack pickup system | | |
 
-## Make targets
+## Documentation
 
-`setup`, `dev`, `api`, `web`, `migrate-up`, `migrate-down`, `sqlc`, `test`, `lint`, `fmt`
+Start with [`docs/README.md`](docs/README.md) for the full index. Highlights:
 
-## Next phase
-
-Phase 16 — Reporting & Export. See `docs/masterplan.md`.
+- **Product & plan:** [`prd.md`](docs/prd.md), [`masterplan.md`](docs/masterplan.md),
+  [`struktur.md`](docs/struktur.md)
+- **Core flows:** [`CHECKOUT_FLOW.md`](docs/CHECKOUT_FLOW.md),
+  [`ORDER_FLOW.md`](docs/ORDER_FLOW.md), [`PAYMENT_FLOW.md`](docs/PAYMENT_FLOW.md),
+  [`INVENTORY.md`](docs/INVENTORY.md), [`QUEUE_MODES.md`](docs/QUEUE_MODES.md)
+- **Ops & launch:** [`LAUNCH_CHECKLIST.md`](docs/LAUNCH_CHECKLIST.md),
+  [`INCIDENT_RUNBOOK.md`](docs/INCIDENT_RUNBOOK.md),
+  [`SCALE_SPLIT.md`](docs/SCALE_SPLIT.md),
+  [`POST_EVENT_REPORT.md`](docs/POST_EVENT_REPORT.md)
+- **Integration:** [`ENTERPRISE_API.md`](docs/ENTERPRISE_API.md),
+  [`WEBHOOK_PROCESSING.md`](docs/WEBHOOK_PROCESSING.md),
+  [`GATEWAY_INTEGRATION.md`](docs/GATEWAY_INTEGRATION.md)
