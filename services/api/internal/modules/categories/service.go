@@ -3,6 +3,7 @@ package categories
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -57,6 +58,10 @@ func (s *Service) Create(ctx context.Context, orgID, eventID uuid.UUID, req Writ
 	if err := validate(req); err != nil {
 		return Response{}, err
 	}
+	tiers := []byte("[]")
+	if len(req.PricingTiers) > 0 {
+		tiers = req.PricingTiers
+	}
 	c, err := s.repo.CreateCategory(ctx, db.CreateCategoryParams{
 		OrganizationID:       orgID,
 		EventID:              eventID,
@@ -68,6 +73,9 @@ func (s *Service) Create(ctx context.Context, orgID, eventID uuid.UUID, req Writ
 		BibPrefix:            nullText(req.BibPrefix),
 		MinAge:               nullInt4(req.MinAge),
 		MaxOrderPerUser:      req.MaxOrderPerUser,
+		DistanceKm:           nullNumeric(req.DistanceKm),
+		CutoffTime:           nullText(req.CutoffTime),
+		PricingTiers:         tiers,
 	})
 	if err != nil {
 		return Response{}, err
@@ -105,6 +113,10 @@ func (s *Service) Update(ctx context.Context, orgID, eventID, categoryID uuid.UU
 	if err := validate(req); err != nil {
 		return Response{}, err
 	}
+	tiers := []byte("[]")
+	if len(req.PricingTiers) > 0 {
+		tiers = req.PricingTiers
+	}
 	c, err := s.repo.UpdateCategory(ctx, db.UpdateCategoryParams{
 		ID:                   categoryID,
 		Name:                 req.Name,
@@ -115,6 +127,9 @@ func (s *Service) Update(ctx context.Context, orgID, eventID, categoryID uuid.UU
 		BibPrefix:            nullText(req.BibPrefix),
 		MinAge:               nullInt4(req.MinAge),
 		MaxOrderPerUser:      req.MaxOrderPerUser,
+		DistanceKm:           nullNumeric(req.DistanceKm),
+		CutoffTime:           nullText(req.CutoffTime),
+		PricingTiers:         tiers,
 		EventID:              eventID,
 	})
 	if err != nil {
@@ -154,11 +169,19 @@ func toResponse(c db.EventCategory) Response {
 		RegistrationClosesAt: c.RegistrationClosesAt.Time,
 		BibPrefix:            c.BibPrefix.String,
 		MaxOrderPerUser:      c.MaxOrderPerUser,
+		CutoffTime:           c.CutoffTime.String,
+		PricingTiers:         c.PricingTiers,
 		CreatedAt:            c.CreatedAt.Time,
 	}
 	if c.MinAge.Valid {
 		v := c.MinAge.Int32
 		r.MinAge = &v
+	}
+	if c.DistanceKm.Valid {
+		if f, err := c.DistanceKm.Float64Value(); err == nil && f.Valid {
+			val := f.Float64
+			r.DistanceKm = &val
+		}
 	}
 	return r
 }
@@ -175,4 +198,13 @@ func nullInt4(v *int32) pgtype.Int4 {
 		return pgtype.Int4{Valid: false}
 	}
 	return pgtype.Int4{Int32: *v, Valid: true}
+}
+
+func nullNumeric(f *float64) pgtype.Numeric {
+	if f == nil {
+		return pgtype.Numeric{Valid: false}
+	}
+	var n pgtype.Numeric
+	_ = n.Scan(fmt.Sprintf("%.2f", *f))
+	return n
 }

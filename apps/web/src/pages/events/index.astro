@@ -1,136 +1,1644 @@
 ---
 export const prerender = false;
-import PublicLayout from "../../layouts/PublicLayout.astro";
-import Button from "../../components/ui/Button.astro";
+import "../../styles/global.css";
+
+const SPONSORS = [
+  { name: "Bank of America", role: "Presenting Partner", logo: "/images/events/sponsor_bofa.png", h: "h-8" },
+  { name: "adidas", role: "Official Footwear & Apparel", logo: "/images/events/sponsor_adidas.png", h: "h-9" },
+  { name: "Abbott World Marathon Majors", role: "Official Series", logo: "/images/events/sponsor_abbott.png", h: "h-8" },
+  { name: "Samuel Adams", role: "Official Beer", logo: "/images/events/sponsor_samadams.svg", h: "h-8" },
+  { name: "Schneider Electric", role: "Sustainability Partner", logo: "/images/events/sponsor_schneider.png", h: "h-7" },
+  { name: "New England Honda", role: "Official Vehicle", logo: "/images/events/sponsor_honda.svg", h: "h-7" },
+  { name: "Maurten", role: "Official Sports Fuel", logo: "/images/events/sponsor_maurten.svg", h: "h-7" },
+  { name: "Poland Spring", role: "Official Natural Spring Water", logo: "/images/events/sponsor_polandspring.svg", h: "h-8" },
+  { name: "Shokz", role: "Official Headphones", logo: "/images/events/sponsor_shokz.svg", h: "h-6" },
+  { name: "JetBlue", role: "Official Airline", logo: "/images/events/sponsor_jetblue.svg", h: "h-6" },
+  { name: "Gatorade", role: "Official Sports Drink", logo: "/images/events/sponsor_gatorade.png", h: "h-8" },
+  { name: "CITGO", role: "Official Landmark Partner", logo: "/images/events/sponsor_citgo.svg", h: "h-7" },
+];
 ---
-<PublicLayout title="Jelajahi Event — ivyticketing">
-  <div class="space-y-8">
-    <!-- Header -->
-    <div>
-      <h1 class="text-2xl font-bold text-slate-900">Jelajahi Event</h1>
-      <p class="mt-1 text-sm text-slate-500">
-        Masukkan slug organizer untuk melihat event yang tersedia.
-      </p>
-    </div>
 
-    <!-- Search form -->
-    <form id="search-form" class="flex gap-3">
-      <input
-        id="org-slug-input"
-        type="text"
-        placeholder="Contoh: ivy-sports"
-        class="flex-1 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-        autocomplete="off"
-        spellcheck="false"
-      />
-      <Button type="submit" variant="primary" size="sm">Cari</Button>
-    </form>
-
-    <!-- Results -->
-    <div id="results"></div>
-  </div>
-</PublicLayout>
-
-<script>
-  import { fetchPublicEvents } from "../../lib/events";
-  import type { PublicEvent } from "../../lib/events";
-  import { esc } from "../../lib/safe";
-
-  const form = document.getElementById("search-form") as HTMLFormElement;
-  const input = document.getElementById("org-slug-input") as HTMLInputElement;
-  const results = document.getElementById("results")!;
-
-  // Pre-fill from URL query param ?org=slug and auto-search
-  const params = new URLSearchParams(window.location.search);
-  const preOrg = params.get("org");
-  if (preOrg) {
-    input.value = preOrg;
-    search(preOrg);
-  }
-
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const slug = input.value.trim();
-    if (!slug) return;
-    // Update URL without reload
-    const url = new URL(window.location.href);
-    url.searchParams.set("org", slug);
-    history.replaceState(null, "", url.toString());
-    search(slug);
-  });
-
-  function fmtDate(iso: string | null): string {
-    if (!iso) return "—";
-    return new Date(iso).toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-  }
-
-  function eventCard(ev: PublicEvent, orgSlug: string): string {
-    const detailHref =
-      `/events/${encodeURIComponent(ev.id)}` +
-      `?orgSlug=${encodeURIComponent(orgSlug)}&eventSlug=${encodeURIComponent(ev.slug)}`;
-
-    const dateStr = ev.startsAt ? fmtDate(ev.startsAt) : "Tanggal belum ditentukan";
-    const venue = ev.venueName ? `<p class="text-xs text-slate-500 mt-0.5">${esc(ev.venueName)}</p>` : "";
-    const banner = ev.bannerUrl
-      ? `<img src="${esc(ev.bannerUrl)}" alt="" class="h-32 w-full rounded-t object-cover" loading="lazy" />`
-      : `<div class="h-32 w-full rounded-t bg-slate-200"></div>`;
-
-    return `
-      <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        ${banner}
-        <div class="p-4 space-y-2">
-          <p class="font-semibold text-slate-900 leading-tight">${esc(ev.name)}</p>
-          <p class="text-xs text-slate-600">${dateStr}</p>
-          ${venue}
-          <p class="text-xs text-slate-400">Organizer: ${orgSlug}</p>
-        </div>
-        <div class="border-t border-slate-100 px-4 py-3">
-          <a
-            href="${detailHref}"
-            class="text-sm font-medium text-slate-900 hover:underline"
-          >Lihat Detail &rarr;</a>
-        </div>
-      </div>`;
-  }
-
-  async function search(orgSlug: string) {
-    // Loading state — use textContent for user-supplied orgSlug
-    const loadingP = document.createElement("p");
-    loadingP.className = "text-sm text-slate-500";
-    loadingP.textContent = `Memuat event dari ${orgSlug}…`;
-    results.replaceChildren(loadingP);
-    try {
-      const events = await fetchPublicEvents(orgSlug);
-      if (!events || events.length === 0) {
-        const emptyWrap = document.createElement("div");
-        emptyWrap.className = "rounded border border-slate-200 bg-slate-50 p-6 text-center";
-        const emptyP = document.createElement("p");
-        emptyP.className = "text-slate-500 text-sm";
-        emptyP.textContent = `Tidak ada event yang ditemukan untuk organizer ${orgSlug}.`;
-        emptyWrap.appendChild(emptyP);
-        results.replaceChildren(emptyWrap);
-        return;
+<!doctype html>
+<html lang="id" class="scroll-smooth">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Jelajahi Event Marathon & Multi-Sports : ivyticketing</title>
+    <meta
+      name="description"
+      content="Daftar resmi ajang lari marathon, half marathon, 10K, triathlon, dan fun run berstandar internasional. Sistem war antrean anti-bot dan undian ballot transparan."
+    />
+    <style is:global>
+      /* Dynamic Theme Variables */
+      :root {
+        --color-bg-dark: #0a1120;
+        --color-bg-rgb: 10, 17, 32;
+        --color-surface-dark: #101a2e;
+        --color-surface-rgb: 16, 26, 46;
+        --color-surface-card: #17243d;
+        --color-surface-card-rgb: 23, 36, 61;
+        --color-accent: #ea580c;
+        --color-accent-rgb: 234, 88, 12;
+        --color-accent-hover: #c2410c;
+        --color-text: #f8fafc;
       }
-      // Count line uses textContent; event cards use trusted API data via innerHTML
-      const countP = document.createElement("p");
-      countP.className = "text-xs text-slate-400 mb-3";
-      countP.textContent = `${events.length} event ditemukan untuk ${orgSlug}`;
-      const grid = document.createElement("div");
-      grid.className = "grid gap-4 sm:grid-cols-2";
-      grid.innerHTML = events.map((ev) => eventCard(ev, orgSlug)).join("");
-      results.replaceChildren(countP, grid);
-    } catch (err) {
-      const errWrap = document.createElement("div");
-      errWrap.className = "rounded border border-red-200 bg-red-50 p-4";
-      const errP = document.createElement("p");
-      errP.className = "text-sm text-red-700";
-      errP.textContent = (err as Error).message;
-      errWrap.appendChild(errP);
-      results.replaceChildren(errWrap);
-    }
-  }
-</script>
+
+      .theme-bg-primary {
+        background-color: var(--color-bg-dark);
+      }
+      .theme-surface {
+        background-color: var(--color-surface-dark);
+      }
+      .theme-accent-bg {
+        background-color: var(--color-accent);
+      }
+      .theme-accent-text {
+        color: var(--color-accent);
+      }
+      .theme-accent-border {
+        border-color: var(--color-accent);
+      }
+
+      /* Dynamic Corner Radius Enforcements (Square / Rounded / Pill) */
+      .corner-square .theme-card,
+      .corner-square .category-card,
+      .corner-square .card-box,
+      .corner-square article,
+      .corner-square #catalog-control-bar,
+      .corner-square #empty-state,
+      .corner-square .rounded-xl,
+      .corner-square .rounded-2xl,
+      .corner-square .rounded-lg,
+      .corner-square .rounded-md {
+        border-radius: 0px !important;
+      }
+      .corner-square button,
+      .corner-square .theme-accent-bg,
+      .corner-square .sport-btn,
+      .corner-square .mode-btn,
+      .corner-square .dist-chip,
+      .corner-square .mob-bottom-tab {
+        border-radius: 0px !important;
+      }
+
+      .corner-pill .theme-card,
+      .corner-pill .category-card,
+      .corner-pill article,
+      .corner-pill #catalog-control-bar {
+        border-radius: 24px !important;
+      }
+
+      .corner-rounded .theme-card,
+      .corner-rounded .category-card,
+      .corner-rounded article,
+      .corner-rounded #catalog-control-bar {
+        border-radius: 12px !important;
+      }
+
+      /* Fixed navbar enforcement: header must never push content down in normal flow */
+      #main-nav {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        z-index: 50;
+        box-sizing: border-box;
+      }
+
+      /* Liquid Glass Navbar Styling */
+      .glass {
+        position: relative;
+        --glass-blur: 0px;
+        --glass-saturate: 1;
+        --glass-tint: rgba(255, 255, 255, 0.255);
+        --glass-radius: 48px;
+
+        box-sizing: border-box;
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        background: var(--glass-tint);
+        border-radius: var(--glass-radius);
+        border: 1px solid rgba(255, 255, 255, 0.128);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.245);
+      }
+
+      .glass::before {
+        content: "";
+        position: absolute;
+        inset: -1px;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.38) 0%,
+          rgba(255, 255, 255, 0.16) 35%,
+          rgba(255, 255, 255, 0.04) 65%,
+          rgba(255, 255, 255, 0.22) 100%
+        );
+        -webkit-mask:
+          linear-gradient(#000 0 0) content-box,
+          linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+      }
+
+      .glass > .glass-specular {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      .glass > .glass-specular::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 24px;
+        right: 24px;
+        height: 50%;
+        background: radial-gradient(
+          ellipse at top,
+          rgba(255, 255, 255, 0.42) 0%,
+          rgba(255, 255, 255, 0) 70%
+        );
+      }
+
+      @supports (background: paint(gg-glass-probe)) {
+        .glass {
+          -webkit-backdrop-filter: url(#gg-glass-filter) blur(var(--glass-blur)) saturate(var(--glass-saturate));
+          backdrop-filter: url(#gg-glass-filter) blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        }
+      }
+
+      @media (prefers-reduced-transparency: reduce) {
+        .glass {
+          -webkit-backdrop-filter: none;
+          backdrop-filter: none;
+          background: #0f172a;
+          border-color: rgba(255, 255, 255, 0.15);
+        }
+      }
+
+      /* Moving Sponsor Reel Marquee */
+      @keyframes baaSponsorMarquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+      .baa-sponsor-track {
+        display: flex;
+        width: max-content;
+        animation: baaSponsorMarquee 28s linear infinite;
+      }
+      .baa-sponsor-track:hover {
+        animation-play-state: paused;
+      }
+    </style>
+  </head>
+  <body class="theme-bg-primary corner-square text-slate-100 antialiased selection:bg-orange-500 selection:text-white flex flex-col min-h-screen">
+    <!-- SVG Refraction Filter for Liquid Glass Navbar (720x72) -->
+    <svg class="pointer-events-none absolute h-0 w-0" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="gg-glass-filter" filterUnits="userSpaceOnUse" x="0" y="0" width="720" height="72">
+          <feTurbulence type="fractalNoise" baseFrequency="0.02 0.05" numOctaves="1" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </defs>
+    </svg>
+
+    <!-- Navbar Navigasi Utama (Bentuk, Transparansi & Brand Dinamis dari Admin) -->
+    <header
+      id="main-nav"
+      class="fixed top-0 left-0 right-0 w-full z-50 transition-all duration-300 overflow-hidden"
+    >
+      <span class="glass-specular hidden" id="main-nav-specular" aria-hidden="true"></span>
+      <div id="main-nav-inner" class="mx-auto flex max-w-7xl items-center justify-between px-3 py-2.5 sm:px-6 sm:py-3 w-full h-full">
+        <!-- Brand Link dengan Mode Kustomisasi: icon_only / text_only / both -->
+        <a href="/" id="nav-brand-container" class="flex items-center gap-2.5 sm:gap-3 group focus:outline-hidden focus:ring-2 focus:ring-orange-500 rounded-lg p-1 min-w-0" aria-label="Kembali ke Beranda">
+          <!-- Athletic Vector Icon (Default: IVY Icon Only) -->
+          <div id="nav-brand-icon-wrapper" class="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center shrink-0">
+            <img
+              id="nav-brand-icon-img"
+              src="/images/ivy-icon.svg"
+              alt="IVY Icon"
+              class="h-9 w-9 sm:h-10 sm:w-10 shrink-0 transition-transform group-hover:scale-105"
+            />
+          </div>
+          <!-- Brand Text (Hidden by default in icon_only mode) -->
+          <div id="nav-brand-text-wrapper" class="hidden flex-col min-w-0">
+            <span id="nav-brand-title" class="font-display text-lg sm:text-2xl font-bold tracking-tight text-white uppercase leading-none truncate">
+              Ivy<span class="brand-accent-highlight theme-accent-text">Ticketing</span>
+            </span>
+            <span id="nav-brand-tagline" class="text-[9px] sm:text-[10px] font-semibold tracking-widest text-slate-400 uppercase truncate max-w-[140px] sm:max-w-none">
+              Sports Registration Engine
+            </span>
+          </div>
+        </a>
+
+        <!-- Menu Desktop (Sama Persis dengan Beranda dan Halaman Lain) -->
+        <nav class="hidden items-center gap-6 xl:gap-7 text-sm font-medium text-slate-300 lg:flex" aria-label="Navigasi Utama">
+          <a href="/#featured-events" class="transition-colors hover:text-orange-400">Event Pilihan</a>
+          <a href="/#categories" class="transition-colors hover:text-orange-400">Kategori Lomba</a>
+          <a href="/#registration-modes" class="transition-colors hover:text-orange-400">Sistem War & Ballot</a>
+          <a href="/#templates" class="transition-colors hover:text-orange-400">Template Organizer</a>
+          <a href="/events" class="transition-colors text-white font-bold border-b-2 theme-accent-border pb-0.5">Jelajahi Semua</a>
+        </nav>
+
+        <!-- CTA Desktop -->
+        <div class="hidden items-center gap-2.5 sm:flex">
+          <a
+            href="/login"
+            class="min-h-[44px] inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900/80 px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-800"
+          >
+            Masuk Akun
+          </a>
+          <a
+            href="/register"
+            class="min-h-[44px] inline-flex items-center justify-center rounded-lg border border-orange-500/40 bg-orange-950/40 px-3.5 py-2 text-xs sm:text-sm font-bold text-orange-400 transition-colors hover:bg-orange-900/60"
+          >
+            Daftar Akun
+          </a>
+          <a
+            href="/admin/events"
+            class="min-h-[44px] inline-flex items-center justify-center rounded-lg theme-accent-bg px-4 py-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-white shadow-md transition-all active:scale-95 hover:opacity-90"
+          >
+            Kelola Admin
+          </a>
+        </div>
+
+        <!-- Tombol Mobile Menu -->
+        <button
+          id="mobile-menu-btn"
+          type="button"
+          class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-white/20 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white focus:outline-hidden active:scale-95 lg:hidden transition-all"
+          aria-label="Buka Menu Navigasi"
+          aria-expanded="false"
+        >
+          <svg id="menu-icon-open" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <svg id="menu-icon-close" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Drawer Navigasi Mobile -->
+      <div id="mobile-menu" class="hidden px-4 py-5 lg:hidden max-h-[calc(100vh-5rem)] overflow-y-auto transition-all">
+        <nav class="flex flex-col gap-4 text-base font-medium text-slate-200">
+          <a href="/#featured-events" class="mobile-nav-link py-1 hover:text-orange-400">Event Pilihan</a>
+          <a href="/#categories" class="mobile-nav-link py-1 hover:text-orange-400">Kategori Lomba</a>
+          <a href="/#registration-modes" class="mobile-nav-link py-1 hover:text-orange-400">Sistem War & Ballot</a>
+          <a href="/#templates" class="mobile-nav-link py-1 hover:text-orange-400">Template Organizer</a>
+          <a href="/events" class="mobile-nav-link py-1 text-orange-400 font-bold">Jelajahi Semua Event</a>
+          <div class="mt-3 flex flex-col gap-2.5 pt-3 border-t border-white/10">
+            <div class="grid grid-cols-2 gap-2">
+              <a
+                href="/login"
+                class="min-h-[44px] flex items-center justify-center rounded-lg border border-slate-700 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-800"
+              >
+                Masuk
+              </a>
+              <a
+                href="/register"
+                class="min-h-[44px] flex items-center justify-center rounded-lg border border-orange-500/40 bg-orange-950/40 py-2.5 text-sm font-bold text-orange-400 hover:bg-orange-900/60"
+              >
+                Daftar Akun
+              </a>
+            </div>
+            <a
+              href="/admin/events"
+              class="min-h-[44px] flex items-center justify-center rounded-lg theme-accent-bg py-2.5 text-sm font-bold uppercase text-white shadow-md hover:opacity-90"
+            >
+              Kelola di Admin
+            </a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Mobile Bottom Navigation Bar (Khusus Layar Mobile: 4 Menu Utama Ergonomis) -->
+    <nav
+      id="mobile-bottom-nav"
+      class="fixed bottom-0 left-0 right-0 z-50 flex lg:hidden items-center justify-around border-t border-white/10 bg-slate-950/95 backdrop-blur-xl px-2 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl transition-all duration-200"
+      aria-label="Navigasi Utama Mobile"
+    >
+      <a
+        href="/"
+        id="mob-tab-home"
+        class="mob-bottom-tab flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 text-[11px] font-semibold tracking-tight text-slate-400 hover:text-slate-200 transition-colors"
+      >
+        <svg class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        <span>Beranda</span>
+      </a>
+
+      <a
+        href="/events"
+        id="mob-tab-events"
+        class="mob-bottom-tab active flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 text-[11px] font-bold tracking-tight text-orange-500 transition-colors"
+      >
+        <svg class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span>Event</span>
+      </a>
+
+      <a
+        href="/#registration-modes"
+        id="mob-tab-war"
+        class="mob-bottom-tab flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 text-[11px] font-semibold tracking-tight text-slate-400 hover:text-slate-200 transition-colors"
+      >
+        <svg class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        <span>War & Ballot</span>
+      </a>
+
+      <a
+        href="/login"
+        id="mob-tab-account"
+        class="mob-bottom-tab flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 text-[11px] font-semibold tracking-tight text-slate-400 hover:text-slate-200 transition-colors"
+      >
+        <svg class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        <span>Akun</span>
+      </a>
+    </nav>
+
+    <!-- Main Content Area with Dynamic Padding Top based on Navbar Style -->
+    <main id="main-content" class="flex-1 pt-24 sm:pt-28 pb-24 lg:pb-12 transition-all duration-300">
+      <!-- Compact Athletic Hero Strip -->
+      <section class="relative overflow-hidden border-b border-white/10 bg-slate-900/70 py-6 sm:py-8">
+        <div class="absolute inset-0 z-0 opacity-15">
+          <img
+            src="/images/events/hero_marathon.jpg"
+            alt="Latar Belakang Pelari Marathon"
+            class="h-full w-full object-cover"
+          />
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent"></div>
+        </div>
+
+        <div class="relative z-10 mx-auto max-w-7xl px-4 sm:px-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1.5 max-w-2xl">
+              <div class="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-orange-400">
+                <span class="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                <span>Kalender Resmi Musim Lomba 2026</span>
+              </div>
+              <h1 class="font-display text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white uppercase leading-tight">
+                Jelajahi Ajang Lari & Multi-Sports Bergengsi
+              </h1>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Pilih lintasan impian Anda. Dari panggung World Marathon Majors Boston & Tokyo, lintasan rekor dunia Berlin, hingga ajang bersejarah Borobudur dan IRONMAN Triathlon.
+              </p>
+            </div>
+
+            <!-- Factual Metadata Badges -->
+            <div class="flex flex-wrap md:flex-col gap-2 shrink-0">
+              <div class="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs text-slate-300">
+                <span>🏆</span>
+                <span>Sertifikasi PASI, AIMS & World Athletics</span>
+              </div>
+              <div class="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs text-orange-300">
+                <span>⚡</span>
+                <span>Sistem War Anti-Bot & Ballot Transparan</span>
+              </div>
+              <div class="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs text-emerald-300">
+                <span>💳</span>
+                <span>QRIS Dinamis & Virtual Account Resmi</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Animated Moving Sponsor Reel / Ticker ("gambar sponsor bergerak") -->
+      <section class="relative border-b border-white/10 bg-slate-950 py-3 shadow-inner overflow-hidden" aria-label="Official Partners Reel">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 mb-2 flex items-center justify-between">
+          <span class="text-[10px] font-black uppercase tracking-widest text-orange-400 font-mono">
+            OFFICIAL PARTNERS OF WORLD ATHLETICS & MARATHON SERIES
+          </span>
+          <span class="font-mono text-[10px] text-slate-400 hidden sm:inline">
+            Auto-Scroll · Pause on Hover
+          </span>
+        </div>
+
+        <div class="relative overflow-hidden w-full">
+          <div class="baa-sponsor-track flex items-center gap-4 py-1">
+            <!-- First Strip of Sponsor Logos -->
+            {SPONSORS.map((sp) => (
+              <div class="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-900/80 px-4 py-2 shrink-0 backdrop-blur-md shadow-sm hover:border-orange-500/60 transition-colors">
+                <img src={sp.logo} alt={sp.name} class={`${sp.h} w-auto max-w-[140px] object-contain shrink-0`} />
+                <div class="flex flex-col text-left">
+                  <span class="text-[9px] font-bold uppercase text-slate-400 leading-none">{sp.role}</span>
+                  <span class="text-xs font-bold text-white leading-tight mt-0.5">{sp.name}</span>
+                </div>
+              </div>
+            ))}
+
+            <!-- Duplicated Strip for Seamless Infinite Loop -->
+            {SPONSORS.map((sp) => (
+              <div class="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-900/80 px-4 py-2 shrink-0 backdrop-blur-md shadow-sm hover:border-orange-500/60 transition-colors" aria-hidden="true">
+                <img src={sp.logo} alt={sp.name} class={`${sp.h} w-auto max-w-[140px] object-contain shrink-0`} />
+                <div class="flex flex-col text-left">
+                  <span class="text-[9px] font-bold uppercase text-slate-400 leading-none">{sp.role}</span>
+                  <span class="text-xs font-bold text-white leading-tight mt-0.5">{sp.name}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <!-- Filter & Event Showcase Section (Immediate Viewport Focus) -->
+      <section class="mx-auto max-w-7xl px-4 py-6 sm:px-6 space-y-6">
+        <!-- Unified Control Bar: Search, Sports, Modes, and Distances -->
+        <div id="catalog-control-bar" class="rounded-2xl border border-slate-800 bg-slate-900/90 p-4 sm:p-5 space-y-3.5 shadow-sm transition-colors">
+          <!-- Row 1: Search & Counter -->
+          <div class="flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div class="relative w-full sm:w-96">
+              <input
+                id="search-input"
+                type="text"
+                placeholder="Cari nama event, kota, atau penyelenggara..."
+                class="min-h-[44px] w-full rounded-xl border border-slate-700 bg-slate-950 pl-10 pr-4 text-xs sm:text-sm text-white placeholder-slate-500 focus:border-orange-500 focus:outline-hidden focus:ring-1 focus:ring-orange-500 transition-colors"
+              />
+              <svg class="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+              <span id="event-count-badge" class="text-xs font-semibold text-slate-400 font-mono">
+                Memuat kalender event...
+              </span>
+              <button
+                type="button"
+                id="btn-reset-filters"
+                class="min-h-[44px] rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+              >
+                Reset Filter
+              </button>
+            </div>
+          </div>
+
+          <!-- Row 2: Cabang Olahraga Filter (Synchronized with Homepage Settings) -->
+          <div
+            id="homepage-sport-filter-container"
+            class="transition-all"
+          >
+            <div
+              id="sports-filter-container"
+              class="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 border-t border-slate-800/80 no-scrollbar"
+              role="tablist"
+              aria-label="Filter Cabang Olahraga"
+            >
+              <button
+                type="button"
+                class="sport-btn active min-h-[44px] shrink-0 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-all bg-orange-600 text-white cursor-pointer"
+                data-sport="all"
+              >
+                Semua Olahraga
+              </button>
+              <button
+                type="button"
+                class="sport-btn min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-slate-700/80 bg-slate-800/70 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:border-slate-500 hover:text-white transition-all cursor-pointer"
+                data-sport="running"
+              >
+                Lari & Marathon
+              </button>
+              <button
+                type="button"
+                class="sport-btn min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-slate-700/80 bg-slate-800/70 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:border-slate-500 hover:text-white transition-all cursor-pointer"
+                data-sport="triathlon"
+              >
+                Triathlon
+              </button>
+              <button
+                type="button"
+                class="sport-btn min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-slate-700/80 bg-slate-800/70 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:border-slate-500 hover:text-white transition-all cursor-pointer"
+                data-sport="cycling"
+              >
+                Balap Sepeda
+              </button>
+              <button
+                type="button"
+                class="sport-btn min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-slate-700/80 bg-slate-800/70 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:border-slate-500 hover:text-white transition-all cursor-pointer"
+                data-sport="trail"
+              >
+                Trail Run
+              </button>
+              <button
+                type="button"
+                class="sport-btn min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-slate-700/80 bg-slate-800/70 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:border-slate-500 hover:text-white transition-all cursor-pointer"
+                data-sport="swimming"
+              >
+                Renang Terbuka
+              </button>
+            </div>
+          </div>
+
+          <!-- Row 3: Mode & Jarak Filters -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
+            <!-- Mode Tabs -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1" id="mode-tabs">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1 shrink-0">Mode:</span>
+              <button
+                type="button"
+                class="mode-btn active min-h-[38px] rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-wider transition-all bg-slate-100 text-slate-950 cursor-pointer shrink-0"
+                data-mode="ALL"
+              >
+                Semua
+              </button>
+              <button
+                type="button"
+                class="mode-btn min-h-[38px] rounded-lg border border-slate-700/70 bg-slate-800/60 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white transition-all cursor-pointer shrink-0"
+                data-mode="WAR_QUEUE"
+              >
+                War Ticket
+              </button>
+              <button
+                type="button"
+                class="mode-btn min-h-[38px] rounded-lg border border-slate-700/70 bg-slate-800/60 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white transition-all cursor-pointer shrink-0"
+                data-mode="BALLOT"
+              >
+                Sistem Ballot
+              </button>
+              <button
+                type="button"
+                class="mode-btn min-h-[38px] rounded-lg border border-slate-700/70 bg-slate-800/60 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white transition-all cursor-pointer shrink-0"
+                data-mode="NORMAL"
+              >
+                Reguler Buka
+              </button>
+            </div>
+
+            <!-- Distance Filter Chips -->
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1">Jarak:</span>
+              <button
+                type="button"
+                class="dist-chip active min-h-[36px] rounded-md border border-orange-500 bg-orange-500/20 px-2.5 py-0.5 text-xs font-bold text-orange-300 cursor-pointer"
+                data-dist="ALL"
+              >
+                Semua
+              </button>
+              <button
+                type="button"
+                class="dist-chip min-h-[36px] rounded-md border border-slate-700 bg-slate-800/70 px-2.5 py-0.5 text-xs font-medium text-slate-300 hover:border-slate-500 hover:text-white transition-colors cursor-pointer"
+                data-dist="42K"
+              >
+                42.2K
+              </button>
+              <button
+                type="button"
+                class="dist-chip min-h-[36px] rounded-md border border-slate-700 bg-slate-800/70 px-2.5 py-0.5 text-xs font-medium text-slate-300 hover:border-slate-500 hover:text-white transition-colors cursor-pointer"
+                data-dist="21K"
+              >
+                21.1K
+              </button>
+              <button
+                type="button"
+                class="dist-chip min-h-[36px] rounded-md border border-slate-700 bg-slate-800/70 px-2.5 py-0.5 text-xs font-medium text-slate-300 hover:border-slate-500 hover:text-white transition-colors cursor-pointer"
+                data-dist="10K"
+              >
+                10K
+              </button>
+              <button
+                type="button"
+                class="dist-chip min-h-[36px] rounded-md border border-slate-700 bg-slate-800/70 px-2.5 py-0.5 text-xs font-medium text-slate-300 hover:border-slate-500 hover:text-white transition-colors cursor-pointer"
+                data-dist="5K"
+              >
+                5K
+              </button>
+              <button
+                type="button"
+                class="dist-chip min-h-[36px] rounded-md border border-slate-700 bg-slate-800/70 px-2.5 py-0.5 text-xs font-medium text-slate-300 hover:border-slate-500 hover:text-white transition-colors cursor-pointer"
+                data-dist="TRI"
+              >
+                Triathlon
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Event Cards Showcase (3-Column Grid for High Density & Viewport Fit) -->
+        <div id="events-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+          <!-- Dynamically populated via JavaScript -->
+        </div>
+
+        <!-- Empty State Container -->
+        <div id="empty-state" class="hidden rounded-2xl border border-slate-800 bg-slate-900/60 p-10 sm:p-14 text-center space-y-3">
+          <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-800 text-slate-400 text-xl font-bold mx-auto">
+            🔍
+          </div>
+          <h3 class="text-base font-bold uppercase tracking-wider text-white">Tidak Ada Event Ditemukan</h3>
+          <p class="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+            Tidak ada event olahraga yang sesuai dengan filter atau kata kunci yang Anda masukkan. Silakan sesuaikan atau tekan tombol reset di bawah.
+          </p>
+          <div>
+            <button
+              type="button"
+              id="empty-reset-btn"
+              class="min-h-[44px] rounded-xl bg-orange-600 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 transition-colors cursor-pointer"
+            >
+              Tampilkan Semua Event
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Fitur Platform Marathon IvyTicketing -->
+      <section class="border-t border-slate-800/80 bg-slate-900/30 py-10 sm:py-12 mt-8">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 space-y-6">
+          <div class="text-center max-w-2xl mx-auto space-y-1.5">
+            <span class="text-xs font-bold uppercase tracking-widest text-orange-400">High Performance Registration</span>
+            <h2 class="font-display text-xl sm:text-2xl font-black uppercase tracking-tight text-white">
+              Standar Teknologi Event Kelas Dunia
+            </h2>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Didesain khusus untuk menangani ribuan pelari serentak dengan integritas, keadilan kuota, dan pengalaman checkout resmi tanpa hambatan.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10 text-orange-400 text-lg">
+                ⚡
+              </div>
+              <h3 class="text-sm font-bold text-white uppercase">Sistem War Ticket</h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Antrean virtual FIFO adil dengan token verifikasi kriptografis, mencegah pembelian ganda dan bot calo tiket.
+              </p>
+            </div>
+
+            <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400 text-lg">
+                🎲
+              </div>
+              <h3 class="text-sm font-bold text-white uppercase">Undian Ballot Resmi</h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Sistem ballot transparan dengan algoritma verifikasi publik untuk ajang World Marathon Majors dan event heritage.
+              </p>
+            </div>
+
+            <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 text-lg">
+                💳
+              </div>
+              <h3 class="text-sm font-bold text-white uppercase">Pembayaran Otomatis</h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Dukungan QRIS dinamis real-time, Virtual Account bank nasional, dan kartu kredit dengan konfirmasi instan.
+              </p>
+            </div>
+
+            <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 space-y-2">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 text-lg">
+                ⏱️
+              </div>
+              <h3 class="text-sm font-bold text-white uppercase">Multi-Vendor Timing</h3>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Integrasi timing chip resmi (Mylaps, ChronoTrack, RaceResult) dengan sertifikat digital dan e-BIB otomatis.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-950 py-8 text-xs text-slate-500">
+      <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
+        <div class="flex items-center gap-3">
+          <span class="flex h-7 w-7 items-center justify-center rounded bg-orange-600 font-bold text-white text-xs">
+            IVY
+          </span>
+          <span class="text-slate-300 font-semibold tracking-tight">
+            IvyTicketing Marathon Platform
+          </span>
+          <span class="text-slate-600">|</span>
+          <span>Hak Cipta Terpelihara 2026</span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-4">
+          <a href="/events" class="hover:text-slate-300 transition-colors">Semua Event</a>
+          <a href="/admin/events" class="hover:text-orange-400 transition-colors">Admin Event</a>
+          <a href="/admin/payments" class="hover:text-orange-400 transition-colors">Admin Payments</a>
+          <a href="/status" class="hover:text-slate-300 transition-colors">Status Sistem</a>
+          <a href="/login" class="hover:text-slate-300 transition-colors">Login Akun</a>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Script Rendering, Live Synchronized Navbar & Themed Cards from Admin -->
+    <script>
+      import { getMarathonEvents, getHomepageConfig, syncHomepageConfigFromServer, syncMarathonEventsFromServer, type MarathonEvent, type HomepageConfig } from "../../lib/events-store";
+      import { esc } from "../../lib/safe";
+
+      const HOMEPAGE_CONFIG_STORAGE_KEY = "ivy_platform_homepage_config";
+
+      function getSavedConfig(): HomepageConfig {
+        return getHomepageConfig();
+      }
+
+      function hexToRgb(hex: string) {
+        if (!hex) return { r: 10, g: 17, b: 32 };
+        let clean = String(hex).replace("#", "").trim();
+        if (clean.length === 3) {
+          clean = clean.split("").map((c) => c + c).join("");
+        }
+        const num = parseInt(clean, 16);
+        if (isNaN(num)) return { r: 10, g: 17, b: 32 };
+        return {
+          r: (num >> 16) & 255,
+          g: (num >> 8) & 255,
+          b: num & 255,
+        };
+      }
+
+      function adjustHexBrightness(hex: string, percent: number) {
+        const { r, g, b } = hexToRgb(hex);
+        const adjust = (val: number) => Math.min(255, Math.max(0, Math.round(val + (val * percent) / 100)));
+        const nr = adjust(r).toString(16).padStart(2, "0");
+        const ng = adjust(g).toString(16).padStart(2, "0");
+        const nb = adjust(b).toString(16).padStart(2, "0");
+        return `#${nr}${ng}${nb}`;
+      }
+
+      // ── 1. Sinkronisasi Brand Navbar dengan Pengaturan Admin ──
+      function applyBrandConfig(brand: any) {
+        if (!brand) return;
+        const iconWrapper = document.getElementById("nav-brand-icon-wrapper");
+        const textWrapper = document.getElementById("nav-brand-text-wrapper");
+        const iconImg = document.getElementById("nav-brand-icon-img") as HTMLImageElement | null;
+        const titleEl = document.getElementById("nav-brand-title");
+        const tagEl = document.getElementById("nav-brand-tagline");
+
+        const mode = brand.displayMode || "icon_only";
+
+        if (iconWrapper && textWrapper) {
+          if (mode === "icon_only") {
+            iconWrapper.classList.remove("hidden");
+            textWrapper.classList.add("hidden");
+          } else if (mode === "text_only") {
+            iconWrapper.classList.add("hidden");
+            textWrapper.classList.remove("hidden");
+            textWrapper.classList.add("flex");
+          } else {
+            // both
+            iconWrapper.classList.remove("hidden");
+            textWrapper.classList.remove("hidden");
+            textWrapper.classList.add("flex");
+          }
+        }
+
+        if (iconImg && brand.customIconUrl) {
+          iconImg.src = brand.customIconUrl;
+        }
+
+        if (titleEl && brand.brandName) {
+          titleEl.innerHTML = brand.brandName.includes("Ivy")
+            ? brand.brandName.replace("Ivy", 'Ivy<span class="brand-accent-highlight theme-accent-text">') + "</span>"
+            : brand.brandName;
+        }
+        if (tagEl && brand.tagline) {
+          tagEl.textContent = brand.tagline;
+        }
+      }
+
+      // ── 2. Sinkronisasi Bentuk, Transparansi & Efek Navbar ──
+      function applyNavbarConfig(navCfg: any) {
+        const nav = document.getElementById("main-nav");
+        const specular = document.getElementById("main-nav-specular");
+        const inner = document.getElementById("main-nav-inner");
+        const mobileMenu = document.getElementById("mobile-menu");
+        const mainContent = document.getElementById("main-content");
+        if (!nav) return;
+
+        const isMobile = window.innerWidth < 1024;
+        const style = navCfg?.style || "full_width";
+        const op = navCfg.opacity !== undefined ? Number(navCfg.opacity) : 0.92;
+        const blurMap: Record<string, string> = { none: "none", sm: "blur(4px)", md: "blur(12px)", lg: "blur(20px)" };
+        const chosenBlur = blurMap[navCfg.blur || "md"] || "blur(12px)";
+        const showBorder = navCfg.showBorder !== false;
+        const isMenuOpen = mobileMenu && !mobileMenu.classList.contains("hidden");
+
+        const currentTheme = getSavedConfig().theme;
+        const bgRgb = hexToRgb(currentTheme?.bgColor || "#0a1120");
+        const navBg = `rgba(${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b}, ${op})`;
+        const navBgSolid = `rgba(${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b}, 0.98)`;
+
+        nav.style.position = "fixed";
+        nav.style.zIndex = "50";
+
+        if (style === "liquid_glass") {
+          nav.classList.add("glass");
+
+          const gBlur = navCfg.glassBlur !== undefined ? Number(navCfg.glassBlur) : 0;
+          const gSat = navCfg.glassSaturate !== undefined ? Number(navCfg.glassSaturate) : 1;
+          const gTint = navCfg.glassTint || "rgba(255, 255, 255, 0.255)";
+          const gRad = navCfg.glassRadius !== undefined ? Number(navCfg.glassRadius) : 48;
+
+          nav.style.setProperty("--glass-blur", `${gBlur}px`);
+          nav.style.setProperty("--glass-saturate", `${gSat}`);
+          nav.style.setProperty("--glass-tint", gTint);
+          nav.style.setProperty("--glass-radius", `${gRad}px`);
+
+          if (isMobile) {
+            nav.style.top = "12px";
+            nav.style.left = "50%";
+            nav.style.right = "auto";
+            nav.style.transform = "translateX(-50%)";
+            nav.style.width = "calc(100vw - 1.5rem)";
+            nav.style.maxWidth = "720px";
+            nav.style.minHeight = "64px";
+            nav.style.borderRadius = isMenuOpen ? "24px" : `${gRad}px`;
+            nav.style.overflow = "hidden";
+            nav.style.boxShadow = "0 12px 32px rgba(0, 0, 0, 0.35)";
+          } else {
+            nav.style.top = "16px";
+            nav.style.left = "50%";
+            nav.style.right = "auto";
+            nav.style.transform = "translateX(-50%)";
+            nav.style.width = "min(720px, calc(100vw - 2rem))";
+            nav.style.maxWidth = "720px";
+            nav.style.minHeight = "72px";
+            nav.style.borderRadius = `${gRad}px`;
+            nav.style.overflow = "hidden";
+            nav.style.boxShadow = "";
+          }
+
+          nav.style.border = "";
+          nav.style.borderBottom = "";
+          nav.style.backgroundColor = "";
+          nav.style.backdropFilter = "";
+
+          if (specular) specular.classList.remove("hidden");
+          if (inner) {
+            inner.style.maxWidth = "720px";
+            inner.style.padding = isMobile ? "0 16px" : "0 20px";
+            inner.style.height = isMobile ? "64px" : "72px";
+          }
+
+          if (mobileMenu) {
+            mobileMenu.style.backgroundColor = navBgSolid;
+            mobileMenu.style.borderTop = "1px solid rgba(255, 255, 255, 0.12)";
+            mobileMenu.style.borderBottom = "none";
+          }
+
+          if (mainContent) {
+            mainContent.style.paddingTop = isMobile ? "88px" : "104px";
+          }
+        } else if (style === "floating_compact") {
+          nav.classList.remove("glass");
+
+          if (isMobile) {
+            nav.style.top = "12px";
+            nav.style.left = "50%";
+            nav.style.right = "auto";
+            nav.style.transform = "translateX(-50%)";
+            nav.style.width = "calc(100vw - 1.5rem)";
+            nav.style.maxWidth = "1152px";
+            nav.style.minHeight = "64px";
+            nav.style.borderRadius = "16px";
+            nav.style.overflow = "hidden";
+          } else {
+            nav.style.top = "16px";
+            nav.style.left = "50%";
+            nav.style.right = "auto";
+            nav.style.transform = "translateX(-50%)";
+            nav.style.width = "min(1152px, calc(100vw - 2rem))";
+            nav.style.maxWidth = "1152px";
+            nav.style.minHeight = "64px";
+            nav.style.borderRadius = "16px";
+            nav.style.overflow = "hidden";
+          }
+
+          nav.style.backgroundColor = navBg;
+          nav.style.backdropFilter = chosenBlur;
+          (nav.style as any).webkitBackdropFilter = chosenBlur;
+          nav.style.border = showBorder ? "1px solid rgba(255, 255, 255, 0.12)" : "none";
+          nav.style.boxShadow = "0 8px 30px rgba(0, 0, 0, 0.3)";
+
+          if (specular) specular.classList.add("hidden");
+          if (inner) {
+            inner.style.maxWidth = "1152px";
+            inner.style.padding = isMobile ? "0 16px" : "0 16px";
+            inner.style.height = "64px";
+          }
+
+          if (mobileMenu) {
+            mobileMenu.style.backgroundColor = navBgSolid;
+            mobileMenu.style.borderTop = showBorder ? "1px solid rgba(255, 255, 255, 0.12)" : "none";
+            mobileMenu.style.borderBottom = "none";
+          }
+
+          if (mainContent) {
+            mainContent.style.paddingTop = isMobile ? "88px" : "96px";
+          }
+        } else {
+          // full_width
+          nav.classList.remove("glass");
+
+          nav.style.top = "0";
+          nav.style.left = "0";
+          nav.style.right = "0";
+          nav.style.transform = "none";
+          nav.style.width = "100%";
+          nav.style.maxWidth = "none";
+          nav.style.minHeight = "64px";
+          nav.style.borderRadius = "0";
+          nav.style.overflow = "hidden";
+          nav.style.backgroundColor = navBg;
+          nav.style.backdropFilter = chosenBlur;
+          (nav.style as any).webkitBackdropFilter = chosenBlur;
+          nav.style.border = "none";
+          nav.style.borderBottom = showBorder ? "1px solid rgba(255, 255, 255, 0.1)" : "none";
+          nav.style.boxShadow = "none";
+
+          if (specular) specular.classList.add("hidden");
+          if (inner) {
+            inner.style.maxWidth = "1280px";
+            inner.style.padding = isMobile ? "0 16px" : "0 24px";
+            inner.style.height = "64px";
+          }
+
+          if (mobileMenu) {
+            mobileMenu.style.backgroundColor = navBgSolid;
+            mobileMenu.style.borderTop = showBorder ? "1px solid rgba(255, 255, 255, 0.1)" : "none";
+            mobileMenu.style.borderBottom = "none";
+          }
+
+          if (mainContent) {
+            mainContent.style.paddingTop = "64px";
+          }
+        }
+
+        // Kontrol visibilitas Mobile Bottom Navbar vs Top Bar
+        const mobileNavType = navCfg?.mobileNavType || "bottom_nav";
+        const bottomNav = document.getElementById("mobile-bottom-nav");
+        const menuBtn = document.getElementById("mobile-menu-btn");
+
+        if (isMobile) {
+          if (mobileNavType === "bottom_nav") {
+            if (bottomNav) bottomNav.classList.remove("hidden");
+            if (menuBtn) menuBtn.classList.add("hidden");
+            if (mobileMenu) mobileMenu.classList.add("hidden");
+          } else {
+            if (bottomNav) bottomNav.classList.add("hidden");
+            if (menuBtn) menuBtn.classList.remove("hidden");
+          }
+        } else {
+          if (bottomNav) bottomNav.classList.add("hidden");
+          if (menuBtn) menuBtn.classList.add("hidden");
+          if (mobileMenu) mobileMenu.classList.add("hidden");
+        }
+      }
+
+      // ── 2b. Sinkronisasi Gaya Sudut Elemen (Kotak Tegas / Rounded / Pill) ──
+      function applyCornerConfig(cornerCfg: any) {
+        const cornerStyle = cornerCfg?.style || "square";
+        document.body.classList.remove("corner-square", "corner-rounded", "corner-pill");
+        document.body.classList.add(`corner-${cornerStyle}`);
+      }
+
+      // ── 3. Sinkronisasi Tema Global Website ──
+      function applyThemeConfig(themeCfg: any) {
+        if (!themeCfg) return;
+        const bg = themeCfg.bgColor || "#0a1120";
+        const surface = themeCfg.surfaceColor || "#101a2e";
+        const text = themeCfg.textColor || "#f8fafc";
+        const accent = themeCfg.accentColor || "#ea580c";
+        const accentHover = adjustHexBrightness(accent, -15);
+        const cardBg = adjustHexBrightness(surface, 12);
+
+        const bgRgb = hexToRgb(bg);
+        const surfaceRgb = hexToRgb(surface);
+        const cardRgb = hexToRgb(cardBg);
+        const accentRgb = hexToRgb(accent);
+
+        const root = document.documentElement;
+        root.style.setProperty("--color-bg-dark", bg);
+        root.style.setProperty("--color-bg-rgb", `${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b}`);
+        root.style.setProperty("--color-surface-dark", surface);
+        root.style.setProperty("--color-surface-rgb", `${surfaceRgb.r}, ${surfaceRgb.g}, ${surfaceRgb.b}`);
+        root.style.setProperty("--color-surface-card", cardBg);
+        root.style.setProperty("--color-surface-card-rgb", `${cardRgb.r}, ${cardRgb.g}, ${cardRgb.b}`);
+        root.style.setProperty("--color-accent", accent);
+        root.style.setProperty("--color-accent-rgb", `${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}`);
+        root.style.setProperty("--color-accent-hover", accentHover);
+        root.style.setProperty("--color-text", text);
+
+        document.body.style.backgroundColor = bg;
+        document.body.style.color = text;
+
+        // Update brand accent highlight
+        document.querySelectorAll(".brand-accent-highlight").forEach((el) => {
+          (el as HTMLElement).style.color = accent;
+        });
+
+        // Update active buttons & borders
+        document.querySelectorAll(".theme-accent-bg").forEach((el) => {
+          (el as HTMLElement).style.backgroundColor = accent;
+        });
+        document.querySelectorAll(".theme-accent-border").forEach((el) => {
+          (el as HTMLElement).style.borderColor = accent;
+        });
+
+        // Refresh control bar background
+        const controlBar = document.getElementById("catalog-control-bar");
+        if (controlBar) {
+          controlBar.style.backgroundColor = `rgba(${surfaceRgb.r}, ${surfaceRgb.g}, ${surfaceRgb.b}, 0.92)`;
+        }
+
+        // Refresh navbar color with new theme bg
+        const navCfg = getSavedConfig().navbar;
+        if (navCfg) {
+          applyNavbarConfig(navCfg);
+        }
+      }
+
+      // ── 4. Fitur Tambahan (Sport Filter Toggling) ──
+      function applyFeaturesConfig(features: any) {
+        const filterContainer = document.getElementById("homepage-sport-filter-container");
+        if (filterContainer) {
+          if (features && features.showSportFilter === false) {
+            filterContainer.classList.add("hidden");
+          } else {
+            filterContainer.classList.remove("hidden");
+          }
+        }
+      }
+
+      // ── 5. Inisialisasi Tampilan dari Config Admin ──
+      function initFromConfig() {
+        const cfg = getSavedConfig();
+        applyBrandConfig(cfg.brand);
+        applyNavbarConfig(cfg.navbar);
+        applyCornerConfig(cfg.corners);
+        applyThemeConfig(cfg.theme);
+        applyFeaturesConfig(cfg.features);
+      }
+
+      // ── 6. Mobile Menu Toggle & Dynamic Radius ──
+      function updateNavRadiusForMenu(isOpen: boolean) {
+        const nav = document.getElementById("main-nav");
+        if (!nav) return;
+        const cfg = getSavedConfig();
+        const style = cfg.navbar?.style || "full_width";
+        const isMobile = window.innerWidth < 1024;
+        if (style === "liquid_glass") {
+          const gRad = cfg.navbar?.glassRadius !== undefined ? Number(cfg.navbar.glassRadius) : 48;
+          nav.style.borderRadius = (isOpen && isMobile) ? "24px" : `${gRad}px`;
+        } else if (style === "floating_compact") {
+          nav.style.borderRadius = "16px";
+        } else {
+          nav.style.borderRadius = "0";
+        }
+      }
+
+      const menuBtn = document.getElementById("mobile-menu-btn");
+      const mobileMenu = document.getElementById("mobile-menu");
+      const iconOpen = document.getElementById("menu-icon-open");
+      const iconClose = document.getElementById("menu-icon-close");
+
+      if (menuBtn && mobileMenu) {
+        menuBtn.addEventListener("click", () => {
+          const isOpen = !mobileMenu.classList.contains("hidden");
+          if (isOpen) {
+            mobileMenu.classList.add("hidden");
+            menuBtn.setAttribute("aria-expanded", "false");
+            iconOpen?.classList.remove("hidden");
+            iconClose?.classList.add("hidden");
+            updateNavRadiusForMenu(false);
+          } else {
+            mobileMenu.classList.remove("hidden");
+            menuBtn.setAttribute("aria-expanded", "true");
+            iconOpen?.classList.add("hidden");
+            iconClose?.classList.remove("hidden");
+            updateNavRadiusForMenu(true);
+          }
+        });
+
+        document.querySelectorAll(".mobile-nav-link").forEach((link) => {
+          link.addEventListener("click", () => {
+            mobileMenu.classList.add("hidden");
+            menuBtn.setAttribute("aria-expanded", "false");
+            iconOpen?.classList.remove("hidden");
+            iconClose?.classList.add("hidden");
+            updateNavRadiusForMenu(false);
+          });
+        });
+
+        document.addEventListener("click", (e) => {
+          if (!mobileMenu.classList.contains("hidden")) {
+            const nav = document.getElementById("main-nav");
+            if (nav && !nav.contains(e.target as Node)) {
+              mobileMenu.classList.add("hidden");
+              menuBtn.setAttribute("aria-expanded", "false");
+              iconOpen?.classList.remove("hidden");
+              iconClose?.classList.add("hidden");
+              updateNavRadiusForMenu(false);
+            }
+          }
+        });
+      }
+
+      // ── 7. Listener Live Event dari Admin ──
+      window.addEventListener("ivy:homepage_config_changed", (ev: any) => {
+        if (ev.detail) {
+          applyBrandConfig(ev.detail.brand);
+          applyNavbarConfig(ev.detail.navbar);
+          applyCornerConfig(ev.detail.corners);
+          applyThemeConfig(ev.detail.theme);
+          applyFeaturesConfig(ev.detail.features);
+        }
+      });
+
+      window.addEventListener("storage", (e) => {
+        if (e.key === HOMEPAGE_CONFIG_STORAGE_KEY) {
+          initFromConfig();
+        }
+      });
+
+      window.addEventListener("resize", () => {
+        const cfg = getSavedConfig();
+        applyNavbarConfig(cfg.navbar);
+      });
+
+      // ── 8. Logika Filter & Rendering Kartu Event ──
+      interface EventCardTheme {
+        badgeLabel: string;
+        badgeBg: string;
+        badgeText: string;
+        primaryColor: string;
+        primaryText: string;
+        subText: string;
+        accentBorder: string;
+      }
+
+      function getEventCardTheme(ev: MarathonEvent): EventCardTheme {
+        const tId = ev.layoutConfig?.templateId || "template-summarecon";
+        const navCfg = ev.layoutConfig?.navbarConfig;
+
+        if (tId === "template-baa" || ev.id.includes("baa") || ev.id.includes("boston")) {
+          return {
+            badgeLabel: navCfg?.brandBadgeText || "BAA",
+            badgeBg: navCfg?.brandBadgeBg || "#fdda24",
+            badgeText: navCfg?.brandBadgeColor || "#00172e",
+            primaryColor: "#fdda24",
+            primaryText: "#00172e",
+            subText: "World Marathon Major",
+            accentBorder: "#fdda24",
+          };
+        }
+        if (tId === "template-tokyo" || ev.id.includes("tokyo")) {
+          return {
+            badgeLabel: navCfg?.brandBadgeText || "TKY",
+            badgeBg: navCfg?.brandBadgeBg || "#dc2626",
+            badgeText: navCfg?.brandBadgeColor || "#ffffff",
+            primaryColor: "#dc2626",
+            primaryText: "#ffffff",
+            subText: "Tokyo Marathon Major",
+            accentBorder: "#dc2626",
+          };
+        }
+        if (tId === "template-ironman" || ev.id.includes("ironman") || ev.id.includes("triathlon")) {
+          return {
+            badgeLabel: navCfg?.brandBadgeText || "IM",
+            badgeBg: navCfg?.brandBadgeBg || "#e11d48",
+            badgeText: navCfg?.brandBadgeColor || "#ffffff",
+            primaryColor: "#e11d48",
+            primaryText: "#ffffff",
+            subText: "IRONMAN Triathlon Series",
+            accentBorder: "#e11d48",
+          };
+        }
+        if (tId === "template-berlin" || ev.id.includes("berlin")) {
+          return {
+            badgeLabel: navCfg?.brandBadgeText || "BER",
+            badgeBg: navCfg?.brandBadgeBg || "#0284c7",
+            badgeText: navCfg?.brandBadgeColor || "#ffffff",
+            primaryColor: "#0284c7",
+            primaryText: "#ffffff",
+            subText: "World Record Track",
+            accentBorder: "#0284c7",
+          };
+        }
+        if (tId === "template-borobudur" || ev.id.includes("borobudur")) {
+          return {
+            badgeLabel: navCfg?.brandBadgeText || "BRB",
+            badgeBg: navCfg?.brandBadgeBg || "#d97706",
+            badgeText: navCfg?.brandBadgeColor || "#000000",
+            primaryColor: "#d97706",
+            primaryText: "#000000",
+            subText: "Borobudur Heritage",
+            accentBorder: "#d97706",
+          };
+        }
+        if (tId === "template-sydney" || ev.id.includes("sydney")) {
+          return {
+            badgeLabel: navCfg?.brandBadgeText || "SYD",
+            badgeBg: navCfg?.brandBadgeBg || "#0ea5e9",
+            badgeText: navCfg?.brandBadgeColor || "#ffffff",
+            primaryColor: "#0ea5e9",
+            primaryText: "#ffffff",
+            subText: "Sydney Harbour Major",
+            accentBorder: "#0ea5e9",
+          };
+        }
+        if (tId === "template-bangkok" || ev.id.includes("bangkok") || ev.id.includes("bkk")) {
+          return {
+            badgeLabel: navCfg?.brandBadgeText || "BKK",
+            badgeBg: navCfg?.brandBadgeBg || "#f97316",
+            badgeText: navCfg?.brandBadgeColor || "#000000",
+            primaryColor: "#f97316",
+            primaryText: "#ffffff",
+            subText: "Midnight Marathon",
+            accentBorder: "#f97316",
+          };
+        }
+        // default / summarecon
+        return {
+          badgeLabel: navCfg?.brandBadgeText || "SMR",
+          badgeBg: navCfg?.brandBadgeBg || "#8b5cf6",
+          badgeText: navCfg?.brandBadgeColor || "#ffffff",
+          primaryColor: "#8b5cf6",
+          primaryText: "#ffffff",
+          subText: "Night Run Festival",
+          accentBorder: "#8b5cf6",
+        };
+      }
+
+      const grid = document.getElementById("events-grid")!;
+      const emptyState = document.getElementById("empty-state")!;
+      const searchInput = document.getElementById("search-input") as HTMLInputElement;
+      const countBadge = document.getElementById("event-count-badge")!;
+      const sportBtns = document.querySelectorAll(".sport-btn");
+      const modeBtns = document.querySelectorAll(".mode-btn");
+      const distChips = document.querySelectorAll(".dist-chip");
+      const resetBtn = document.getElementById("btn-reset-filters");
+      const emptyResetBtn = document.getElementById("empty-reset-btn");
+
+      let currentSport = "all";
+      let currentMode = "ALL";
+      let currentDist = "ALL";
+      let currentQuery = "";
+
+      function formatDate(iso: string) {
+        try {
+          return new Date(iso).toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          });
+        } catch {
+          return iso;
+        }
+      }
+
+      function getModeBadge(event: MarathonEvent) {
+        const hasWar = event.categories.some((c) => c.mode === "WAR_QUEUE");
+        const hasBallot = event.categories.some((c) => c.mode === "BALLOT");
+
+        if (hasBallot) {
+          return {
+            label: "Sistem Ballot",
+            classes: "bg-purple-950/80 text-purple-300 border-purple-500/40",
+            dot: "bg-purple-400",
+          };
+        }
+        if (hasWar) {
+          return {
+            label: "War Ticket",
+            classes: "bg-amber-950/80 text-amber-300 border-amber-500/40",
+            dot: "bg-amber-400",
+          };
+        }
+        return {
+          label: "Pendaftaran Buka",
+          classes: "bg-emerald-950/80 text-emerald-300 border-emerald-500/40",
+          dot: "bg-emerald-400",
+        };
+      }
+
+      function renderCard(ev: MarathonEvent) {
+        const theme = getEventCardTheme(ev);
+        const badge = getModeBadge(ev);
+        const minPrice = Math.min(...ev.categories.map((c) => c.earlyBirdPrice ?? c.price));
+        const totalQuota = ev.categories.reduce((acc, c) => acc + (c.quota || 0), 0);
+        const totalRegistered = ev.categories.reduce((acc, c) => acc + (c.registeredCount || 0), 0);
+        const percentFilled = totalQuota > 0 ? Math.min(100, Math.round((totalRegistered / totalQuota) * 100)) : 0;
+
+        const isBallot = ev.categories.some((c) => c.mode === "BALLOT");
+        const isWar = ev.categories.some((c) => c.mode === "WAR_QUEUE");
+        const qCfg = ev.layoutConfig?.queueConfig;
+        const queueMode = qCfg?.mode || "auto";
+        const trafficThreshold = qCfg?.trafficThreshold ?? 50;
+        const activeWaiting = qCfg?.activeWaitingCount ?? 0;
+        const isQueueActive = isWar && (
+          queueMode === "always_queue" ||
+          (queueMode === "auto" && activeWaiting >= trafficThreshold)
+        );
+
+        let actionHref = `/events/${encodeURIComponent(ev.id)}/checkout`;
+        let actionLabel = "Daftar Tiket";
+
+        if (isQueueActive) {
+          actionHref = `/events/${encodeURIComponent(ev.id)}/queue`;
+          actionLabel = "Masuk Antrean War";
+        } else if (isBallot) {
+          actionHref = `/events/${encodeURIComponent(ev.id)}/ballot`;
+          actionLabel = "Ikut Ballot";
+        } else if (isWar) {
+          actionHref = `/events/${encodeURIComponent(ev.id)}/checkout`;
+          actionLabel = "Daftar Tiket War";
+        }
+
+        return `
+          <article class="group overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/90 shadow-lg transition-all duration-300 hover:border-slate-700 hover:shadow-2xl flex flex-col justify-between">
+            <div>
+              <!-- Banner Image with Template Badge & Chips -->
+              <div class="relative h-44 sm:h-48 w-full overflow-hidden bg-slate-950">
+                <img
+                  src="${esc(ev.bannerUrl || ev.coverUrl || '/images/events/hero_marathon.jpg')}"
+                  alt="${esc(ev.name)}"
+                  class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  loading="lazy"
+                />
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+
+                <!-- Top Left: Authentic Template Brand Badge -->
+                <div class="absolute top-3 left-3 flex items-center gap-1.5 shadow-sm">
+                  <span
+                    class="px-2.5 py-1 rounded-md text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-xs"
+                    style="background-color: ${theme.badgeBg}; color: ${theme.badgeText};"
+                  >
+                    ${esc(theme.badgeLabel)}
+                  </span>
+                </div>
+
+                <!-- Top Right: Registration Mode Status Pill -->
+                <div class="absolute top-3 right-3 flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md ${badge.classes}">
+                  <span class="h-1.5 w-1.5 rounded-full ${badge.dot} animate-pulse"></span>
+                  <span>${badge.label}</span>
+                </div>
+
+                <!-- Bottom Banner Tags -->
+                <div class="absolute bottom-2.5 left-3 right-3 flex flex-wrap gap-1">
+                  ${ev.categories
+                    .slice(0, 3)
+                    .map(
+                      (c) => `
+                    <span class="rounded bg-slate-950/85 border border-slate-700/70 px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-200 backdrop-blur-xs">
+                      ${esc(c.distance || c.code)}
+                    </span>
+                  `
+                    )
+                    .join("")}
+                  ${ev.categories.length > 3 ? `<span class="rounded bg-slate-950/85 border border-slate-700/70 px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-400">+${ev.categories.length - 3}</span>` : ""}
+                </div>
+              </div>
+
+              <!-- Content Area -->
+              <div class="p-4 sm:p-5 space-y-3">
+                <!-- Location & Date Ribbon -->
+                <div class="flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                  <span class="truncate max-w-[160px]">📍 ${esc(ev.city)}, ${esc(ev.country || "Indonesia")}</span>
+                  <span class="shrink-0 font-mono">📅 ${formatDate(ev.startsAt)}</span>
+                </div>
+
+                <!-- Event Title -->
+                <div>
+                  <h2 class="font-display text-base sm:text-lg font-bold uppercase text-white group-hover:text-orange-400 transition-colors line-clamp-1 leading-snug">
+                    <a href="/events/${encodeURIComponent(ev.id)}">
+                      ${esc(ev.name)}
+                    </a>
+                  </h2>
+                  <p class="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                    ${esc(ev.description || "Ajang olahraga prestisius dengan sertifikasi resmi dan pencatatan waktu berakurasi tinggi.")}
+                  </p>
+                </div>
+
+                <!-- Race Metadata Grid -->
+                <div class="grid grid-cols-2 gap-2 text-[11px] border-y border-slate-800/80 py-2.5 text-slate-300">
+                  <div class="flex items-center gap-1.5 truncate">
+                    <span class="text-slate-500">Flag-Off:</span>
+                    <strong class="font-mono text-slate-200">${esc(ev.flagOffTime || "05:00 WIB")}</strong>
+                  </div>
+                  <div class="flex items-center gap-1.5 truncate">
+                    <span class="text-slate-500">Elevasi:</span>
+                    <strong class="font-mono text-slate-200">${esc(ev.elevationGain || "+120m")}</strong>
+                  </div>
+                </div>
+
+                <!-- Quota Fill Progress Bar -->
+                <div class="space-y-1">
+                  <div class="flex justify-between text-[10px] font-semibold">
+                    <span class="text-slate-400">Kuota Terdaftar</span>
+                    <span class="text-slate-300 font-mono">${percentFilled}% (${totalRegistered.toLocaleString("id-ID")} / ${totalQuota.toLocaleString("id-ID")})</span>
+                  </div>
+                  <div class="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+                    <div class="h-full rounded-full ${percentFilled > 85 ? "bg-amber-500" : "bg-emerald-500"} transition-all duration-500" style="width: ${percentFilled}%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card Bottom Action Bar -->
+            <div class="p-4 sm:p-5 pt-0">
+              <div class="flex items-center justify-between gap-3 border-t border-slate-800/80 pt-3">
+                <div>
+                  <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Mulai Dari</span>
+                  <span class="text-sm sm:text-base font-bold text-white font-mono">
+                    ${minPrice === 0 ? "Rp 0 (Ballot)" : `Rp ${minPrice.toLocaleString("id-ID")}`}
+                  </span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <a
+                    href="/events/${encodeURIComponent(ev.id)}"
+                    class="min-h-[44px] inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                  >
+                    Detail Rute
+                  </a>
+                  <a
+                    href="${actionHref}"
+                    class="min-h-[44px] inline-flex items-center justify-center rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all shadow-md"
+                    style="background-color: ${theme.primaryColor}; color: ${theme.primaryText};"
+                  >
+                    ${actionLabel}
+                  </a>
+                </div>
+              </div>
+            </div>
+          </article>
+        `;
+      }
+
+      function updateView() {
+        const events = getMarathonEvents();
+        const query = currentQuery.toLowerCase().trim();
+
+        const filtered = events.filter((ev) => {
+          // Search filter
+          if (query) {
+            const inName = ev.name.toLowerCase().includes(query);
+            const inCity = ev.city.toLowerCase().includes(query);
+            const inVenue = (ev.venueName || "").toLowerCase().includes(query);
+            const inDesc = (ev.description || "").toLowerCase().includes(query);
+            const inOrg = (ev.organizer || "").toLowerCase().includes(query);
+            if (!inName && !inCity && !inVenue && !inDesc && !inOrg) return false;
+          }
+
+          // Sport discipline filter
+          if (currentSport !== "all") {
+            if (currentSport === "triathlon") {
+              const isTri = ev.eventType === "TRIATHLON" || ev.id.includes("ironman") || ev.categories.some((c) => c.distance.toLowerCase().includes("swim") || c.code.toLowerCase().includes("tri"));
+              if (!isTri) return false;
+            } else if (currentSport === "cycling") {
+              const isBike = ev.eventType === "CYCLING" || ev.id.includes("bike") || ev.name.toLowerCase().includes("bike") || ev.categories.some((c) => c.name.toLowerCase().includes("bike") || c.distance.toLowerCase().includes("bike"));
+              if (!isBike) return false;
+            } else if (currentSport === "trail") {
+              const isTrail = ev.eventType === "TRAIL_RUN" || ev.id.includes("trail") || ev.name.toLowerCase().includes("trail") || ev.categories.some((c) => c.name.toLowerCase().includes("trail"));
+              if (!isTrail) return false;
+            } else if (currentSport === "swimming") {
+              const isSwim = ev.eventType === "SWIMMING" || ev.categories.some((c) => c.distance.toLowerCase().includes("swim"));
+              if (!isSwim) return false;
+            } else if (currentSport === "running") {
+              const isRun = ev.eventType === "MARATHON" || ev.eventType === "ROAD_RACE" || ev.id.includes("marathon") || ev.id.includes("run");
+              if (!isRun) return false;
+            }
+          }
+
+          // Mode filter
+          if (currentMode !== "ALL") {
+            const hasMode = ev.categories.some((c) => c.mode === currentMode);
+            if (!hasMode) return false;
+          }
+
+          // Distance filter
+          if (currentDist !== "ALL") {
+            const hasDist = ev.categories.some((c) => {
+              const d = (c.distance || c.code || "").toUpperCase();
+              if (currentDist === "42K") return d.includes("42") || d.includes("FM");
+              if (currentDist === "21K") return d.includes("21") || d.includes("HM");
+              if (currentDist === "10K") return d.includes("10");
+              if (currentDist === "5K") return d.includes("5") || d.includes("KIDS");
+              if (currentDist === "TRI") return d.includes("70.3") || d.includes("140.6") || ev.eventType === "TRIATHLON";
+              return false;
+            });
+            if (!hasDist) return false;
+          }
+
+          return true;
+        });
+
+        countBadge.textContent = `Menampilkan ${filtered.length} dari ${events.length} Event Resmi`;
+
+        if (filtered.length === 0) {
+          grid.innerHTML = "";
+          emptyState.classList.remove("hidden");
+        } else {
+          emptyState.classList.add("hidden");
+          grid.innerHTML = filtered.map(renderCard).join("");
+        }
+      }
+
+      // Sports filter buttons listener
+      sportBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          sportBtns.forEach((b) => {
+            b.className = "sport-btn min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-slate-700/80 bg-slate-800/70 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:border-slate-500 hover:text-white transition-all cursor-pointer";
+          });
+          btn.className = "sport-btn active min-h-[44px] shrink-0 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-all bg-orange-600 text-white cursor-pointer";
+          currentSport = btn.getAttribute("data-sport") || "all";
+          updateView();
+        });
+      });
+
+      // Mode filter tabs listener
+      modeBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          modeBtns.forEach((b) => {
+            b.className = "mode-btn min-h-[38px] rounded-lg border border-slate-700/70 bg-slate-800/60 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white transition-all cursor-pointer shrink-0";
+          });
+          btn.className = "mode-btn active min-h-[38px] rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-wider transition-all bg-slate-100 text-slate-950 cursor-pointer shrink-0";
+          currentMode = btn.getAttribute("data-mode") || "ALL";
+          updateView();
+        });
+      });
+
+      // Distance chip listener
+      distChips.forEach((chip) => {
+        chip.addEventListener("click", () => {
+          distChips.forEach((c) => {
+            c.className = "dist-chip min-h-[36px] rounded-md border border-slate-700 bg-slate-800/70 px-2.5 py-0.5 text-xs font-medium text-slate-300 hover:border-slate-500 hover:text-white transition-colors cursor-pointer";
+          });
+          chip.className = "dist-chip active min-h-[36px] rounded-md border border-orange-500 bg-orange-500/20 px-2.5 py-0.5 text-xs font-bold text-orange-300 cursor-pointer";
+          currentDist = chip.getAttribute("data-dist") || "ALL";
+          updateView();
+        });
+      });
+
+      // Search input listener
+      searchInput.addEventListener("input", (e) => {
+        currentQuery = (e.target as HTMLInputElement).value;
+        updateView();
+      });
+
+      // Reset filters handler
+      function resetFilters() {
+        currentSport = "all";
+        currentMode = "ALL";
+        currentDist = "ALL";
+        currentQuery = "";
+        searchInput.value = "";
+
+        sportBtns.forEach((b, i) => {
+          b.className = i === 0
+            ? "sport-btn active min-h-[44px] shrink-0 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-all bg-orange-600 text-white cursor-pointer"
+            : "sport-btn min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-slate-700/80 bg-slate-800/70 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:border-slate-500 hover:text-white transition-all cursor-pointer";
+        });
+
+        modeBtns.forEach((b, i) => {
+          b.className = i === 0
+            ? "mode-btn active min-h-[38px] rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-wider transition-all bg-slate-100 text-slate-950 cursor-pointer shrink-0"
+            : "mode-btn min-h-[38px] rounded-lg border border-slate-700/70 bg-slate-800/60 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white transition-all cursor-pointer shrink-0";
+        });
+
+        distChips.forEach((c, i) => {
+          c.className = i === 0
+            ? "dist-chip active min-h-[36px] rounded-md border border-orange-500 bg-orange-500/20 px-2.5 py-0.5 text-xs font-bold text-orange-300 cursor-pointer"
+            : "dist-chip min-h-[36px] rounded-md border border-slate-700 bg-slate-800/70 px-2.5 py-0.5 text-xs font-medium text-slate-300 hover:border-slate-500 hover:text-white transition-colors cursor-pointer";
+        });
+
+        updateView();
+      }
+
+      resetBtn?.addEventListener("click", resetFilters);
+      emptyResetBtn?.addEventListener("click", resetFilters);
+
+      // Listen to admin event modifications
+      window.addEventListener("ivy:events_changed", () => {
+        initFromConfig();
+        updateView();
+      });
+
+      // Initial execution
+      initFromConfig();
+      updateView();
+      syncHomepageConfigFromServer().then(() => {
+        initFromConfig();
+        updateView();
+      }).catch(() => {});
+      syncMarathonEventsFromServer().then(() => {
+        updateView();
+      }).catch(() => {});
+    </script>
+  </body>
+</html>

@@ -91,9 +91,89 @@ func (s *Service) CreateDraw(ctx context.Context, orgID, eventID, categoryID, cr
 	})
 }
 
-func (s *Service) OpenDraw(ctx context.Context, drawID, _ uuid.UUID) error {
+func toBallotDrawDTO(d db.BallotDraw) BallotDrawDTO {
+	dto := BallotDrawDTO{
+		ID:                  d.ID.String(),
+		OrganizationID:      d.OrganizationID.String(),
+		EventID:             d.EventID.String(),
+		CategoryID:          d.CategoryID.String(),
+		Status:              d.Status,
+		Quota:               d.Quota,
+		WaitlistSize:        d.WaitlistSize.Int32,
+		PaymentWindowHours:  d.PaymentWindowHours,
+		ApplicationOpensAt:  d.ApplicationOpensAt.Time,
+		ApplicationClosesAt: d.ApplicationClosesAt.Time,
+	}
+	if d.Seed.Valid {
+		s := d.Seed.String
+		dto.Seed = &s
+	}
+	if d.DrawAt.Valid {
+		t := d.DrawAt.Time
+		dto.DrawAt = &t
+	}
+	if d.AnnouncedAt.Valid {
+		t := d.AnnouncedAt.Time
+		dto.AnnouncedAt = &t
+	}
+	return dto
+}
+
+func assertDrawOrg(draw db.BallotDraw, orgIDs ...uuid.UUID) error {
+	if len(orgIDs) > 0 && orgIDs[0] != uuid.Nil {
+		if draw.OrganizationID != orgIDs[0] {
+			return ErrDrawNotFound
+		}
+	}
+	return nil
+}
+
+func (s *Service) GetDraw(ctx context.Context, drawID uuid.UUID, orgIDs ...uuid.UUID) (BallotDrawDTO, error) {
 	draw, err := s.repo.GetBallotDraw(ctx, drawID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return BallotDrawDTO{}, ErrDrawNotFound
+		}
+		return BallotDrawDTO{}, err
+	}
+	if err := assertDrawOrg(draw, orgIDs...); err != nil {
+		return BallotDrawDTO{}, err
+	}
+	return toBallotDrawDTO(draw), nil
+}
+
+func (s *Service) GetActiveDrawByCategory(ctx context.Context, eventID, categoryID uuid.UUID) (BallotDrawDTO, error) {
+	draw, err := s.repo.GetActiveBallotDrawByCategory(ctx, db.GetActiveBallotDrawByCategoryParams{
+		EventID:    eventID,
+		CategoryID: categoryID,
+	})
+	if err != nil {
+		return BallotDrawDTO{}, err
+	}
+	return toBallotDrawDTO(draw), nil
+}
+
+func (s *Service) ListDrawsByEvent(ctx context.Context, eventID uuid.UUID) ([]BallotDrawDTO, error) {
+	draws, err := s.repo.ListBallotDrawsByEvent(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+	dtos := make([]BallotDrawDTO, len(draws))
+	for i, d := range draws {
+		dtos[i] = toBallotDrawDTO(d)
+	}
+	return dtos, nil
+}
+
+func (s *Service) OpenDraw(ctx context.Context, drawID, _ uuid.UUID, orgIDs ...uuid.UUID) error {
+	draw, err := s.repo.GetBallotDraw(ctx, drawID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrDrawNotFound
+		}
+		return err
+	}
+	if err := assertDrawOrg(draw, orgIDs...); err != nil {
 		return err
 	}
 	if draw.Status != DrawStatusPending {
@@ -103,9 +183,15 @@ func (s *Service) OpenDraw(ctx context.Context, drawID, _ uuid.UUID) error {
 	return err
 }
 
-func (s *Service) CloseDraw(ctx context.Context, drawID, _ uuid.UUID) error {
+func (s *Service) CloseDraw(ctx context.Context, drawID, _ uuid.UUID, orgIDs ...uuid.UUID) error {
 	draw, err := s.repo.GetBallotDraw(ctx, drawID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrDrawNotFound
+		}
+		return err
+	}
+	if err := assertDrawOrg(draw, orgIDs...); err != nil {
 		return err
 	}
 	if draw.Status != DrawStatusOpen {
@@ -115,9 +201,15 @@ func (s *Service) CloseDraw(ctx context.Context, drawID, _ uuid.UUID) error {
 	return err
 }
 
-func (s *Service) RunDraw(ctx context.Context, drawID, actorID uuid.UUID) error {
+func (s *Service) RunDraw(ctx context.Context, drawID, actorID uuid.UUID, orgIDs ...uuid.UUID) error {
 	draw, err := s.repo.GetBallotDraw(ctx, drawID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrDrawNotFound
+		}
+		return err
+	}
+	if err := assertDrawOrg(draw, orgIDs...); err != nil {
 		return err
 	}
 	if draw.Status != DrawStatusClosed {
@@ -234,9 +326,15 @@ func (s *Service) RunDraw(ctx context.Context, drawID, actorID uuid.UUID) error 
 	return err
 }
 
-func (s *Service) AnnounceDraw(ctx context.Context, drawID, _ uuid.UUID) error {
+func (s *Service) AnnounceDraw(ctx context.Context, drawID, _ uuid.UUID, orgIDs ...uuid.UUID) error {
 	draw, err := s.repo.GetBallotDraw(ctx, drawID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrDrawNotFound
+		}
+		return err
+	}
+	if err := assertDrawOrg(draw, orgIDs...); err != nil {
 		return err
 	}
 	if draw.Status != DrawStatusDrawn {
@@ -289,11 +387,35 @@ func (s *Service) AnnounceDraw(ctx context.Context, drawID, _ uuid.UUID) error {
 	return err
 }
 
-func (s *Service) ListResults(ctx context.Context, drawID uuid.UUID, limit, offset int32) ([]db.ListBallotDrawResultsRow, error) {
+func (s *Service) ListResults(ctx context.Context, drawID uuid.UUID, limit, offset int32, orgIDs ...uuid.UUID) ([]db.ListBallotDrawResultsRow, error) {
+	if len(orgIDs) > 0 && orgIDs[0] != uuid.Nil {
+		draw, err := s.repo.GetBallotDraw(ctx, drawID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, ErrDrawNotFound
+			}
+			return nil, err
+		}
+		if err := assertDrawOrg(draw, orgIDs...); err != nil {
+			return nil, err
+		}
+	}
 	return s.repo.ListBallotDrawResults(ctx, db.ListBallotDrawResultsParams{DrawID: drawID, Limit: limit, Offset: offset})
 }
 
-func (s *Service) ExportResultsCSV(ctx context.Context, drawID uuid.UUID) ([]byte, error) {
+func (s *Service) ExportResultsCSV(ctx context.Context, drawID uuid.UUID, orgIDs ...uuid.UUID) ([]byte, error) {
+	if len(orgIDs) > 0 && orgIDs[0] != uuid.Nil {
+		draw, err := s.repo.GetBallotDraw(ctx, drawID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, ErrDrawNotFound
+			}
+			return nil, err
+		}
+		if err := assertDrawOrg(draw, orgIDs...); err != nil {
+			return nil, err
+		}
+	}
 	rows, err := s.repo.ListAllDrawResults(ctx, drawID)
 	if err != nil {
 		return nil, err
@@ -314,7 +436,19 @@ func (s *Service) ExportResultsCSV(ctx context.Context, drawID uuid.UUID) ([]byt
 	return buf.Bytes(), nil
 }
 
-func (s *Service) PromoteWaitlist(_ context.Context, _ uuid.UUID) error {
+func (s *Service) PromoteWaitlist(ctx context.Context, drawID, actorID uuid.UUID, orgIDs ...uuid.UUID) error {
+	if len(orgIDs) > 0 && orgIDs[0] != uuid.Nil {
+		draw, err := s.repo.GetBallotDraw(ctx, drawID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrDrawNotFound
+			}
+			return err
+		}
+		if err := assertDrawOrg(draw, orgIDs...); err != nil {
+			return err
+		}
+	}
 	// waitlist integration wired in server.go via WinnerExpirer
 	return nil
 }
@@ -330,7 +464,7 @@ func (s *Service) CheckBallotAdmission(ctx context.Context, participantID, categ
 }
 
 // Apply enters a participant into an open ballot draw.
-// Returns ErrBallotClosed if the draw is not OPEN.
+// Returns ErrBallotClosed if the draw is not OPEN or outside application window.
 // Returns ErrAlreadyApplied if the participant already has an entry in this draw.
 func (s *Service) Apply(ctx context.Context, participantID, eventID, categoryID, drawID uuid.UUID) (db.BallotEntry, error) {
 	draw, err := s.repo.GetBallotDraw(ctx, drawID)
@@ -341,6 +475,13 @@ func (s *Service) Apply(ctx context.Context, participantID, eventID, categoryID,
 		return db.BallotEntry{}, ErrBallotClosed
 	}
 	if draw.CategoryID != categoryID || draw.EventID != eventID {
+		return db.BallotEntry{}, ErrBallotClosed
+	}
+	now := time.Now()
+	if draw.ApplicationOpensAt.Valid && now.Before(draw.ApplicationOpensAt.Time) {
+		return db.BallotEntry{}, ErrBallotClosed
+	}
+	if draw.ApplicationClosesAt.Valid && now.After(draw.ApplicationClosesAt.Time) {
 		return db.BallotEntry{}, ErrBallotClosed
 	}
 	// Check for duplicate entry

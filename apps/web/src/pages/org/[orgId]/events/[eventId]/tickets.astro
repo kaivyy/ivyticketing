@@ -3,7 +3,7 @@ export const prerender = false;
 import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
 const { orgId, eventId } = Astro.params;
 ---
-<OrganizerLayout title="Tiket & BIB — ivyticketing">
+<OrganizerLayout title="Tiket & BIB - ivyticketing">
   <div id="tickets" data-org-id={orgId} data-event-id={eventId} class="rounded-lg border border-slate-200 bg-white p-6">
     <p class="text-slate-500">Memuat data tiket…</p>
   </div>
@@ -169,7 +169,7 @@ const { orgId, eventId } = Astro.params;
                     ${tickets.map((t) => `
                       <tr class="border-b border-slate-100" data-ticket-id="${esc(t.id)}">
                         <td class="py-2 pr-3 font-mono">
-                          ${t.bibNumber ? `<span class="font-bold">${esc(t.bibNumber)}</span>${methodBadge(t.bibAssignmentMethod)}` : '<span class="text-slate-400">—</span>'}
+                          ${t.bibNumber ? `<span class="font-bold">${esc(t.bibNumber)}</span>${methodBadge(t.bibAssignmentMethod)}` : '<span class="text-slate-400">-</span>'}
                         </td>
                         <td class="py-2 pr-3 font-mono text-xs">${esc(t.ticketNumber)}</td>
                         <td class="py-2 pr-3">${esc(t.holderName)}</td>

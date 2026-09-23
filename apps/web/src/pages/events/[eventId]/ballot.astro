@@ -6,12 +6,153 @@ import BallotStatus from "../../../components/ballot/BallotStatus.astro";
 const { eventId } = Astro.params;
 const categoryId = Astro.url.searchParams.get("categoryId") || Astro.url.searchParams.get("category") || "";
 const drawId = Astro.url.searchParams.get("draw") ?? "";
+const orgSlug = Astro.url.searchParams.get("orgSlug") || "";
+const eventSlug = Astro.url.searchParams.get("eventSlug") || "";
 ---
-<ParticipantLayout title="Status Ballot">
-  <div class="max-w-md mx-auto mt-12 px-4">
-    <h1 class="text-xl font-bold mb-6 text-center">Status Ballot</h1>
-    {eventId && categoryId
-      ? <BallotStatus eventId={eventId} categoryId={categoryId} drawId={drawId} />
-      : <p class="text-center text-red-600">Parameter tidak lengkap.</p>}
+<ParticipantLayout title="Undian Slot Resmi (Ballot) | ivyticketing">
+  <div class="max-w-4xl mx-auto mt-8 mb-20 px-4">
+    <!-- Breadcrumbs -->
+    <div class="mb-6">
+      <a
+        href={`/events/${eventId}${orgSlug && eventSlug ? `?orgSlug=${encodeURIComponent(orgSlug)}&eventSlug=${encodeURIComponent(eventSlug)}` : ""}`}
+        class="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-900 transition-colors"
+      >
+        <span>← Kembali ke Informasi Event</span>
+      </a>
+    </div>
+
+    <!-- Header Hero Banner -->
+    <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 md:p-8 text-white shadow-xl mb-8 relative overflow-hidden">
+      <div class="pointer-events-none absolute -top-16 -right-16 h-48 w-48 rounded-full bg-orange-500/20 blur-3xl"></div>
+      <div class="relative z-10 max-w-2xl">
+        <span class="inline-block rounded-md bg-orange-500/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-orange-400 border border-orange-500/30 mb-3">
+          Sistem Undian Resmi (Ballot Lottery)
+        </span>
+        <h1 class="font-display text-2xl md:text-4xl font-black uppercase tracking-tight text-white">
+          Alokasi Kuota Peserta Terbuka
+        </h1>
+        <p class="text-xs md:text-sm text-slate-300 mt-2 leading-relaxed">
+          Dirancang untuk memberikan kesempatan yang setara, transparan, dan adil bagi seluruh atlet olahraga lari, triathlon, dan sepeda tanpa dipengaruhi kecepatan koneksi internet.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <!-- Main Status Card -->
+      <div class="lg:col-span-7 space-y-6">
+        <div>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Status Pendaftaran Anda</h2>
+          {eventId && categoryId ? (
+            <BallotStatus eventId={eventId} categoryId={categoryId} drawId={drawId} />
+          ) : (
+            <div class="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+              <p class="text-sm font-semibold text-red-700">Parameter kategori lomba tidak lengkap.</p>
+              <a href={`/events/${eventId}`} class="mt-3 inline-block text-xs font-bold uppercase underline text-slate-800">
+                Pilih Kategori di Halaman Event
+              </a>
+            </div>
+          )}
+        </div>
+
+        <!-- 4-Stage Marathon Ballot Timeline -->
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-900 mb-4 flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-orange-500"></span>
+            Tahapan & Alur Sistem Ballot
+          </h3>
+
+          <div class="relative pl-6 space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+            <!-- Stage 1 -->
+            <div class="relative">
+              <span class="absolute -left-6 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-slate-900 text-white text-[9px] font-bold">1</span>
+              <h4 class="text-xs font-bold uppercase text-slate-900">Pendaftaran Undian Terbuka</h4>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Peserta memasukkan data identitas dan memilih kategori lomba. Tidak ada biaya pendaftaran yang dipungut pada tahap ini.
+              </p>
+            </div>
+
+            <!-- Stage 2 -->
+            <div class="relative">
+              <span class="absolute -left-6 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-slate-900 text-white text-[9px] font-bold">2</span>
+              <h4 class="text-xs font-bold uppercase text-slate-900">Validasi & Verifikasi Data</h4>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Sistem menyaring duplikasi NIK/Paspor serta memastikan seluruh data peserta valid sebelum proses pengundian dimulai.
+              </p>
+            </div>
+
+            <!-- Stage 3 -->
+            <div class="relative">
+              <span class="absolute -left-6 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-slate-900 text-white text-[9px] font-bold">3</span>
+              <h4 class="text-xs font-bold uppercase text-slate-900">Pengundian Acak Kriptografis</h4>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Algoritma pengundian terverifikasi memilih pemenang secara acak dan menyusun daftar urutan tunggu (waitlist) otomatis.
+              </p>
+            </div>
+
+            <!-- Stage 4 -->
+            <div class="relative">
+              <span class="absolute -left-6 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-600 text-white text-[9px] font-bold">4</span>
+              <h4 class="text-xs font-bold uppercase text-emerald-800">Jendela Pembayaran Pemenang</h4>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Pemenang yang terpilih diberikan batas waktu khusus untuk melengkapi pembayaran. Slot yang tidak ditebus akan dilepaskan ke waitlist.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Rules & Transparency Guidelines -->
+      <div class="lg:col-span-5 space-y-6">
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3">
+            Aturan & Ketentuan Undian
+          </h3>
+
+          <div class="space-y-3.5 text-xs text-slate-600">
+            <div class="flex items-start gap-2.5">
+              <span class="text-base leading-none">🛡️</span>
+              <div>
+                <strong class="text-slate-900 block font-semibold">1 Identitas = 1 Kesempatan</strong>
+                <span>Setiap pelari hanya diperbolehkan mendaftarkan satu nomor identitas KTP/Paspor pada satu kategori lomba. Pendaftaran ganda akan dibatalkan otomatis.</span>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-2.5">
+              <span class="text-base leading-none">🚫</span>
+              <div>
+                <strong class="text-slate-900 block font-semibold">Slot Tidak Dapat Dipindahtangankan</strong>
+                <span>Hak registrasi pemenang ballot melekat pada nama peserta terdaftar dan tidak dapat dialihkan atau diperjualbelikan kepada pihak lain.</span>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-2.5">
+              <span class="text-base leading-none">⏱️</span>
+              <div>
+                <strong class="text-slate-900 block font-semibold">Batas Waktu Pembayaran Mutlak</strong>
+                <span>Pemenang wajib melunasi biaya tiket sebelum batas waktu yang ditentukan. Setelah melewati tenggat waktu, sistem otomatis membatalkan alokasi tersebut.</span>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-2.5">
+              <span class="text-base leading-none">🔄</span>
+              <div>
+                <strong class="text-slate-900 block font-semibold">Waitlist Bergulir Transparan</strong>
+                <span>Peserta di urutan waitlist akan dihubungi secara berurutan sesuai nomor ranking saat ada slot yang tidak terbayar.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-orange-200 bg-orange-50/50 p-5 text-xs text-orange-900 space-y-2">
+          <div class="flex items-center gap-1.5 font-bold uppercase tracking-wide text-orange-800">
+            <span>💡</span>
+            <span>Tips untuk Peserta</span>
+          </div>
+          <p class="text-orange-800 leading-relaxed">
+            Pastikan alamat email dan nomor WhatsApp yang Anda daftarkan aktif. Notifikasi pengumuman pemenang dan instruksi pembayaran akan dikirimkan secara langsung melalui sistem.
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 </ParticipantLayout>

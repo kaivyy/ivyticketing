@@ -1,6 +1,10 @@
 package access
 
-import "github.com/go-chi/chi/v5"
+import (
+	"github.com/go-chi/chi/v5"
+
+	"github.com/varin/ivyticketing/services/api/internal/platform/middleware"
+)
 
 // RegisterParticipantRoutes mounts participant-facing access routes.
 // These must be mounted inside an authn middleware group.
@@ -14,22 +18,51 @@ func (h *Handler) RegisterParticipantRoutes(r chi.Router) {
 	r.Get("/events/{eventId}/categories/{categoryId}/waitlist/my-position", h.WaitlistPosition)
 }
 
+// RegisterEventRoutes mounts event-level access management routes under
+// /organizations/{orgId}/events/{eventId}.
+func (h *Handler) RegisterEventRoutes(r chi.Router, loader middleware.PermissionLoader) {
+	r.Route("/access", func(r chi.Router) {
+		r.Use(middleware.RequirePermission(loader, "access.manage"))
+		r.Post("/codes", h.CreateCode)
+		r.Get("/codes", h.ListCodes)
+		r.Get("/pools", h.ListPools)
+	})
+}
+
+// RegisterOrgRoutes mounts organization-level access management routes under
+// /organizations/{orgId}.
+func (h *Handler) RegisterOrgRoutes(r chi.Router, loader middleware.PermissionLoader) {
+	r.Route("/access", func(r chi.Router) {
+		r.Use(middleware.RequirePermission(loader, "access.manage"))
+		r.Delete("/codes/{codeId}", h.RevokeCode)
+		r.Put("/pools/{poolId}", h.AdjustPool)
+
+		// Corporate account management (called by web /org/[orgId]/corporate.astro)
+		r.Post("/corporate", h.CreateCorporateAccount)
+		r.Get("/corporate", h.ListCorporateAccounts)
+		r.Post("/corporate/{accountId}/approve", h.ApproveCorporateAccount)
+		r.Get("/corporate/{accountId}/invoice", h.GetInvoice)
+
+		// Pool member management
+		r.Post("/pools/{poolId}/members", h.BulkUploadMembers)
+		r.Get("/pools/{poolId}/members", h.ListMembers)
+	})
+}
+
 // RegisterOrganizerRoutes mounts organizer-facing access management routes.
-// These must be mounted inside an authn + org middleware group.
+// Kept for backward compatibility.
 func (h *Handler) RegisterOrganizerRoutes(r chi.Router) {
-	r.Post("/events/{eventId}/access/codes", h.CreateCode)
-	r.Get("/events/{eventId}/access/codes", h.ListCodes)
-	r.Delete("/access/codes/{codeId}", h.RevokeCode)
-	r.Get("/events/{eventId}/access/pools", h.ListPools)
-	r.Put("/access/pools/{poolId}", h.AdjustPool)
-
-	// Corporate account management
-	r.Post("/access/corporate", h.CreateCorporateAccount)
-	r.Get("/access/corporate", h.ListCorporateAccounts)
-	r.Post("/access/corporate/{accountId}/approve", h.ApproveCorporateAccount)
-	r.Get("/access/corporate/{accountId}/invoice", h.GetInvoice)
-
-	// Pool member management
-	r.Post("/access/pools/{poolId}/members", h.BulkUploadMembers)
-	r.Get("/access/pools/{poolId}/members", h.ListMembers)
+	r.Route("/access", func(r chi.Router) {
+		r.Post("/codes", h.CreateCode)
+		r.Get("/codes", h.ListCodes)
+		r.Delete("/codes/{codeId}", h.RevokeCode)
+		r.Get("/pools", h.ListPools)
+		r.Put("/pools/{poolId}", h.AdjustPool)
+		r.Post("/corporate", h.CreateCorporateAccount)
+		r.Get("/corporate", h.ListCorporateAccounts)
+		r.Post("/corporate/{accountId}/approve", h.ApproveCorporateAccount)
+		r.Get("/corporate/{accountId}/invoice", h.GetInvoice)
+		r.Post("/pools/{poolId}/members", h.BulkUploadMembers)
+		r.Get("/pools/{poolId}/members", h.ListMembers)
+	})
 }

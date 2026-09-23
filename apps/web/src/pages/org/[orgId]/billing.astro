@@ -3,9 +3,10 @@ export const prerender = false;
 import OrganizerLayout from "../../../layouts/OrganizerLayout.astro";
 const { orgId } = Astro.params;
 ---
-<OrganizerLayout title="Tagihan & Langganan — ivyticketing">
+
+<OrganizerLayout title="Tagihan & Payout - ivyticketing">
   <div id="billing" data-org-id={orgId} class="space-y-6">
-    <p class="text-slate-500">Memuat tagihan…</p>
+    <p class="text-slate-500">Memuat data tagihan dan pencairan dana...</p>
   </div>
 
   <script>
@@ -14,6 +15,12 @@ const { orgId } = Astro.params;
       listActivePackages,
       getFeeSummary,
       listInvoices,
+      getOrgBalance,
+      listPayoutAccounts,
+      createPayoutAccount,
+      deletePayoutAccount,
+      listPayoutRequests,
+      createPayoutRequest,
       FEATURE_LABELS,
       SUB_STATUS_LABELS,
       INVOICE_STATUS_LABELS,
@@ -21,6 +28,9 @@ const { orgId } = Astro.params;
       type Package,
       type FeeSummary,
       type Invoice,
+      type PayoutAccount,
+      type PayoutRequest,
+      type OrgBalance,
     } from "../../../lib/billing";
     import { esc } from "../../../lib/safe";
 
@@ -34,7 +44,7 @@ const { orgId } = Astro.params;
     }
 
     function fmtDate(v: string | null | undefined): string {
-      if (!v) return "—";
+      if (!v) return "-";
       const d = new Date(v);
       if (isNaN(d.getTime())) return esc(v);
       return d.toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" });
@@ -63,6 +73,120 @@ const { orgId } = Astro.params;
       };
       const c = colors[s] ?? "bg-slate-100 text-slate-700";
       return `<span class="rounded px-2 py-0.5 text-xs font-medium ${c}">${esc(INVOICE_STATUS_LABELS[s] ?? s)}</span>`;
+    }
+
+    function payoutStatusBadge(s: string): string {
+      const colors: Record<string, string> = {
+        PENDING: "bg-amber-100 text-amber-800 border border-amber-200",
+        PROCESSING: "bg-blue-100 text-blue-800 border border-blue-200",
+        COMPLETED: "bg-emerald-100 text-emerald-800 border border-emerald-200",
+        REJECTED: "bg-rose-100 text-rose-800 border border-rose-200",
+      };
+      const c = colors[s] ?? "bg-slate-100 text-slate-700";
+      return `<span class="rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${c}">${esc(s)}</span>`;
+    }
+
+    function renderBalance(bal: OrgBalance | null): string {
+      const b = bal ?? { grossOrders: 0, totalFees: 0, totalRefunded: 0, totalPaidPayouts: 0, availableBalance: 0, currency: "IDR" };
+      return `
+        <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 shadow-sm">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Saldo Siap Dicairkan (Available Payout)</p>
+              <p class="text-3xl sm:text-4xl font-black text-emerald-400 mt-1">${fmtMoney(b.availableBalance)}</p>
+            </div>
+            <div>
+              <button
+                id="btn-open-payout-modal"
+                class="rounded-lg bg-emerald-500 px-4 py-2.5 text-xs font-bold text-slate-900 hover:bg-emerald-400 transition-colors shadow-sm min-h-[44px]"
+                ${b.availableBalance <= 0 ? "disabled opacity-50 cursor-not-allowed" : ""}
+              >
+                Tarik Dana (Request Payout) &rarr;
+              </button>
+            </div>
+          </div>
+          <div class="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3 border-t border-slate-700/60 pt-4 text-xs">
+            <div>
+              <span class="text-slate-400 block text-[11px]">Total Penjualan Kotor</span>
+              <span class="font-semibold text-slate-200">${fmtMoney(b.grossOrders)}</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[11px]">Biaya Platform Terpotong</span>
+              <span class="font-semibold text-slate-200">${fmtMoney(b.totalFees)}</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[11px]">Total Refund Peserta</span>
+              <span class="font-semibold text-rose-300">${fmtMoney(b.totalRefunded)}</span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[11px]">Total Dana Dicairkan</span>
+              <span class="font-semibold text-slate-200">${fmtMoney(b.totalPaidPayouts)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPayoutAccounts(accounts: PayoutAccount[]): string {
+      if (!accounts || accounts.length === 0) {
+        return `<p class="text-xs text-slate-400 py-3">Belum ada rekening bank yang didaftarkan untuk pencairan dana.</p>`;
+      }
+      return `
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          ${accounts.map(a => `
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-center justify-between">
+              <div>
+                <p class="font-bold text-slate-900 text-sm">${esc(a.bankName)}</p>
+                <p class="font-mono text-xs text-slate-600 mt-0.5">${esc(a.accountNumber)}</p>
+                <p class="text-xs text-slate-500">a.n. ${esc(a.accountName)}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-semibold">Terverifikasi</span>
+                <button
+                  type="button"
+                  data-del-account="${esc(a.id)}"
+                  class="btn-del-account text-xs text-red-600 hover:text-red-800 p-1 min-h-[44px]"
+                  title="Hapus Rekening"
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderPayoutRequests(requests: PayoutRequest[]): string {
+      if (!requests || requests.length === 0) {
+        return `<p class="text-xs text-slate-400 py-3">Belum ada riwayat permintaan pencairan dana.</p>`;
+      }
+      return `
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-700">
+            <thead class="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-600 uppercase">
+              <tr>
+                <th class="px-3 py-2.5">Tanggal</th>
+                <th class="px-3 py-2.5">Jumlah</th>
+                <th class="px-3 py-2.5">Status</th>
+                <th class="px-3 py-2.5">Catatan</th>
+                <th class="px-3 py-2.5">Waktu Proses</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 font-mono">
+              ${requests.map(r => `
+                <tr class="hover:bg-slate-50">
+                  <td class="px-3 py-2.5 text-slate-500 font-sans">${fmtDate(r.createdAt)}</td>
+                  <td class="px-3 py-2.5 font-bold text-slate-900">${fmtMoney(r.amount)}</td>
+                  <td class="px-3 py-2.5 font-sans">${payoutStatusBadge(r.status)}</td>
+                  <td class="px-3 py-2.5 font-sans text-slate-600">${esc(r.notes || r.rejectionReason || "-")}</td>
+                  <td class="px-3 py-2.5 text-slate-500 font-sans">${r.processedAt ? fmtDate(r.processedAt) : "-"}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
     }
 
     function renderSubscription(sub: Subscription | null): string {
@@ -108,25 +232,6 @@ const { orgId } = Astro.params;
         ${feats ? `<div class="mt-4 flex flex-wrap gap-2">${feats}</div>` : ""}`;
     }
 
-    function renderFeeSummary(fees: FeeSummary | null): string {
-      const f = fees ?? { entries: 0, grossOrders: 0, totalFees: 0 };
-      return `
-        <div class="grid gap-3 sm:grid-cols-3">
-          <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3">
-            <p class="text-xs uppercase text-slate-500">Total Pesanan Kotor</p>
-            <p class="mt-1 text-lg font-semibold text-slate-900">${fmtMoney(f.grossOrders)}</p>
-          </div>
-          <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3">
-            <p class="text-xs uppercase text-slate-500">Total Biaya Platform</p>
-            <p class="mt-1 text-lg font-semibold text-slate-900">${fmtMoney(f.totalFees)}</p>
-          </div>
-          <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3">
-            <p class="text-xs uppercase text-slate-500">Jumlah Transaksi</p>
-            <p class="mt-1 text-lg font-semibold text-slate-900">${esc(String(f.entries))}</p>
-          </div>
-        </div>`;
-    }
-
     function renderPackages(pkgs: Package[], currentSlug: string | null): string {
       if (pkgs.length === 0) {
         return `<p class="text-sm text-slate-400">Belum ada paket tersedia.</p>`;
@@ -139,7 +244,7 @@ const { orgId } = Astro.params;
               const feePct = (p.feeBps / 100).toLocaleString("id-ID", { maximumFractionDigits: 2 });
               const maxEvents = p.maxEvents == null ? "Tak terbatas" : `${p.maxEvents} event`;
               const feats = (p.features ?? [])
-                .map((f) => `<li class="flex items-start gap-1"><span class="text-green-600">✓</span> ${esc(featureLabel(f))}</li>`)
+                .map((f) => `<li class="flex items-start gap-1"><span class="text-green-600 font-bold">OK</span> ${esc(featureLabel(f))}</li>`)
                 .join("");
               return `
                 <div class="rounded-lg border ${isCurrent ? "border-blue-500 ring-1 ring-blue-500" : "border-slate-200"} bg-white p-5">
@@ -148,7 +253,7 @@ const { orgId } = Astro.params;
                     ${isCurrent ? `<span class="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">Paket Anda</span>` : ""}
                   </div>
                   <p class="mt-2 text-2xl font-bold text-slate-900">${fmtMoney(p.priceMonthly)}<span class="text-sm font-normal text-slate-500">/bln</span></p>
-                  <p class="mt-1 text-xs text-slate-500">Biaya ${esc(feePct)}% · ${esc(maxEvents)}</p>
+                  <p class="mt-1 text-xs text-slate-500">Biaya ${esc(feePct)}% : ${esc(maxEvents)}</p>
                   <ul class="mt-4 space-y-1 text-sm text-slate-600">${feats}</ul>
                 </div>`;
             })
@@ -166,7 +271,7 @@ const { orgId } = Astro.params;
           (inv) => `
           <tr class="border-b border-slate-100">
             <td class="py-2 pr-3 font-mono text-xs">${esc(inv.invoiceNumber)}</td>
-            <td class="py-2 pr-3 text-xs text-slate-500">${fmtDate(inv.periodStart)} – ${fmtDate(inv.periodEnd)}</td>
+            <td class="py-2 pr-3 text-xs text-slate-500">${fmtDate(inv.periodStart)} - ${fmtDate(inv.periodEnd)}</td>
             <td class="py-2 pr-3">${fmtMoney(inv.totalAmount)}</td>
             <td class="py-2 pr-3">${invoiceStatusBadge(inv.status)}</td>
             <td class="py-2 pr-3 text-xs text-slate-500">${fmtDate(inv.paidAt)}</td>
@@ -191,10 +296,12 @@ const { orgId } = Astro.params;
     }
 
     async function load() {
-      const [sub, pkgs, fees, invoices] = await Promise.all([
+      const [bal, accounts, requests, sub, pkgs, invoices] = await Promise.all([
+        getOrgBalance(orgId).catch(() => null),
+        listPayoutAccounts(orgId).catch(() => [] as PayoutAccount[]),
+        listPayoutRequests(orgId).catch(() => [] as PayoutRequest[]),
         getSubscription(orgId).catch(() => null),
         listActivePackages(orgId).catch(() => [] as Package[]),
-        getFeeSummary(orgId).catch(() => null),
         listInvoices(orgId, 50, 0).catch(() => [] as Invoice[]),
       ]);
 
@@ -202,29 +309,171 @@ const { orgId } = Astro.params;
 
       root.innerHTML = `
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h1 class="text-2xl font-bold text-slate-900">Tagihan & Langganan</h1>
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Tagihan & Pencairan Dana (Payout)</h1>
+            <p class="text-xs sm:text-sm text-slate-500">Kelola rekening bank penampung, saldo penjualan tiket, dan pengajuan pencairan dana.</p>
+          </div>
         </div>
 
-        <section class="rounded-lg border border-slate-200 bg-white p-6">
+        <!-- Section: Payout Balance & Financial Summary -->
+        <section>
+          ${renderBalance(bal)}
+        </section>
+
+        <!-- Section: Bank Accounts & Payout Requests -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div class="lg:col-span-5 space-y-4">
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+              <div class="flex items-center justify-between">
+                <h2 class="text-base font-bold text-slate-900">Rekening Bank Penampung</h2>
+              </div>
+              <div id="accounts-container">
+                ${renderPayoutAccounts(accounts)}
+              </div>
+
+              <!-- Add Account Form -->
+              <form id="form-add-account" class="rounded-lg bg-slate-50 p-3.5 border border-slate-200 text-xs space-y-3">
+                <p class="font-bold text-slate-800">Daftarkan Rekening Baru</p>
+                <div>
+                  <label class="block text-slate-600 font-medium mb-1">Nama Bank</label>
+                  <select id="acct-bank" class="w-full rounded border border-slate-300 px-3 py-1.5" required>
+                    <option value="BCA">BCA (Bank Central Asia)</option>
+                    <option value="Mandiri">Bank Mandiri</option>
+                    <option value="BNI">BNI (Bank Negara Indonesia)</option>
+                    <option value="BRI">BRI (Bank Rakyat Indonesia)</option>
+                    <option value="CIMB">CIMB Niaga</option>
+                    <option value="Permata">Bank Permata</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-slate-600 font-medium mb-1">Nomor Rekening</label>
+                  <input id="acct-number" type="text" placeholder="1234567890" required class="w-full rounded border border-slate-300 px-3 py-1.5 font-mono" />
+                </div>
+                <div>
+                  <label class="block text-slate-600 font-medium mb-1">Nama Pemilik Rekening</label>
+                  <input id="acct-name" type="text" placeholder="Sesuai buku tabungan" required class="w-full rounded border border-slate-300 px-3 py-1.5 uppercase" />
+                </div>
+                <button type="submit" id="btn-save-account" class="w-full rounded bg-slate-900 py-2 text-xs font-semibold text-white hover:bg-slate-800 min-h-[44px]">
+                  Simpan Rekening Bank
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div class="lg:col-span-7 space-y-4">
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+              <h2 class="text-base font-bold text-slate-900">Riwayat Pencairan Dana</h2>
+              <div id="requests-container">
+                ${renderPayoutRequests(requests)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Subscription & Package -->
+        <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 class="mb-4 text-lg font-semibold">Langganan Saat Ini</h2>
           ${renderSubscription(sub)}
         </section>
 
-        <section class="rounded-lg border border-slate-200 bg-white p-6">
-          <h2 class="mb-4 text-lg font-semibold">Biaya Platform</h2>
-          ${renderFeeSummary(fees)}
-        </section>
-
-        <section class="rounded-lg border border-slate-200 bg-white p-6">
+        <!-- Section: Packages -->
+        <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 class="mb-4 text-lg font-semibold">Paket Tersedia</h2>
           ${renderPackages(pkgs ?? [], currentSlug)}
         </section>
 
-        <section class="rounded-lg border border-slate-200 bg-white p-6">
-          <h2 class="mb-4 text-lg font-semibold">Riwayat Tagihan</h2>
+        <!-- Section: Platform Invoices -->
+        <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 class="mb-4 text-lg font-semibold">Riwayat Tagihan Platform</h2>
           ${renderInvoices(invoices ?? [])}
         </section>
       `;
+
+      wireEvents(bal, accounts);
+    }
+
+    function wireEvents(bal: OrgBalance | null, accounts: PayoutAccount[]) {
+      // Delete account listeners
+      document.querySelectorAll(".btn-del-account").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const id = (btn as HTMLElement).dataset.delAccount;
+          if (!id) return;
+          if (!confirm("Hapus rekening bank ini?")) return;
+          try {
+            await deletePayoutAccount(orgId, id);
+            alert("Rekening berhasil dihapus.");
+            await load();
+          } catch (err) {
+            alert("Gagal menghapus rekening: " + ((err as Error)?.message || "Terjadi kesalahan"));
+          }
+        });
+      });
+
+      // Add account form
+      document.getElementById("form-add-account")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const bank = (document.getElementById("acct-bank") as HTMLSelectElement).value;
+        const number = (document.getElementById("acct-number") as HTMLInputElement).value.trim();
+        const name = (document.getElementById("acct-name") as HTMLInputElement).value.trim();
+        if (!bank || !number || !name) return;
+
+        const btn = document.getElementById("btn-save-account") as HTMLButtonElement;
+        btn.disabled = true;
+        btn.textContent = "Menyimpan...";
+
+        try {
+          await createPayoutAccount(orgId, {
+            bankName: bank,
+            bankCode: bank.toUpperCase(),
+            accountNumber: number,
+            accountName: name,
+          });
+          alert("Rekening bank berhasil didaftarkan.");
+          await load();
+        } catch (err) {
+          alert("Gagal mendaftarkan rekening: " + ((err as Error)?.message || "Terjadi kesalahan"));
+          btn.disabled = false;
+          btn.textContent = "Simpan Rekening Bank";
+        }
+      });
+
+      // Request payout CTA
+      document.getElementById("btn-open-payout-modal")?.addEventListener("click", async () => {
+        if (!bal || bal.availableBalance <= 0) {
+          alert("Saldo yang tersedia tidak mencukupi untuk penarikan.");
+          return;
+        }
+        if (!accounts || accounts.length === 0) {
+          alert("Daftarkan rekening bank penampung terlebih dahulu sebelum mengajukan pencairan.");
+          return;
+        }
+
+        const inputAmt = prompt(`Masukkan jumlah pencairan dana (Maksimum: ${fmtMoney(bal.availableBalance)}):`, bal.availableBalance.toString());
+        if (!inputAmt) return;
+        const amt = parseInt(inputAmt.replace(/[^0-9]/g, ""), 10);
+        if (isNaN(amt) || amt <= 0) {
+          alert("Jumlah penarikan tidak valid.");
+          return;
+        }
+        if (amt > bal.availableBalance) {
+          alert("Jumlah penarikan melebihi saldo yang tersedia.");
+          return;
+        }
+
+        const notes = prompt("Catatan pencairan dana (opsional, misal: Pencairan batch 1):", "") || "";
+
+        try {
+          await createPayoutRequest(orgId, {
+            amount: amt,
+            payoutAccountId: accounts[0].id,
+            notes,
+          });
+          alert("Permintaan pencairan dana berhasil diajukan dan sedang diproses tim finance.");
+          await load();
+        } catch (err) {
+          alert("Gagal mengajukan payout: " + ((err as Error)?.message || "Terjadi kesalahan"));
+        }
+      });
     }
 
     load().catch((e) => {

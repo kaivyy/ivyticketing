@@ -7,6 +7,9 @@ RETURNING *;
 -- name: GetEventByID :one
 SELECT * FROM events WHERE id = $1;
 
+-- name: GetEventBySlug :one
+SELECT * FROM events WHERE slug = $1 LIMIT 1;
+
 -- name: GetEventByOrgAndSlug :one
 SELECT * FROM events WHERE organization_id = $1 AND slug = $2;
 
@@ -48,3 +51,18 @@ ORDER BY e.starts_at NULLS LAST, e.created_at DESC;
 SELECT e.* FROM events e
 JOIN organizations o ON o.id = e.organization_id
 WHERE o.slug = $1 AND e.slug = $2 AND e.status = 'published';
+
+-- name: ListAllPublishedEvents :many
+SELECT e.*, o.name AS organization_name, o.slug AS organization_slug
+FROM events e
+JOIN organizations o ON o.id = e.organization_id
+WHERE e.status = 'published'
+ORDER BY e.starts_at NULLS LAST, e.created_at DESC;
+
+-- name: GetPublishedEventByIDOrSlug :one
+SELECT e.*, o.name AS organization_name, o.slug AS organization_slug
+FROM events e
+JOIN organizations o ON o.id = e.organization_id
+WHERE (e.id::text = sqlc.arg('identifier')::text OR e.slug = sqlc.arg('identifier')::text) AND e.status = 'published'
+LIMIT 1;
+

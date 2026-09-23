@@ -69,3 +69,19 @@ func toResponse(p db.Payment) PaymentResponse {
 	}
 	return r
 }
+
+type PaymentChannelResponse struct {
+	ChannelCode string    `json:"channelCode"`
+	IsEnabled   bool      `json:"isEnabled"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+type UpdatePaymentChannelsRequest struct {
+	Channels []PaymentChannelInput `json:"channels"`
+}
+
+type PaymentChannelInput struct {
+	ChannelCode string `json:"channelCode"`
+	IsEnabled   bool   `json:"isEnabled"`
+}
+

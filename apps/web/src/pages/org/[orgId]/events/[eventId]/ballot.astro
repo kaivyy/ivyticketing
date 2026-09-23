@@ -1,0 +1,907 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+
+<OrganizerLayout title="Undian Ballot : ivyticketing" orgId={orgId}>
+  <div id="ballot-root" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
+    <!-- Header Section -->
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
+      <div>
+        <a href={`/org/${orgId}/events/${eventId}`} class="text-xs font-semibold text-slate-500 hover:text-slate-800">
+          &larr; Kembali ke Ringkasan Event
+        </a>
+        <h1 class="font-display text-2xl font-bold uppercase tracking-tight text-slate-900 mt-1">
+          Manajemen Undian Ballot Kriptografis
+        </h1>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Kelola sistem undian kuota berstandar World Athletics dengan verifikasi acak SHA-256 deterministik dan transparan.
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          id="btn-open-create"
+          type="button"
+          class="min-h-[44px] inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 transition-colors cursor-pointer"
+        >
+          + Buat Jadwal Ballot Baru
+        </button>
+      </div>
+    </div>
+
+    <!-- Category Selector Pill Bar -->
+    <div class="flex flex-col gap-2 bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Pilih Kategori Lomba:</span>
+        <span id="cat-mode-badge" class="text-[11px] font-semibold text-orange-600">Memuat kategori...</span>
+      </div>
+      <div id="categories-tabs" class="flex flex-wrap items-center gap-2 pt-1">
+        <!-- Dynamically rendered tabs -->
+      </div>
+    </div>
+
+    <!-- Active Draw Dashboard View -->
+    <div id="draw-content" class="space-y-6">
+      <div id="draw-empty" class="rounded-xl border border-slate-200 bg-white p-8 text-center hidden">
+        <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 text-orange-600 font-bold text-xl mb-3">
+          🎲
+        </div>
+        <h3 class="font-display text-base font-bold uppercase text-slate-900">Belum Ada Undian Ballot untuk Kategori Ini</h3>
+        <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
+          Kategori ini belum memiliki sesi undian ballot aktif. Buat sesi undian untuk menentukan kuota pemenang dan jadwal pendaftaran.
+        </p>
+        <button
+          type="button"
+          id="btn-empty-create"
+          class="min-h-[44px] mt-4 inline-flex items-center rounded-lg bg-orange-600 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-orange-500 transition-colors cursor-pointer"
+        >
+          Buat Sesi Undian Ballot
+        </button>
+      </div>
+
+      <div id="draw-details" class="space-y-6 hidden">
+        <!-- Draw Status & Control Banner -->
+        <div class="rounded-xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div class="flex items-center gap-3">
+              <span id="draw-status-badge" class="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider border">
+                PENDING
+              </span>
+              <div>
+                <h2 id="draw-category-name" class="font-display text-lg font-bold text-slate-900 uppercase">
+                  Full Marathon 42.2K
+                </h2>
+                <p id="draw-id-label" class="text-[11px] font-mono text-slate-400">
+                  Draw ID: -
+                </p>
+              </div>
+            </div>
+
+            <!-- Action Controls Group -->
+            <div id="draw-actions" class="flex flex-wrap items-center gap-2">
+              <button
+                id="btn-open-draw"
+                type="button"
+                class="min-h-[44px] inline-flex items-center rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-emerald-500 transition-colors cursor-pointer hidden"
+              >
+                Buka Pendaftaran
+              </button>
+              <button
+                id="btn-close-draw"
+                type="button"
+                class="min-h-[44px] inline-flex items-center rounded-lg bg-amber-600 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-amber-500 transition-colors cursor-pointer hidden"
+              >
+                Tutup Pendaftaran
+              </button>
+              <button
+                id="btn-run-draw"
+                type="button"
+                class="min-h-[44px] inline-flex items-center rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-indigo-500 transition-colors cursor-pointer hidden shadow-sm"
+              >
+                Undi Kriptografis
+              </button>
+              <button
+                id="btn-announce-draw"
+                type="button"
+                class="min-h-[44px] inline-flex items-center rounded-lg bg-purple-600 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-purple-500 transition-colors cursor-pointer hidden shadow-sm"
+              >
+                Umumkan Hasil
+              </button>
+              <button
+                id="btn-promote-waitlist"
+                type="button"
+                class="min-h-[44px] inline-flex items-center rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer hidden"
+              >
+                Promote Waitlist
+              </button>
+              <button
+                id="btn-export-csv"
+                type="button"
+                class="min-h-[44px] inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Export CSV
+              </button>
+              <button
+                id="btn-open-verify-modal"
+                type="button"
+                class="min-h-[44px] inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Verifikasi Hash
+              </button>
+            </div>
+          </div>
+
+          <!-- Metrics 4-Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+            <div class="rounded-lg bg-slate-50 p-3.5 border border-slate-100">
+              <span class="text-[11px] font-medium text-slate-500 uppercase">Kuota Pemenang</span>
+              <p id="metric-quota" class="font-display text-xl font-black text-slate-900 mt-0.5">0</p>
+            </div>
+            <div class="rounded-lg bg-slate-50 p-3.5 border border-slate-100">
+              <span class="text-[11px] font-medium text-slate-500 uppercase">Batas Waitlist</span>
+              <p id="metric-waitlist" class="font-display text-xl font-black text-slate-900 mt-0.5">0</p>
+            </div>
+            <div class="rounded-lg bg-slate-50 p-3.5 border border-slate-100">
+              <span class="text-[11px] font-medium text-slate-500 uppercase">Jendela Bayar</span>
+              <p id="metric-window" class="font-display text-xl font-black text-slate-900 mt-0.5">0 Jam</p>
+            </div>
+            <div class="rounded-lg bg-slate-50 p-3.5 border border-slate-100">
+              <span class="text-[11px] font-medium text-slate-500 uppercase">Total Terundi</span>
+              <p id="metric-total-drawn" class="font-display text-xl font-black text-slate-900 mt-0.5">0</p>
+            </div>
+          </div>
+
+          <!-- Schedule & Cryptographic Proof Info -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs border-t border-slate-100 pt-3">
+            <div class="space-y-1 text-slate-600">
+              <div><strong>Buka Pendaftaran:</strong> <span id="info-opens">-</span></div>
+              <div><strong>Tutup Pendaftaran:</strong> <span id="info-closes">-</span></div>
+              <div><strong>Waktu Pengundian:</strong> <span id="info-drawn-at">-</span></div>
+              <div><strong>Waktu Pengumuman:</strong> <span id="info-announced-at">-</span></div>
+            </div>
+            <div class="space-y-1 text-slate-600">
+              <div><strong>Status Algoritma:</strong> <span class="font-mono text-emerald-600 font-bold">SHA-256 Provably Fair</span></div>
+              <div class="truncate">
+                <strong>Cryptographic Seed:</strong>
+                <span id="info-seed" class="font-mono text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded text-[11px] select-all">Belum Diundi</span>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed">
+                Setiap pemenang dan nomor antrean memiliki hash kriptografis independen yang dapat diverifikasi oleh publik untuk menjamin integritas undian tanpa intervensi manusia.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results Table Section -->
+        <div class="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs space-y-0">
+          <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3.5 bg-slate-50">
+            <div class="flex items-center gap-2">
+              <h3 class="font-display text-sm font-bold uppercase text-slate-800 tracking-wider">Hasil Undian Ballot</h3>
+              <span id="results-count-badge" class="text-xs font-semibold text-slate-500 font-mono">(0 Peserta)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input
+                id="search-results"
+                type="text"
+                placeholder="Cari Peserta / Hash..."
+                class="min-h-[44px] rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:border-orange-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="border-b border-slate-200 bg-slate-100 text-[11px] font-bold uppercase text-slate-600">
+                <tr>
+                  <th class="px-4 py-3">Rank</th>
+                  <th class="px-4 py-3">Status Hasil</th>
+                  <th class="px-4 py-3">Participant ID / Entry</th>
+                  <th class="px-4 py-3">Result Hash (SHA-256)</th>
+                  <th class="px-4 py-3 text-right">Verifikasi</th>
+                </tr>
+              </thead>
+              <tbody id="results-tbody" class="divide-y divide-slate-100">
+                <tr>
+                  <td colspan="5" class="px-4 py-8 text-center text-slate-400">
+                    Belum ada hasil undian untuk sesi ini.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Form: Buat Undian Ballot Baru -->
+    <div id="create-draw-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+      <div class="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+          <h2 class="font-display text-base font-bold uppercase text-slate-900">Buat Jadwal Undian Ballot</h2>
+          <button id="btn-close-create-modal" type="button" class="min-h-[44px] min-w-[44px] text-slate-400 hover:text-slate-700 text-lg flex items-center justify-center">&times;</button>
+        </div>
+
+        <form id="create-draw-form" class="mt-4 space-y-4">
+          <div id="modal-error" class="hidden rounded-lg bg-red-50 p-3 text-xs text-red-700 border border-red-200"></div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="modal-cat-select">
+              Kategori Lomba <span class="text-red-500">*</span>
+            </label>
+            <select
+              id="modal-cat-select"
+              required
+              class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-hidden"
+            >
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="modal-quota">
+                Kuota Pemenang (Slot) <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="modal-quota"
+                type="number"
+                min="1"
+                value="1000"
+                required
+                class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-hidden"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="modal-waitlist">
+                Kapasitas Waitlist <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="modal-waitlist"
+                type="number"
+                min="0"
+                value="500"
+                required
+                class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="modal-window">
+              Batas Waktu Pembayaran Pemenang (Jam) <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="modal-window"
+              type="number"
+              min="1"
+              max="168"
+              value="48"
+              required
+              class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-hidden"
+            />
+            <span class="text-[11px] text-slate-400">Default 48 Jam (2 Hari) untuk penyelesaian pembayaran slot.</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="modal-opens">
+                Pendaftaran Dibuka <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="modal-opens"
+                type="datetime-local"
+                required
+                class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-orange-500 focus:outline-hidden"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="modal-closes">
+                Pendaftaran Ditutup <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="modal-closes"
+                type="datetime-local"
+                required
+                class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-orange-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 border-t border-slate-200 pt-4">
+            <button
+              id="btn-cancel-create-modal"
+              type="button"
+              class="min-h-[44px] rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              id="btn-submit-create"
+              type="submit"
+              class="min-h-[44px] rounded-lg bg-orange-600 px-5 py-2 text-xs font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 transition-colors cursor-pointer"
+            >
+              Simpan & Jadwalkan Undian
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Verifikasi Hash Kriptografis -->
+    <div id="verify-hash-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs">
+      <div class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+          <h2 class="font-display text-base font-bold uppercase text-slate-900">Verifikasi Integritas Undian</h2>
+          <button id="btn-close-verify-modal" type="button" class="min-h-[44px] min-w-[44px] text-slate-400 hover:text-slate-700 text-lg flex items-center justify-center">&times;</button>
+        </div>
+
+        <form id="verify-hash-form" class="space-y-3 text-xs">
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1" for="v-entry-id">Entry ID Peserta:</label>
+            <input
+              id="v-entry-id"
+              required
+              placeholder="UUID Ballot Entry"
+              class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 font-mono focus:border-orange-500 focus:outline-hidden"
+            />
+          </div>
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1" for="v-rank">Rank Terundi:</label>
+            <input
+              id="v-rank"
+              type="number"
+              min="1"
+              required
+              placeholder="Contoh: 1"
+              class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 font-mono focus:border-orange-500 focus:outline-hidden"
+            />
+          </div>
+          <div>
+            <label class="block font-bold uppercase text-slate-700 mb-1" for="v-hash">Klaim Hash SHA-256:</label>
+            <input
+              id="v-hash"
+              required
+              placeholder="64-karakter SHA-256 Hash"
+              class="min-h-[44px] w-full rounded-lg border border-slate-300 px-3 py-2 font-mono focus:border-orange-500 focus:outline-hidden"
+            />
+          </div>
+
+          <div id="verify-result-box" class="hidden rounded-lg p-3 text-xs border"></div>
+
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+            <button
+              id="btn-close-verify-action"
+              type="button"
+              class="min-h-[44px] rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+            >
+              Tutup
+            </button>
+            <button
+              id="btn-run-verify"
+              type="submit"
+              class="min-h-[44px] rounded-lg bg-indigo-600 px-4 py-2 font-bold uppercase tracking-wider text-white hover:bg-indigo-500 cursor-pointer"
+            >
+              Cek Validitas Hash
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { authedFetch } from "../../../../../lib/api";
+    import { esc } from "../../../../../lib/safe";
+    import { getMarathonEventById } from "../../../../../lib/events-store";
+
+    const root = document.getElementById("ballot-root");
+    const orgId = root?.dataset.orgId || window.location.pathname.split("/")[2] || "";
+    const eventId = root?.dataset.eventId || window.location.pathname.split("/")[4] || "";
+
+    const tabsContainer = document.getElementById("categories-tabs")!;
+    const modeBadge = document.getElementById("cat-mode-badge")!;
+    const drawEmpty = document.getElementById("draw-empty")!;
+    const drawDetails = document.getElementById("draw-details")!;
+
+    const createModal = document.getElementById("create-draw-modal")!;
+    const createForm = document.getElementById("create-draw-form") as HTMLFormElement;
+    const modalCatSelect = document.getElementById("modal-cat-select") as HTMLSelectElement;
+    const modalError = document.getElementById("modal-error")!;
+
+    const verifyModal = document.getElementById("verify-hash-modal")!;
+    const verifyForm = document.getElementById("verify-hash-form") as HTMLFormElement;
+    const verifyResultBox = document.getElementById("verify-result-box")!;
+
+    let currentCategories: any[] = [];
+    let selectedCategoryId: string | null = null;
+    let currentDraw: any = null;
+    let currentResults: any[] = [];
+
+    const fmtDate = (iso: string | null | undefined) =>
+      iso
+        ? new Date(iso).toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "-";
+
+    const statusBadgeStyles: Record<string, string> = {
+      PENDING: "bg-slate-100 text-slate-700 border-slate-300",
+      OPEN: "bg-emerald-100 text-emerald-800 border-emerald-300",
+      CLOSED: "bg-amber-100 text-amber-800 border-amber-300",
+      DRAWN: "bg-indigo-100 text-indigo-800 border-indigo-300",
+      ANNOUNCED: "bg-purple-100 text-purple-800 border-purple-300",
+    };
+
+    const outcomeBadgeStyles: Record<string, string> = {
+      WINNER: "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold",
+      WAITLIST: "bg-amber-100 text-amber-800 border-amber-300 font-semibold",
+      UNSUCCESSFUL: "bg-slate-100 text-slate-600 border-slate-200",
+    };
+
+    async function loadCategories() {
+      try {
+        let categories = [];
+        try {
+          categories = await authedFetch(`/organizations/${orgId}/events/${eventId}/categories`);
+        } catch {
+          // fallback
+        }
+
+        if (!categories || categories.length === 0) {
+          const localEvent = getMarathonEventById(eventId);
+          if (localEvent?.categories && localEvent.categories.length > 0) {
+            categories = localEvent.categories.map((c) => ({
+              id: c.id,
+              name: c.name,
+              registrationMode: c.mode,
+              capacity: c.quota,
+            }));
+          }
+        }
+
+        currentCategories = categories || [];
+
+        // Render Tabs
+        tabsContainer.innerHTML = "";
+        modalCatSelect.innerHTML = "";
+
+        if (currentCategories.length === 0) {
+          tabsContainer.innerHTML = `<span class="text-xs text-slate-400">Tidak ada kategori ditemukan.</span>`;
+          return;
+        }
+
+        currentCategories.forEach((cat, idx) => {
+          // Option for create modal
+          const opt = document.createElement("option");
+          opt.value = cat.id;
+          opt.textContent = `${cat.name} (${cat.registrationMode || "NORMAL"})`;
+          modalCatSelect.appendChild(opt);
+
+          // Tab button
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = `cat-tab-btn min-h-[44px] rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            idx === 0
+              ? "bg-orange-600 text-white shadow-xs"
+              : "border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+          }`;
+          btn.setAttribute("data-cat-id", cat.id);
+          btn.textContent = cat.name;
+
+          if (cat.registrationMode === "BALLOT") {
+            btn.innerHTML = `${esc(cat.name)} <span class="ml-1 rounded bg-purple-100 text-purple-700 px-1 py-0.2 text-[9px]">BALLOT</span>`;
+          }
+
+          btn.addEventListener("click", () => {
+            document.querySelectorAll(".cat-tab-btn").forEach((b) => {
+              b.className = "cat-tab-btn min-h-[44px] rounded-lg px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition-all cursor-pointer";
+            });
+            btn.className = "cat-tab-btn active min-h-[44px] rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider bg-orange-600 text-white shadow-xs transition-all cursor-pointer";
+            selectCategory(cat.id);
+          });
+
+          tabsContainer.appendChild(btn);
+        });
+
+        // Default select first category (prefer ballot category if exists)
+        const ballotCat = currentCategories.find((c) => c.registrationMode === "BALLOT");
+        const defaultCatId = ballotCat ? ballotCat.id : currentCategories[0].id;
+        selectCategory(defaultCatId);
+
+        // Update active tab button style
+        document.querySelectorAll(".cat-tab-btn").forEach((b) => {
+          if (b.getAttribute("data-cat-id") === defaultCatId) {
+            b.className = "cat-tab-btn active min-h-[44px] rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider bg-orange-600 text-white shadow-xs transition-all cursor-pointer";
+          } else {
+            b.className = "cat-tab-btn min-h-[44px] rounded-lg px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition-all cursor-pointer";
+          }
+        });
+      } catch (err) {
+        console.error("Failed to load categories:", err);
+      }
+    }
+
+    async function selectCategory(catId: string) {
+      selectedCategoryId = catId;
+      const cat = currentCategories.find((c) => c.id === catId);
+      if (cat) {
+        modeBadge.textContent = `Mode: ${cat.registrationMode || "NORMAL"} (Kapasitas: ${(cat.capacity ?? 0).toLocaleString("id-ID")})`;
+      }
+
+      await loadDrawForCategory(catId);
+    }
+
+    async function loadDrawForCategory(catId: string) {
+      currentDraw = null;
+      try {
+        currentDraw = await authedFetch(`/organizations/${orgId}/events/${eventId}/categories/${catId}/ballot`);
+      } catch (e) {
+        console.warn("No active draw via category route:", e);
+      }
+
+      renderDrawView();
+    }
+
+    function renderDrawView() {
+      if (!currentDraw || !currentDraw.id) {
+        drawDetails.classList.add("hidden");
+        drawEmpty.classList.remove("hidden");
+        return;
+      }
+
+      drawEmpty.classList.add("hidden");
+      drawDetails.classList.remove("hidden");
+
+      const cat = currentCategories.find((c) => c.id === selectedCategoryId);
+      const catNameEl = document.getElementById("draw-category-name")!;
+      catNameEl.textContent = cat?.name || "Kategori Lomba";
+
+      const drawIdLabel = document.getElementById("draw-id-label")!;
+      drawIdLabel.textContent = `Draw ID: ${currentDraw.id}`;
+
+      const statusBadge = document.getElementById("draw-status-badge")!;
+      const st = currentDraw.status || "PENDING";
+      statusBadge.textContent = st;
+      statusBadge.className = `rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider border ${
+        statusBadgeStyles[st] || statusBadgeStyles.PENDING
+      }`;
+
+      // Metrics
+      document.getElementById("metric-quota")!.textContent = (currentDraw.quota ?? 0).toLocaleString("id-ID");
+      document.getElementById("metric-waitlist")!.textContent = (currentDraw.waitlistSize ?? 0).toLocaleString("id-ID");
+      document.getElementById("metric-window")!.textContent = `${currentDraw.paymentWindowHours ?? 48} Jam`;
+
+      // Schedule & proof info
+      document.getElementById("info-opens")!.textContent = fmtDate(currentDraw.applicationOpensAt);
+      document.getElementById("info-closes")!.textContent = fmtDate(currentDraw.applicationClosesAt);
+      document.getElementById("info-drawn-at")!.textContent = fmtDate(currentDraw.drawAt);
+      document.getElementById("info-announced-at")!.textContent = fmtDate(currentDraw.announcedAt);
+
+      const seedEl = document.getElementById("info-seed")!;
+      if (currentDraw.seed) {
+        seedEl.textContent = currentDraw.seed;
+        seedEl.className = "font-mono text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded text-[11px] select-all font-bold border border-indigo-200";
+      } else {
+        seedEl.textContent = "Belum Diundi (Seed akan digenerate otomatis)";
+        seedEl.className = "font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded text-[11px]";
+      }
+
+      // Configure Action Buttons visibility based on status
+      const btnOpen = document.getElementById("btn-open-draw")!;
+      const btnClose = document.getElementById("btn-close-draw")!;
+      const btnRun = document.getElementById("btn-run-draw")!;
+      const btnAnnounce = document.getElementById("btn-announce-draw")!;
+      const btnPromote = document.getElementById("btn-promote-waitlist")!;
+
+      btnOpen.classList.add("hidden");
+      btnClose.classList.add("hidden");
+      btnRun.classList.add("hidden");
+      btnAnnounce.classList.add("hidden");
+      btnPromote.classList.add("hidden");
+
+      if (st === "PENDING") {
+        btnOpen.classList.remove("hidden");
+      } else if (st === "OPEN") {
+        btnClose.classList.remove("hidden");
+      } else if (st === "CLOSED") {
+        btnRun.classList.remove("hidden");
+      } else if (st === "DRAWN") {
+        btnAnnounce.classList.remove("hidden");
+      } else if (st === "ANNOUNCED") {
+        btnPromote.classList.remove("hidden");
+      }
+
+      // Load results if drawn or announced
+      if (st === "DRAWN" || st === "ANNOUNCED") {
+        loadResults(currentDraw.id);
+      } else {
+        renderResultsTable([]);
+      }
+    }
+
+    async function loadResults(drawId: string) {
+      try {
+        const results = await authedFetch(`/organizations/${orgId}/events/${eventId}/ballot/${drawId}/results?limit=100`);
+        currentResults = Array.isArray(results) ? results : [];
+        renderResultsTable(currentResults);
+      } catch (err) {
+        console.warn("Failed to load ballot results:", err);
+        renderResultsTable([]);
+      }
+    }
+
+    function renderResultsTable(list: any[]) {
+      const tbody = document.getElementById("results-tbody")!;
+      const countBadge = document.getElementById("results-count-badge")!;
+      document.getElementById("metric-total-drawn")!.textContent = list.length.toLocaleString("id-ID");
+      countBadge.textContent = `(${list.length.toLocaleString("id-ID")} Peserta)`;
+
+      if (!list || list.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="px-4 py-8 text-center text-slate-400">
+              Belum ada hasil undian untuk sesi ini.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = list
+        .map((r) => {
+          const badgeClass = outcomeBadgeStyles[r.outcome] || outcomeBadgeStyles.UNSUCCESSFUL;
+          const shortHash = r.resultHash ? `${r.resultHash.substring(0, 12)}...${r.resultHash.substring(r.resultHash.length - 8)}` : "-";
+          return `
+            <tr class="hover:bg-slate-50/80 transition-colors">
+              <td class="px-4 py-3 font-mono font-bold text-slate-800">#${esc(String(r.rank ?? "-"))}</td>
+              <td class="px-4 py-3">
+                <span class="inline-flex rounded-full px-2.5 py-0.5 text-[10px] border ${badgeClass}">
+                  ${esc(r.outcome ?? "APPLIED")}
+                </span>
+              </td>
+              <td class="px-4 py-3 font-mono text-slate-600 text-[11px] truncate max-w-[180px]">
+                ${esc(r.participantId || r.ballotEntryId || "-")}
+              </td>
+              <td class="px-4 py-3 font-mono text-[11px] text-slate-500 truncate max-w-[200px]" title="${esc(r.resultHash || '')}">
+                ${esc(shortHash)}
+              </td>
+              <td class="px-4 py-3 text-right">
+                <button
+                  type="button"
+                  class="btn-row-verify min-h-[44px] px-3 py-1 font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+                  data-entry-id="${esc(r.ballotEntryId || r.participantId || '')}"
+                  data-rank="${esc(String(r.rank ?? 1))}"
+                  data-hash="${esc(r.resultHash || '')}"
+                >
+                  Verifikasi
+                </button>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+
+      // Bind row verify buttons
+      tbody.querySelectorAll(".btn-row-verify").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const entryId = btn.getAttribute("data-entry-id") || "";
+          const rank = btn.getAttribute("data-rank") || "";
+          const hash = btn.getAttribute("data-hash") || "";
+
+          (document.getElementById("v-entry-id") as HTMLInputElement).value = entryId;
+          (document.getElementById("v-rank") as HTMLInputElement).value = rank;
+          (document.getElementById("v-hash") as HTMLInputElement).value = hash;
+
+          verifyResultBox.classList.add("hidden");
+          verifyModal.classList.remove("hidden");
+        });
+      });
+    }
+
+    // Modal Create Draw Handlers
+    function openCreateModal() {
+      if (selectedCategoryId) {
+        modalCatSelect.value = selectedCategoryId;
+      }
+      const now = new Date();
+      const nextWeek = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      nextWeek.setMinutes(nextWeek.getMinutes() - nextWeek.getTimezoneOffset());
+
+      (document.getElementById("modal-opens") as HTMLInputElement).value = now.toISOString().slice(0, 16);
+      (document.getElementById("modal-closes") as HTMLInputElement).value = nextWeek.toISOString().slice(0, 16);
+
+      modalError.classList.add("hidden");
+      createModal.classList.remove("hidden");
+    }
+
+    document.getElementById("btn-open-create")?.addEventListener("click", openCreateModal);
+    document.getElementById("btn-empty-create")?.addEventListener("click", openCreateModal);
+    document.getElementById("btn-close-create-modal")?.addEventListener("click", () => createModal.classList.add("hidden"));
+    document.getElementById("btn-cancel-create-modal")?.addEventListener("click", () => createModal.classList.add("hidden"));
+
+    createForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      modalError.classList.add("hidden");
+
+      const catId = modalCatSelect.value;
+      const quota = parseInt((document.getElementById("modal-quota") as HTMLInputElement).value, 10);
+      const waitlistSize = parseInt((document.getElementById("modal-waitlist") as HTMLInputElement).value, 10);
+      const paymentWindowHours = parseInt((document.getElementById("modal-window") as HTMLInputElement).value, 10);
+      const opens = (document.getElementById("modal-opens") as HTMLInputElement).value;
+      const closes = (document.getElementById("modal-closes") as HTMLInputElement).value;
+
+      try {
+        await authedFetch(`/organizations/${orgId}/events/${eventId}/categories/${catId}/ballot`, {
+          method: "POST",
+          body: {
+            quota,
+            waitlistSize,
+            paymentWindowHours,
+            applicationOpensAt: new Date(opens).toISOString(),
+            applicationClosesAt: new Date(closes).toISOString(),
+          },
+        });
+
+        createModal.classList.add("hidden");
+        await selectCategory(catId);
+      } catch (err: any) {
+        modalError.textContent = err.message || "Gagal membuat sesi ballot.";
+        modalError.classList.remove("hidden");
+      }
+    });
+
+    // Draw Lifecycle Actions
+    document.getElementById("btn-open-draw")?.addEventListener("click", async () => {
+      if (!currentDraw?.id) return;
+      if (!confirm("Buka pendaftaran undian ballot ini untuk publik?")) return;
+      try {
+        await authedFetch(`/organizations/${orgId}/events/${eventId}/ballot/${currentDraw.id}/open`, {
+          method: "POST",
+        });
+        await loadDrawForCategory(selectedCategoryId!);
+      } catch (err: any) {
+        alert("Gagal membuka pendaftaran: " + err.message);
+      }
+    });
+
+    document.getElementById("btn-close-draw")?.addEventListener("click", async () => {
+      if (!currentDraw?.id) return;
+      if (!confirm("Tutup pendaftaran undian ballot? Pendaftar baru tidak dapat bergabung lagi.")) return;
+      try {
+        await authedFetch(`/organizations/${orgId}/events/${eventId}/ballot/${currentDraw.id}/close`, {
+          method: "POST",
+        });
+        await loadDrawForCategory(selectedCategoryId!);
+      } catch (err: any) {
+        alert("Gagal menutup pendaftaran: " + err.message);
+      }
+    });
+
+    document.getElementById("btn-run-draw")?.addEventListener("click", async () => {
+      if (!currentDraw?.id) return;
+      if (!confirm("Jalankan algoritma undian kriptografis SHA-256 sekarang? Pemenang dan waitlist akan ditentukan secara matematis dan tidak dapat diulang.")) return;
+      try {
+        await authedFetch(`/organizations/${orgId}/events/${eventId}/ballot/${currentDraw.id}/run`, {
+          method: "POST",
+        });
+        await loadDrawForCategory(selectedCategoryId!);
+      } catch (err: any) {
+        alert("Gagal menjalankan undian: " + err.message);
+      }
+    });
+
+    document.getElementById("btn-announce-draw")?.addEventListener("click", async () => {
+      if (!currentDraw?.id) return;
+      if (!confirm("Umumkan hasil undian sekarang? Notifikasi dan grant tiket pembayaran akan dikirimkan kepada seluruh pemenang.")) return;
+      try {
+        await authedFetch(`/organizations/${orgId}/events/${eventId}/ballot/${currentDraw.id}/announce`, {
+          method: "POST",
+        });
+        await loadDrawForCategory(selectedCategoryId!);
+      } catch (err: any) {
+        alert("Gagal mengumumkan hasil undian: " + err.message);
+      }
+    });
+
+    document.getElementById("btn-promote-waitlist")?.addEventListener("click", async () => {
+      if (!currentDraw?.id) return;
+      if (!confirm("Promosikan peserta waitlist urutan berikutnya untuk slot pemenang yang telah kedaluwarsa?")) return;
+      try {
+        await authedFetch(`/organizations/${orgId}/events/${eventId}/ballot/${currentDraw.id}/promote-waitlist`, {
+          method: "POST",
+        });
+        await loadResults(currentDraw.id);
+        alert("Proses promosi waitlist berhasil dijalankan.");
+      } catch (err: any) {
+        alert("Gagal promosi waitlist: " + err.message);
+      }
+    });
+
+    document.getElementById("btn-export-csv")?.addEventListener("click", () => {
+      if (!currentDraw?.id) return;
+      window.open(`/api/v1/organizations/${orgId}/events/${eventId}/ballot/${currentDraw.id}/export`, "_blank");
+    });
+
+    // Verification Modal Handlers
+    document.getElementById("btn-open-verify-modal")?.addEventListener("click", () => {
+      verifyResultBox.classList.add("hidden");
+      verifyModal.classList.remove("hidden");
+    });
+    document.getElementById("btn-close-verify-modal")?.addEventListener("click", () => verifyModal.classList.add("hidden"));
+    document.getElementById("btn-close-verify-action")?.addEventListener("click", () => verifyModal.classList.add("hidden"));
+
+    verifyForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!currentDraw?.id) return;
+
+      const entryId = (document.getElementById("v-entry-id") as HTMLInputElement).value.trim();
+      const rank = (document.getElementById("v-rank") as HTMLInputElement).value.trim();
+      const hash = (document.getElementById("v-hash") as HTMLInputElement).value.trim();
+
+      try {
+        const resp: any = await authedFetch(
+          `/organizations/${orgId}/events/${eventId}/ballot/${currentDraw.id}/verify?entry_id=${encodeURIComponent(entryId)}&rank=${encodeURIComponent(rank)}&hash=${encodeURIComponent(hash)}`
+        );
+
+        if (resp && resp.valid) {
+          verifyResultBox.innerHTML = `
+            <div class="flex items-center gap-2 text-emerald-800 font-bold">
+              <span>✓</span>
+              <span>Integritas Hash Terverifikasi Otentik</span>
+            </div>
+            <p class="text-[11px] text-emerald-700 mt-1">
+              Hasil urutan undian ini valid dan sesuai dengan seed kriptografis resmi penyelenggara.
+            </p>
+          `;
+          verifyResultBox.className = "rounded-lg p-3 text-xs border border-emerald-200 bg-emerald-50";
+        } else {
+          verifyResultBox.innerHTML = `
+            <div class="flex items-center gap-2 text-red-800 font-bold">
+              <span>✗</span>
+              <span>Hash Tidak Cocok / Tidak Valid</span>
+            </div>
+            <p class="text-[11px] text-red-700 mt-1">
+              Parameter yang diinput tidak menghasilkan hash yang sama. Data mungkin telah diubah atau tidak otentik.
+            </p>
+          `;
+          verifyResultBox.className = "rounded-lg p-3 text-xs border border-red-200 bg-red-50";
+        }
+        verifyResultBox.classList.remove("hidden");
+      } catch (err: any) {
+        verifyResultBox.innerHTML = `
+          <div class="text-red-800 font-bold">Gagal Verifikasi</div>
+          <p class="text-[11px] text-red-700 mt-1">${esc(err.message)}</p>
+        `;
+        verifyResultBox.className = "rounded-lg p-3 text-xs border border-red-200 bg-red-50";
+        verifyResultBox.classList.remove("hidden");
+      }
+    });
+
+    // Search results filter
+    document.getElementById("search-results")?.addEventListener("input", (e) => {
+      const q = (e.target as HTMLInputElement).value.toLowerCase().trim();
+      if (!q) {
+        renderResultsTable(currentResults);
+        return;
+      }
+      const filtered = currentResults.filter(
+        (r) =>
+          String(r.rank).includes(q) ||
+          (r.outcome || "").toLowerCase().includes(q) ||
+          (r.participantId || "").toLowerCase().includes(q) ||
+          (r.ballotEntryId || "").toLowerCase().includes(q) ||
+          (r.resultHash || "").toLowerCase().includes(q)
+      );
+      renderResultsTable(filtered);
+    });
+
+    // Initial Execution
+    loadCategories();
+  </script>
+</OrganizerLayout>

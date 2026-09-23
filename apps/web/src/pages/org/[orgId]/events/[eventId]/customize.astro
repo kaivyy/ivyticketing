@@ -1,0 +1,854 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+
+<OrganizerLayout title="Kustomisasi Desain Event : ivyticketing" orgId={orgId}>
+  <div class="max-w-4xl mx-auto space-y-6">
+    <!-- Header & Action Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+      <div>
+        <a href={`/org/${orgId}/events/${eventId}`} class="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1">
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span>Kembali ke Ringkasan Event</span>
+        </a>
+        <div class="flex items-center gap-2 flex-wrap mt-1">
+          <h1 class="font-display text-2xl font-bold uppercase tracking-tight text-slate-900" id="header-event-name">
+            Kustomisasi Desain & Tampilan Lomba
+          </h1>
+          <span class="rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold uppercase text-orange-700 border border-orange-300">
+            Studio Visual Organizer
+          </span>
+        </div>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Atur posisi judul hero, bentuk tombol pendaftaran, palet warna lomba, dan seksi konten dengan mudah tanpa ribet.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2.5 shrink-0">
+        <a
+          id="btn-live-preview"
+          href={`/events/${eventId}`}
+          target="_blank"
+          class="min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-xs"
+        >
+          <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          <span>Lihat Pratinjau Live</span>
+        </a>
+
+        <button
+          type="button"
+          id="btn-save"
+          class="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-2 text-xs font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 active:scale-95 transition-all cursor-pointer"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Simpan Perubahan</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-msg" class="hidden rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-800 text-xs font-semibold shadow-sm transition-all flex items-center gap-2">
+      <svg class="h-4 w-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+      </svg>
+      <span id="toast-text">Perubahan desain berhasil disimpan!</span>
+    </div>
+
+    <form id="customize-form" class="space-y-6" data-org-id={orgId} data-event-id={eventId}>
+      <!-- Seksi 1: Tata Letak & Posisi Judul Hero -->
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 space-y-4 shadow-sm">
+        <div class="border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">1</span>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900">
+              Tata Letak & Posisi Teks Hero
+            </h2>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">
+            Pilih bagaimana judul dan banner foto utama disajikan kepada pelari saat membuka web.
+          </p>
+        </div>
+
+        <!-- 3 Pilihan Visual Hero Layout -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="hero-layout-options">
+          <!-- Option 1: Split-Screen Rata Kiri -->
+          <div
+            class="hero-option-card flex flex-col justify-between p-4 rounded-xl border-2 border-orange-500 bg-orange-50/20 cursor-pointer transition-all hover:bg-orange-50/40 relative"
+            data-variant="split"
+            data-align="left"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold uppercase text-orange-700">Modern Lomba</span>
+                <span class="check-icon h-4 w-4 rounded-full bg-orange-600 text-white flex items-center justify-center text-[10px] font-bold">✓</span>
+              </div>
+              <strong class="font-bold text-slate-900 block text-sm">Rata Kiri (Split-Screen)</strong>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Teks judul dan tombol daftar di sebelah kiri, banner foto di sebelah kanan. Sangat proporsional ala Ironman & Berlin.
+              </p>
+            </div>
+            <div class="mt-3 h-12 w-full rounded bg-slate-100 border border-slate-200 p-1 flex gap-1 items-center">
+              <div class="w-1/2 h-full bg-orange-200/60 rounded flex flex-col justify-center px-1.5 gap-1">
+                <div class="h-1.5 w-3/4 bg-orange-600 rounded"></div>
+                <div class="h-1 w-1/2 bg-orange-400 rounded"></div>
+              </div>
+              <div class="w-1/2 h-full bg-slate-300 rounded"></div>
+            </div>
+          </div>
+
+          <!-- Option 2: Rata Tengah (Centered) -->
+          <div
+            class="hero-option-card flex flex-col justify-between p-4 rounded-xl border border-slate-200 bg-white cursor-pointer transition-all hover:border-slate-400 relative"
+            data-variant="centered"
+            data-align="center"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-700">Simetris</span>
+                <span class="check-icon hidden h-4 w-4 rounded-full bg-orange-600 text-white flex items-center justify-center text-[10px] font-bold">✓</span>
+              </div>
+              <strong class="font-bold text-slate-900 block text-sm">Rata Tengah (Centered)</strong>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Judul dan countdown timer tepat di tengah banner dengan komposisi megah dan elegan ala Tokyo Marathon.
+              </p>
+            </div>
+            <div class="mt-3 h-12 w-full rounded bg-slate-100 border border-slate-200 p-1 flex flex-col items-center justify-center gap-1">
+              <div class="h-1.5 w-1/2 bg-slate-700 rounded"></div>
+              <div class="h-1 w-1/3 bg-slate-400 rounded"></div>
+              <div class="h-2 w-1/4 bg-orange-500 rounded"></div>
+            </div>
+          </div>
+
+          <!-- Option 3: Format Poster (Cinematic) -->
+          <div
+            class="hero-option-card flex flex-col justify-between p-4 rounded-xl border border-slate-200 bg-white cursor-pointer transition-all hover:border-slate-400 relative"
+            data-variant="poster"
+            data-align="left"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">Format Poster</span>
+                <span class="check-icon hidden h-4 w-4 rounded-full bg-orange-600 text-white flex items-center justify-center text-[10px] font-bold">✓</span>
+              </div>
+              <strong class="font-bold text-slate-900 block text-sm">Poster Hero (Cinematic)</strong>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Latar belakang foto penuh dramatis dengan judul overlay kontras tebal di bawah ala Summarecon Bandung & Boston.
+              </p>
+            </div>
+            <div class="mt-3 h-12 w-full rounded bg-slate-800 border border-slate-700 p-1.5 flex flex-col justify-end gap-1">
+              <div class="h-1.5 w-3/4 bg-white rounded"></div>
+              <div class="h-1 w-1/2 bg-yellow-400 rounded"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input Teks Judul & Tagline -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="input-event-name">
+              Nama Event / Judul Utama
+            </label>
+            <input
+              id="input-event-name"
+              name="name"
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              placeholder="Contoh: Jakarta International Marathon 2026"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="input-event-tagline">
+              Tagline Lomba
+            </label>
+            <input
+              id="input-event-tagline"
+              name="tagline"
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              placeholder="Contoh: Taklukkan Tantangan PB Terbaik Anda"
+            />
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="input-ticker-text">
+              Teks Berjalan Running Ticker (Opsional)
+            </label>
+            <input
+              id="input-ticker-text"
+              name="tickerText"
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 font-mono text-xs"
+              placeholder="WORLD ATHLETICS CERTIFIED COURSE · FLAT & FAST PB ROUTE · OFFICIAL TIMING RFID"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- Seksi 2: Bentuk Tombol & Gaya Sudut -->
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 space-y-4 shadow-sm">
+        <div class="border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">2</span>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900">
+              Bentuk Tombol & Teks Pendaftaran
+            </h2>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">
+            Pilih lekukan sudut tombol pendaftaran utama agar selaras dengan citra brand lomba Anda.
+          </p>
+        </div>
+
+        <!-- 3 Pilihan Bentuk Tombol -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="button-shape-options">
+          <!-- Shape 1: Pill -->
+          <div
+            class="button-shape-card flex flex-col justify-between p-3.5 rounded-xl border-2 border-orange-500 bg-orange-50/20 cursor-pointer transition-all hover:bg-orange-50/40"
+            data-shape="pill"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-bold text-slate-900">Pill (Bulat Penuh)</span>
+                <span class="shape-check h-3.5 w-3.5 rounded-full bg-orange-600 text-white flex items-center justify-center text-[9px] font-bold">✓</span>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed">
+                Sudut lonjong oval. Memberikan kesan ramah, modern, dan sangat sporty.
+              </p>
+            </div>
+            <div class="mt-3 flex justify-center">
+              <span class="rounded-full bg-orange-600 text-white px-4 py-1.5 text-[11px] font-bold uppercase shadow-xs">
+                Daftar Sekarang
+              </span>
+            </div>
+          </div>
+
+          <!-- Shape 2: Modern Rounded -->
+          <div
+            class="button-shape-card flex flex-col justify-between p-3.5 rounded-xl border border-slate-200 bg-white cursor-pointer transition-all hover:border-slate-400"
+            data-shape="rounded"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-bold text-slate-900">Modern Rounded</span>
+                <span class="shape-check hidden h-3.5 w-3.5 rounded-full bg-orange-600 text-white flex items-center justify-center text-[9px] font-bold">✓</span>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed">
+                Lekukan sudut sedang (`rounded-xl`). Standar aplikasi modern yang elegan dan rapi.
+              </p>
+            </div>
+            <div class="mt-3 flex justify-center">
+              <span class="rounded-xl bg-slate-800 text-white px-4 py-1.5 text-[11px] font-bold uppercase shadow-xs">
+                Daftar Sekarang
+              </span>
+            </div>
+          </div>
+
+          <!-- Shape 3: Sporty Sharp -->
+          <div
+            class="button-shape-card flex flex-col justify-between p-3.5 rounded-xl border border-slate-200 bg-white cursor-pointer transition-all hover:border-slate-400"
+            data-shape="square"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-bold text-slate-900">Sporty Sharp</span>
+                <span class="shape-check hidden h-3.5 w-3.5 rounded-full bg-orange-600 text-white flex items-center justify-center text-[9px] font-bold">✓</span>
+              </div>
+              <p class="text-[11px] text-slate-500 leading-relaxed">
+                Sudut tegas (`rounded-lg`). Menonjolkan nuansa athletic power dan ketegasan lomba.
+              </p>
+            </div>
+            <div class="mt-3 flex justify-center">
+              <span class="rounded-lg bg-slate-800 text-white px-4 py-1.5 text-[11px] font-bold uppercase shadow-xs">
+                Daftar Sekarang
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Teks Tombol CTA & Pratinjau Langsung -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 items-center">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="input-cta-text">
+              Teks Tombol Pendaftaran Utama
+            </label>
+            <input
+              id="input-cta-text"
+              name="ctaButtonText"
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 font-bold"
+              placeholder="DAFTAR SEKARANG"
+              value="DAFTAR SEKARANG"
+            />
+          </div>
+
+          <!-- Kotak Pratinjau Tombol Real-time -->
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-3.5 flex flex-col items-center justify-center gap-1.5 text-center">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pratinjau Tombol Publik</span>
+            <div id="live-button-preview" class="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-full bg-orange-600 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-md transition-all">
+              <span id="preview-cta-text">DAFTAR SEKARANG</span>
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Seksi 3: Skema Warna & Foto Banner -->
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 space-y-4 shadow-sm">
+        <div class="border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">3</span>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900">
+              Warna Tema & Banner Resmi
+            </h2>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">
+            Tentukan palet warna yang mewakili atmosfer event dan perbarui gambar banner lomba.
+          </p>
+        </div>
+
+        <!-- Palet Warna Cepat -->
+        <div class="space-y-2">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+            Pilihan Warna Tema Cepat (1-Klik Terapkan)
+          </label>
+          <div class="flex flex-wrap gap-2.5" id="color-palette-presets">
+            <button
+              type="button"
+              class="color-preset-btn min-h-[40px] px-3 py-1.5 rounded-lg border-2 border-orange-600 bg-orange-50 flex items-center gap-2 text-xs font-bold text-slate-900 cursor-pointer"
+              data-color="#EA580C"
+            >
+              <span class="h-4 w-4 rounded-full bg-[#EA580C] shadow-xs"></span>
+              <span>Energetic Orange</span>
+            </button>
+            <button
+              type="button"
+              class="color-preset-btn min-h-[40px] px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-400 bg-white flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer transition-colors"
+              data-color="#2EAF4A"
+            >
+              <span class="h-4 w-4 rounded-full bg-[#2EAF4A] shadow-xs"></span>
+              <span>Neon Green Fest</span>
+            </button>
+            <button
+              type="button"
+              class="color-preset-btn min-h-[40px] px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-400 bg-white flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer transition-colors"
+              data-color="#0066B2"
+            >
+              <span class="h-4 w-4 rounded-full bg-[#0066B2] shadow-xs"></span>
+              <span>Speed Berlin Blue</span>
+            </button>
+            <button
+              type="button"
+              class="color-preset-btn min-h-[40px] px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-400 bg-white flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer transition-colors"
+              data-color="#DC2626"
+            >
+              <span class="h-4 w-4 rounded-full bg-[#DC2626] shadow-xs"></span>
+              <span>Crimson Triathlon</span>
+            </button>
+            <button
+              type="button"
+              class="color-preset-btn min-h-[40px] px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-400 bg-white flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer transition-colors"
+              data-color="#D97706"
+            >
+              <span class="h-4 w-4 rounded-full bg-[#D97706] shadow-xs"></span>
+              <span>Borobudur Heritage</span>
+            </button>
+            <button
+              type="button"
+              class="color-preset-btn min-h-[40px] px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-400 bg-white flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer transition-colors"
+              data-color="#475569"
+            >
+              <span class="h-4 w-4 rounded-full bg-[#475569] shadow-xs"></span>
+              <span>Tokyo Platinum</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="input-theme-color">
+              Warna Hex Tema Utama
+            </label>
+            <div class="flex items-center gap-2">
+              <input
+                id="input-theme-picker"
+                type="color"
+                value="#EA580C"
+                class="h-10 w-10 cursor-pointer rounded border border-slate-300 p-0.5 bg-white shrink-0"
+              />
+              <input
+                id="input-theme-color"
+                name="themeColor"
+                value="#EA580C"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-orange-500 focus:outline-none font-mono uppercase"
+                placeholder="#EA580C"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="input-banner-url">
+              URL Foto Cover / Banner Event
+            </label>
+            <input
+              id="input-banner-url"
+              name="bannerUrl"
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-orange-500 focus:outline-none"
+              placeholder="/images/events/hero_marathon.jpg"
+            />
+          </div>
+        </div>
+
+        <!-- Banner Preview -->
+        <div class="rounded-xl border border-slate-200 overflow-hidden bg-slate-900 h-28 relative">
+          <img id="banner-preview-img" src="/images/events/hero_marathon.jpg" alt="Preview Banner" class="h-full w-full object-cover" />
+          <span class="absolute bottom-2 left-2 rounded bg-slate-950/80 px-2.5 py-0.5 text-[10px] font-bold uppercase text-white backdrop-blur">
+            Pratinjau Banner Lomba
+          </span>
+        </div>
+      </section>
+
+      <!-- Seksi 4: Konten & Visibilitas Seksi Publik -->
+      <section class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 space-y-4 shadow-sm">
+        <div class="border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700">4</span>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900">
+              Seksi Halaman & Pengumuman Penyelenggara
+            </h2>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">
+            Tampilkan atau sembunyikan modul konten di website publik sesuai kesiapan panitia pelaksana.
+          </p>
+        </div>
+
+        <!-- Toggle Sakelar Sederhana -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <label class="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 cursor-pointer bg-slate-50/50">
+            <div>
+              <span class="text-xs font-bold text-slate-900 block">Lintasan Rute & Elevasi</span>
+              <span class="text-[11px] text-slate-500 block">Peta kilometer & profil tanjakan jalan</span>
+            </div>
+            <input type="checkbox" id="toggle-show-route" name="showRoute" checked class="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer" />
+          </label>
+
+          <label class="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 cursor-pointer bg-slate-50/50">
+            <div>
+              <span class="text-xs font-bold text-slate-900 block">Rangkaian Jadwal Hari Lomba</span>
+              <span class="text-[11px] text-slate-500 block">Waktu flag-off & cutoff per kategori</span>
+            </div>
+            <input type="checkbox" id="toggle-show-schedule" name="showSchedule" checked class="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer" />
+          </label>
+
+          <label class="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 cursor-pointer bg-slate-50/50">
+            <div>
+              <span class="text-xs font-bold text-slate-900 block">Lokasi & Pengambilan Racepack</span>
+              <span class="text-[11px] text-slate-500 block">Expo, jadwal RPC, dan syarat identitas</span>
+            </div>
+            <input type="checkbox" id="toggle-show-rpc" name="showRpc" checked class="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer" />
+          </label>
+
+          <label class="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 cursor-pointer bg-slate-50/50">
+            <div>
+              <span class="text-xs font-bold text-slate-900 block">Pertanyaan Umum (FAQ)</span>
+              <span class="text-[11px] text-slate-500 block">Regulasi peserta & ketentuan umum</span>
+            </div>
+            <input type="checkbox" id="toggle-show-faq" name="showFaq" checked class="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer" />
+          </label>
+
+          <label class="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 hover:border-slate-300 cursor-pointer bg-slate-50/50 sm:col-span-2">
+            <div>
+              <span class="text-xs font-bold text-slate-900 block">Logo Sponsor & Mitra Resmi</span>
+              <span class="text-[11px] text-slate-500 block">Tampilkan deretan logo brand sponsor perlombaan</span>
+            </div>
+            <input type="checkbox" id="toggle-show-sponsors" name="showSponsors" checked class="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer" />
+          </label>
+        </div>
+
+        <!-- Blok Pengumuman Bebas -->
+        <div class="space-y-2 pt-2 border-t border-slate-100">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700" for="input-custom-block-content">
+            Pesan / Pengumuman Tambahan Penyelenggara (Opsional)
+          </label>
+          <input
+            id="input-custom-block-title"
+            class="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-orange-500 focus:outline-none font-semibold mb-2"
+            placeholder="Judul Pengumuman: misal Layanan Shuttle Bus Resmi & Medali Finisher"
+          />
+          <textarea
+            id="input-custom-block-content"
+            rows="3"
+            class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none leading-relaxed"
+            placeholder="Tuliskan informasi khusus bagi para pelari, fasilitas titik kumpul, penitipan barang (baggage drop), atau ketentuan refreshment lomba..."
+          ></textarea>
+        </div>
+      </section>
+
+      <!-- Bottom Save Action -->
+      <div class="flex items-center justify-end gap-3 pt-2 pb-6">
+        <a
+          href={`/org/${orgId}/events/${eventId}`}
+          class="rounded-xl border border-slate-300 px-5 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          Batal
+        </a>
+        <button
+          type="button"
+          id="btn-save-bottom"
+          class="min-h-[44px] rounded-xl bg-orange-600 px-8 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 active:scale-95 transition-all cursor-pointer"
+        >
+          Simpan Seluruh Perubahan
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    import { authedFetch } from "../../../../../lib/api";
+    import {
+      getMarathonEvents,
+      saveMarathonEvent,
+      DEFAULT_LAYOUT_CONFIG,
+      type MarathonEvent,
+      type MarathonLayoutConfig,
+    } from "../../../../../lib/events-store";
+
+    const form = document.getElementById("customize-form") as HTMLFormElement;
+    const orgId = form?.getAttribute("data-org-id") || "";
+    const eventId = form?.getAttribute("data-event-id") || "";
+
+    const btnSaveTop = document.getElementById("btn-save") as HTMLButtonElement;
+    const btnSaveBottom = document.getElementById("btn-save-bottom") as HTMLButtonElement;
+    const toastMsg = document.getElementById("toast-msg") as HTMLElement;
+    const toastText = document.getElementById("toast-text") as HTMLElement;
+
+    // Inputs
+    const inputName = document.getElementById("input-event-name") as HTMLInputElement;
+    const inputTagline = document.getElementById("input-event-tagline") as HTMLInputElement;
+    const inputTicker = document.getElementById("input-ticker-text") as HTMLInputElement;
+    const inputCta = document.getElementById("input-cta-text") as HTMLInputElement;
+    const previewCta = document.getElementById("preview-cta-text") as HTMLElement;
+    const liveBtnPreview = document.getElementById("live-button-preview") as HTMLElement;
+    const inputThemeColor = document.getElementById("input-theme-color") as HTMLInputElement;
+    const inputThemePicker = document.getElementById("input-theme-picker") as HTMLInputElement;
+    const inputBannerUrl = document.getElementById("input-banner-url") as HTMLInputElement;
+    const bannerPreviewImg = document.getElementById("banner-preview-img") as HTMLImageElement;
+
+    // Toggles
+    const toggleRoute = document.getElementById("toggle-show-route") as HTMLInputElement;
+    const toggleSchedule = document.getElementById("toggle-show-schedule") as HTMLInputElement;
+    const toggleRpc = document.getElementById("toggle-show-rpc") as HTMLInputElement;
+    const toggleFaq = document.getElementById("toggle-show-faq") as HTMLInputElement;
+    const toggleSponsors = document.getElementById("toggle-show-sponsors") as HTMLInputElement;
+
+    // Custom Block
+    const inputBlockTitle = document.getElementById("input-custom-block-title") as HTMLInputElement;
+    const inputBlockContent = document.getElementById("input-custom-block-content") as HTMLTextAreaElement;
+
+    // State Variables
+    let currentVariant = "split";
+    let currentAlign = "left";
+    let currentButtonShape = "pill";
+    let currentThemeColor = "#EA580C";
+
+    function showToast(text: string) {
+      if (!toastMsg) return;
+      if (toastText) toastText.textContent = text;
+      toastMsg.classList.remove("hidden");
+      setTimeout(() => {
+        toastMsg.classList.add("hidden");
+      }, 4000);
+    }
+
+    // 1. Hero Layout Option Cards
+    const heroCards = document.querySelectorAll(".hero-option-card");
+    function setHeroLayout(variant: string, align: string) {
+      currentVariant = variant;
+      currentAlign = align;
+      heroCards.forEach((c) => {
+        const v = c.getAttribute("data-variant");
+        const a = c.getAttribute("data-align");
+        const check = c.querySelector(".check-icon");
+        if (v === variant && a === align) {
+          c.classList.add("border-2", "border-orange-500", "bg-orange-50/20");
+          c.classList.remove("border-slate-200", "bg-white");
+          check?.classList.remove("hidden");
+        } else {
+          c.classList.remove("border-2", "border-orange-500", "bg-orange-50/20");
+          c.classList.add("border-slate-200", "bg-white");
+          check?.classList.add("hidden");
+        }
+      });
+    }
+
+    heroCards.forEach((c) => {
+      c.addEventListener("click", () => {
+        const v = c.getAttribute("data-variant") || "split";
+        const a = c.getAttribute("data-align") || "left";
+        setHeroLayout(v, a);
+      });
+    });
+
+    // 2. Button Shape Option Cards
+    const shapeCards = document.querySelectorAll(".button-shape-card");
+    function setButtonShape(shape: string) {
+      currentButtonShape = shape;
+      shapeCards.forEach((c) => {
+        const s = c.getAttribute("data-shape");
+        const check = c.querySelector(".shape-check");
+        if (s === shape) {
+          c.classList.add("border-2", "border-orange-500", "bg-orange-50/20");
+          c.classList.remove("border-slate-200", "bg-white");
+          check?.classList.remove("hidden");
+        } else {
+          c.classList.remove("border-2", "border-orange-500", "bg-orange-50/20");
+          c.classList.add("border-slate-200", "bg-white");
+          check?.classList.add("hidden");
+        }
+      });
+
+      // Update Live Preview Button
+      if (liveBtnPreview) {
+        liveBtnPreview.classList.remove("rounded-full", "rounded-xl", "rounded-lg");
+        if (shape === "pill") liveBtnPreview.classList.add("rounded-full");
+        else if (shape === "rounded") liveBtnPreview.classList.add("rounded-xl");
+        else liveBtnPreview.classList.add("rounded-lg");
+      }
+    }
+
+    shapeCards.forEach((c) => {
+      c.addEventListener("click", () => {
+        const s = c.getAttribute("data-shape") || "pill";
+        setButtonShape(s);
+      });
+    });
+
+    // Update CTA text live
+    inputCta?.addEventListener("input", () => {
+      if (previewCta) previewCta.textContent = inputCta.value || "DAFTAR SEKARANG";
+    });
+
+    // 3. Theme Color & Banner
+    function setThemeColor(hex: string) {
+      currentThemeColor = hex;
+      if (inputThemeColor) inputThemeColor.value = hex;
+      if (inputThemePicker) inputThemePicker.value = hex;
+      if (liveBtnPreview) {
+        liveBtnPreview.style.backgroundColor = hex;
+      }
+
+      document.querySelectorAll(".color-preset-btn").forEach((btn) => {
+        const c = btn.getAttribute("data-color");
+        if (c?.toLowerCase() === hex.toLowerCase()) {
+          btn.classList.add("border-2", "border-orange-600", "bg-orange-50");
+          btn.classList.remove("border-slate-200", "bg-white");
+        } else {
+          btn.classList.remove("border-2", "border-orange-600", "bg-orange-50");
+          btn.classList.add("border-slate-200", "bg-white");
+        }
+      });
+    }
+
+    document.querySelectorAll(".color-preset-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const c = btn.getAttribute("data-color");
+        if (c) setThemeColor(c);
+      });
+    });
+
+    inputThemePicker?.addEventListener("input", () => {
+      setThemeColor(inputThemePicker.value);
+    });
+
+    inputThemeColor?.addEventListener("change", () => {
+      let val = inputThemeColor.value.trim();
+      if (!val.startsWith("#")) val = "#" + val;
+      setThemeColor(val);
+    });
+
+    inputBannerUrl?.addEventListener("input", () => {
+      if (bannerPreviewImg && inputBannerUrl.value) {
+        bannerPreviewImg.src = inputBannerUrl.value;
+      }
+    });
+
+    // 4. Initial Load
+    async function loadEventData() {
+      try {
+        // Fetch API Event
+        const apiEvent = await authedFetch<any>(`/organizations/${orgId}/events/${eventId}`).catch(() => null);
+
+        // Fetch Rich Event Store
+        const localEvents = getMarathonEvents();
+        const stored = localEvents.find((e) => e.id === eventId);
+        const lc: MarathonLayoutConfig = stored?.layoutConfig || { ...DEFAULT_LAYOUT_CONFIG };
+
+        // Populate fields
+        const initialName = stored?.name || apiEvent?.name || "";
+        if (inputName) inputName.value = initialName;
+        const headerTitle = document.getElementById("header-event-name");
+        if (headerTitle && initialName) headerTitle.textContent = initialName;
+
+        if (inputTagline) inputTagline.value = stored?.tagline || "";
+        if (inputTicker) inputTicker.value = lc.tickerText || DEFAULT_LAYOUT_CONFIG.tickerText;
+        if (inputCta) {
+          inputCta.value = lc.ctaButtonText || "DAFTAR SEKARANG";
+          if (previewCta) previewCta.textContent = inputCta.value;
+        }
+
+        const banner = stored?.bannerUrl || apiEvent?.bannerUrl || "/images/events/hero_marathon.jpg";
+        if (inputBannerUrl) inputBannerUrl.value = banner;
+        if (bannerPreviewImg) bannerPreviewImg.src = banner;
+
+        const theme = stored?.themeColor || "#EA580C";
+        setThemeColor(theme);
+
+        // Hero Layout
+        const v = lc.heroVariant || "split";
+        const a = lc.heroAlignment || "left";
+        setHeroLayout(v, a);
+
+        // Button Shape
+        const s = lc.buttonShape || "pill";
+        setButtonShape(s);
+
+        // Toggles
+        if (toggleRoute) toggleRoute.checked = lc.showRoute !== false;
+        if (toggleSchedule) toggleSchedule.checked = lc.showSchedule !== false;
+        if (toggleRpc) toggleRpc.checked = lc.showRpc !== false;
+        if (toggleFaq) toggleFaq.checked = lc.showFaq !== false;
+        if (toggleSponsors) toggleSponsors.checked = lc.showSponsors !== false;
+
+        // Custom Block
+        const firstBlock = lc.customBlocks?.[0];
+        if (firstBlock) {
+          if (inputBlockTitle) inputBlockTitle.value = firstBlock.title || "";
+          if (inputBlockContent) inputBlockContent.value = firstBlock.content || "";
+        }
+      } catch (err) {
+        console.error("Error loading customizer data:", err);
+      }
+    }
+
+    // 5. Save Changes
+    async function saveChanges() {
+      const setSaving = (saving: boolean) => {
+        const text = saving ? "Menyimpan..." : "Simpan Perubahan";
+        if (btnSaveTop) {
+          btnSaveTop.disabled = saving;
+          btnSaveTop.innerHTML = saving ? "<span>Menyimpan...</span>" : `
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            <span>Simpan Perubahan</span>
+          `;
+        }
+        if (btnSaveBottom) {
+          btnSaveBottom.disabled = saving;
+          btnSaveBottom.textContent = saving ? "Menyimpan..." : "Simpan Seluruh Perubahan";
+        }
+      };
+
+      setSaving(true);
+
+      try {
+        const newName = inputName?.value.trim() || "Event Olahraga";
+        const newTagline = inputTagline?.value.trim() || "";
+        const newTicker = inputTicker?.value.trim() || DEFAULT_LAYOUT_CONFIG.tickerText;
+        const newCta = inputCta?.value.trim() || "DAFTAR SEKARANG";
+        const newBanner = inputBannerUrl?.value.trim() || "/images/events/hero_marathon.jpg";
+        const blockTitle = inputBlockTitle?.value.trim();
+        const blockContent = inputBlockContent?.value.trim();
+
+        // Update API Event (name, bannerUrl)
+        await authedFetch(`/organizations/${orgId}/events/${eventId}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            name: newName,
+            description: newTagline,
+          }),
+        }).catch(() => {
+          // Fallback graceful jika offline / mock
+        });
+
+        // Update Rich events-store
+        const localEvents = getMarathonEvents();
+        const existing = localEvents.find((e) => e.id === eventId);
+
+        const customBlocks = blockTitle && blockContent ? [
+          {
+            id: `block-${Date.now()}`,
+            title: blockTitle,
+            content: blockContent,
+            badge: "INFO PANITIA",
+            style: "card" as const,
+          },
+        ] : (existing?.layoutConfig?.customBlocks || []);
+
+        const updatedLayoutConfig: MarathonLayoutConfig = {
+          ...(existing?.layoutConfig || DEFAULT_LAYOUT_CONFIG),
+          heroVariant: currentVariant as any,
+          heroAlignment: currentAlign as any,
+          buttonShape: currentButtonShape as any,
+          ctaButtonText: newCta,
+          tickerText: newTicker,
+          showRoute: toggleRoute?.checked ?? true,
+          showSchedule: toggleSchedule?.checked ?? true,
+          showRpc: toggleRpc?.checked ?? true,
+          showFaq: toggleFaq?.checked ?? true,
+          showSponsors: toggleSponsors?.checked ?? true,
+          customBlocks,
+        };
+
+        const updatedEvent: MarathonEvent = {
+          id: eventId,
+          slug: existing?.slug || `${eventId}`,
+          name: newName,
+          tagline: newTagline,
+          description: existing?.description || newTagline,
+          eventType: existing?.eventType || "MARATHON",
+          status: existing?.status || "published",
+          organizerName: existing?.organizerName || "IvyTicketing Organizer",
+          organizerSlug: orgId,
+          city: existing?.city || "Jakarta",
+          province: existing?.province || "DKI Jakarta",
+          country: existing?.country || "Indonesia",
+          venueName: existing?.venueName || "Gelora Arena",
+          venueAddress: existing?.venueAddress || "Official Race Track",
+          startsAt: existing?.startsAt || new Date().toISOString(),
+          flagOffTime: existing?.flagOffTime || "05:00 WIB",
+          bannerUrl: newBanner,
+          logoUrl: newBanner,
+          themeColor: currentThemeColor,
+          accentColor: currentThemeColor,
+          categories: existing?.categories || [],
+          routeHighlights: existing?.routeHighlights || [],
+          racepackInfo: existing?.racepackInfo || { dates: "H-2", venue: "Expo", address: "Main Arena", hours: "10-20", requirements: [] },
+          schedule: existing?.schedule || [],
+          faqs: existing?.faqs || [],
+          sponsors: existing?.sponsors || [],
+          layoutConfig: updatedLayoutConfig,
+          updatedAt: new Date().toISOString(),
+        };
+
+        saveMarathonEvent(updatedEvent);
+
+        const headerTitle = document.getElementById("header-event-name");
+        if (headerTitle) headerTitle.textContent = newName;
+
+        showToast("Perubahan tampilan & tata letak berhasil disimpan!");
+      } catch (err: any) {
+        alert("Gagal menyimpan perubahan: " + (err.message || "Terjadi kesalahan."));
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    btnSaveTop?.addEventListener("click", saveChanges);
+    btnSaveBottom?.addEventListener("click", saveChanges);
+
+    // Run on load
+    loadEventData();
+  </script>
+</OrganizerLayout>

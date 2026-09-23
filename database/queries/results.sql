@@ -68,7 +68,20 @@ UPDATE race_results r
 SET rank_overall = s.rnk, updated_at = now()
 FROM (
     SELECT rr.id, RANK() OVER (
-        ORDER BY COALESCE(rr.chip_time_ms, rr.gun_time_ms) ASC
+        ORDER BY COALESCE(rr.gun_time_ms, rr.chip_time_ms) ASC, rr.chip_time_ms ASC NULLS LAST
+    ) AS rnk
+    FROM race_results rr
+    WHERE rr.event_id = $1 AND rr.status = 'FINISHED'
+      AND COALESCE(rr.gun_time_ms, rr.chip_time_ms) IS NOT NULL
+) s
+WHERE r.id = s.id;
+
+-- name: RankOverallByChipTime :exec
+UPDATE race_results r
+SET rank_overall = s.rnk, updated_at = now()
+FROM (
+    SELECT rr.id, RANK() OVER (
+        ORDER BY COALESCE(rr.chip_time_ms, rr.gun_time_ms) ASC, rr.gun_time_ms ASC NULLS LAST
     ) AS rnk
     FROM race_results rr
     WHERE rr.event_id = $1 AND rr.status = 'FINISHED'
@@ -82,11 +95,11 @@ SET rank_gender = s.rnk, updated_at = now()
 FROM (
     SELECT rr.id, RANK() OVER (
         PARTITION BY rr.gender
-        ORDER BY COALESCE(rr.chip_time_ms, rr.gun_time_ms) ASC
+        ORDER BY COALESCE(rr.gun_time_ms, rr.chip_time_ms) ASC, rr.chip_time_ms ASC NULLS LAST
     ) AS rnk
     FROM race_results rr
     WHERE rr.event_id = $1 AND rr.status = 'FINISHED' AND rr.gender IS NOT NULL
-      AND COALESCE(rr.chip_time_ms, rr.gun_time_ms) IS NOT NULL
+      AND COALESCE(rr.gun_time_ms, rr.chip_time_ms) IS NOT NULL
 ) s
 WHERE r.id = s.id;
 
@@ -96,11 +109,11 @@ SET rank_category = s.rnk, updated_at = now()
 FROM (
     SELECT rr.id, RANK() OVER (
         PARTITION BY rr.category_id
-        ORDER BY COALESCE(rr.chip_time_ms, rr.gun_time_ms) ASC
+        ORDER BY COALESCE(rr.gun_time_ms, rr.chip_time_ms) ASC, rr.chip_time_ms ASC NULLS LAST
     ) AS rnk
     FROM race_results rr
     WHERE rr.event_id = $1 AND rr.status = 'FINISHED' AND rr.category_id IS NOT NULL
-      AND COALESCE(rr.chip_time_ms, rr.gun_time_ms) IS NOT NULL
+      AND COALESCE(rr.gun_time_ms, rr.chip_time_ms) IS NOT NULL
 ) s
 WHERE r.id = s.id;
 
@@ -110,7 +123,7 @@ SET rank_age_group = s.rnk, updated_at = now()
 FROM (
     SELECT rr.id, RANK() OVER (
         PARTITION BY rr.age_group
-        ORDER BY COALESCE(rr.chip_time_ms, rr.gun_time_ms) ASC
+        ORDER BY COALESCE(rr.chip_time_ms, rr.gun_time_ms) ASC, rr.chip_time_ms ASC NULLS LAST
     ) AS rnk
     FROM race_results rr
     WHERE rr.event_id = $1 AND rr.status = 'FINISHED' AND rr.age_group IS NOT NULL

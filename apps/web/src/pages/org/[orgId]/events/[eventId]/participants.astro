@@ -1,0 +1,649 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+
+<OrganizerLayout title="Manajemen Peserta - ivyticketing">
+  <div id="participants-root" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <a href={`/org/${orgId}/events/${eventId}`} class="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors">&larr; Kembali ke Ringkasan</a>
+        </div>
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mt-1">Direktori Peserta</h1>
+        <p class="text-xs sm:text-sm text-slate-500">Kelola data atlet, informasi darurat, formulir registrasi, dan nomor BIB.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a
+          href={`/api/v1/organizations/${orgId}/events/${eventId}/tickets/bib/export`}
+          target="_blank"
+          class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors min-h-[44px]"
+        >
+          <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Export CSV
+        </a>
+        <button
+          id="btn-reload"
+          class="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-orange-700 transition-colors min-h-[44px]"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Segarkan Data
+        </button>
+      </div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p class="text-xs font-medium text-slate-500">Total Peserta</p>
+        <p id="stat-total" class="text-xl sm:text-2xl font-bold text-slate-900 mt-1">-</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p class="text-xs font-medium text-slate-500">Tiket Valid</p>
+        <p id="stat-valid" class="text-xl sm:text-2xl font-bold text-emerald-600 mt-1">-</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p class="text-xs font-medium text-slate-500">Sudah Check-in</p>
+        <p id="stat-used" class="text-xl sm:text-2xl font-bold text-blue-600 mt-1">-</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p class="text-xs font-medium text-slate-500">BIB Terpasang</p>
+        <p id="stat-bib" class="text-xl sm:text-2xl font-bold text-purple-600 mt-1">-</p>
+      </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div>
+          <label for="filter-search" class="block text-xs font-semibold text-slate-700 mb-1">Cari Peserta</label>
+          <input
+            id="filter-search"
+            type="text"
+            placeholder="Nama, email, BIB, atau tiket..."
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          />
+        </div>
+        <div>
+          <label for="filter-category" class="block text-xs font-semibold text-slate-700 mb-1">Kategori</label>
+          <select
+            id="filter-category"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          >
+            <option value="">Semua Kategori</option>
+          </select>
+        </div>
+        <div>
+          <label for="filter-status" class="block text-xs font-semibold text-slate-700 mb-1">Status Tiket</label>
+          <select
+            id="filter-status"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          >
+            <option value="">Semua Status</option>
+            <option value="VALID">VALID (Belum Check-in)</option>
+            <option value="USED">USED (Sudah Check-in)</option>
+            <option value="CANCELLED">CANCELLED (Dibatalkan)</option>
+          </select>
+        </div>
+        <div>
+          <label for="filter-bib" class="block text-xs font-semibold text-slate-700 mb-1">Status BIB</label>
+          <select
+            id="filter-bib"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          >
+            <option value="">Semua Status BIB</option>
+            <option value="ASSIGNED">Sudah Ada BIB</option>
+            <option value="UNASSIGNED">Belum Ada BIB</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table Container -->
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-700">
+          <thead class="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+            <tr>
+              <th class="px-4 py-3">Peserta</th>
+              <th class="px-4 py-3">Kategori</th>
+              <th class="px-4 py-3">Nomor BIB</th>
+              <th class="px-4 py-3">Status</th>
+              <th class="px-4 py-3">Profil Atlet</th>
+              <th class="px-4 py-3 text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="participants-tbody" class="divide-y divide-slate-100 font-mono">
+            <tr>
+              <td colspan="6" class="px-4 py-8 text-center text-slate-400 font-sans">
+                <div class="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-orange-600 mb-2"></div>
+                <p>Memuat direktori peserta...</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="pagination-bar" class="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-xs text-slate-500">
+        <span id="pagination-info">Menampilkan 0 dari 0 peserta</span>
+        <div class="flex items-center gap-1">
+          <button id="btn-prev" class="rounded border border-slate-300 px-2.5 py-1 text-slate-600 hover:bg-slate-50 disabled:opacity-40" disabled>Sebelumnya</button>
+          <button id="btn-next" class="rounded border border-slate-300 px-2.5 py-1 text-slate-600 hover:bg-slate-50 disabled:opacity-40" disabled>Berikutnya</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide-over Drawer for Participant Details & Edit -->
+    <div id="drawer-backdrop" class="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200"></div>
+    <div
+      id="drawer-panel"
+      class="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col"
+    >
+      <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Detail Peserta & Tiket</h2>
+          <p id="drawer-subtitle" class="text-xs font-mono text-slate-500">TKT-XXXXXX</p>
+        </div>
+        <button id="drawer-close" class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        <!-- Live Status Alert -->
+        <div id="drawer-status-box" class="rounded-lg p-3 text-xs"></div>
+
+        <!-- Participant Edit Form -->
+        <form id="drawer-form" class="space-y-4">
+          <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Informasi Kontak Atlet</h3>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Nama Lengkap</label>
+            <input
+              id="drawer-input-name"
+              type="text"
+              required
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Email</label>
+            <input
+              id="drawer-input-email"
+              type="email"
+              required
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            />
+          </div>
+
+          <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider pt-2">Data Registrasi & Kategori</h3>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="rounded-lg bg-slate-50 p-3 border border-slate-200">
+              <span class="text-slate-500 block text-[11px]">Kategori</span>
+              <span id="drawer-val-category" class="font-semibold text-slate-900">10K Open</span>
+            </div>
+            <div class="rounded-lg bg-slate-50 p-3 border border-slate-200">
+              <span class="text-slate-500 block text-[11px]">Nomor BIB</span>
+              <span id="drawer-val-bib" class="font-mono font-bold text-orange-600">-</span>
+            </div>
+          </div>
+
+          <!-- Runner details from formAnswers -->
+          <div id="drawer-runner-specs" class="rounded-lg bg-slate-50 p-4 border border-slate-200 space-y-2 text-xs">
+            <h4 class="font-bold text-slate-800 text-xs">Profil Fisik & Medis</h4>
+            <div class="grid grid-cols-2 gap-2 text-[11px]">
+              <div><span class="text-slate-500">Gender:</span> <span id="drawer-val-gender" class="font-medium text-slate-800">-</span></div>
+              <div><span class="text-slate-500">Golongan Darah:</span> <span id="drawer-val-blood" class="font-medium text-slate-800">-</span></div>
+              <div><span class="text-slate-500">Ukuran Jersey:</span> <span id="drawer-val-jersey" class="font-medium text-slate-800">-</span></div>
+              <div><span class="text-slate-500">Nomor Telepon:</span> <span id="drawer-val-phone" class="font-medium text-slate-800">-</span></div>
+            </div>
+            <div class="pt-2 border-t border-slate-200">
+              <span class="text-slate-500 block text-[11px]">Kontak Darurat:</span>
+              <span id="drawer-val-emergency" class="font-medium text-slate-800 text-[11px]">-</span>
+            </div>
+          </div>
+
+          <!-- Custom Questions Answers List -->
+          <div id="drawer-custom-answers-container" class="space-y-2">
+            <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider">Jawaban Formulir Tambahan</h4>
+            <div id="drawer-custom-answers-list" class="rounded-lg border border-slate-200 bg-white p-3 space-y-2 text-xs">
+              <p class="text-slate-400 italic">Tidak ada pertanyaan formulir kustom.</p>
+            </div>
+          </div>
+
+          <!-- Refund Order Action -->
+          <div id="drawer-refund-box" class="rounded-lg border border-amber-200 bg-amber-50 p-3.5 space-y-2 text-xs">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-bold text-amber-900">Operasional Pesanan & Refund</p>
+                <p id="drawer-order-subtext" class="text-[11px] text-amber-700">Order #ORD-XXXXXX</p>
+              </div>
+              <button
+                type="button"
+                id="drawer-btn-refund"
+                class="rounded border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 min-h-[44px]"
+              >
+                Proses Refund
+              </button>
+            </div>
+          </div>
+
+          <!-- Save Button -->
+          <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-200">
+            <button
+              type="button"
+              id="drawer-btn-cancel"
+              class="rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 min-h-[44px]"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              id="drawer-btn-submit"
+              class="rounded-lg bg-orange-600 px-5 py-2 text-xs font-semibold text-white hover:bg-orange-700 min-h-[44px]"
+            >
+              Simpan Perubahan
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { authedFetch } from "../../../../../lib/api";
+    import { esc } from "../../../../../lib/safe";
+
+    interface Ticket {
+      id: string;
+      ticketNumber: string;
+      status: string;
+      orderId: string;
+      eventId: string;
+      categoryId: string;
+      holderName: string;
+      holderEmail: string;
+      eventTitle: string;
+      categoryName: string;
+      issuedAt: string;
+      usedAt?: string | null;
+      bibNumber?: string | null;
+      bibAssignmentMethod?: string | null;
+      formAnswers?: Record<string, any>;
+    }
+
+    const root = document.getElementById("participants-root")!;
+    const orgId = root.dataset.orgId!;
+    const eventId = root.dataset.eventId!;
+
+    let allTickets: Ticket[] = [];
+    let filteredTickets: Ticket[] = [];
+    let selectedTicket: Ticket | null = null;
+
+    let currentPage = 1;
+    const pageSize = 20;
+
+    const tbody = document.getElementById("participants-tbody")!;
+    const filterSearch = document.getElementById("filter-search") as HTMLInputElement;
+    const filterCategory = document.getElementById("filter-category") as HTMLSelectElement;
+    const filterStatus = document.getElementById("filter-status") as HTMLSelectElement;
+    const filterBib = document.getElementById("filter-bib") as HTMLSelectElement;
+
+    const statTotal = document.getElementById("stat-total")!;
+    const statValid = document.getElementById("stat-valid")!;
+    const statUsed = document.getElementById("stat-used")!;
+    const statBib = document.getElementById("stat-bib")!;
+
+    const drawerBackdrop = document.getElementById("drawer-backdrop")!;
+    const drawerPanel = document.getElementById("drawer-panel")!;
+    const drawerClose = document.getElementById("drawer-close")!;
+    const drawerSubtitle = document.getElementById("drawer-subtitle")!;
+    const drawerStatusBox = document.getElementById("drawer-status-box")!;
+    const drawerForm = document.getElementById("drawer-form") as HTMLFormElement;
+    const drawerInputName = document.getElementById("drawer-input-name") as HTMLInputElement;
+    const drawerInputEmail = document.getElementById("drawer-input-email") as HTMLInputElement;
+    const drawerValCategory = document.getElementById("drawer-val-category")!;
+    const drawerValBib = document.getElementById("drawer-val-bib")!;
+    const drawerValGender = document.getElementById("drawer-val-gender")!;
+    const drawerValBlood = document.getElementById("drawer-val-blood")!;
+    const drawerValJersey = document.getElementById("drawer-val-jersey")!;
+    const drawerValPhone = document.getElementById("drawer-val-phone")!;
+    const drawerValEmergency = document.getElementById("drawer-val-emergency")!;
+    const drawerCustomAnswersList = document.getElementById("drawer-custom-answers-list")!;
+    const drawerOrderSubtext = document.getElementById("drawer-order-subtext")!;
+    const drawerBtnRefund = document.getElementById("drawer-btn-refund") as HTMLButtonElement;
+    const drawerBtnCancel = document.getElementById("drawer-btn-cancel")!;
+
+    const paginationInfo = document.getElementById("pagination-info")!;
+    const btnPrev = document.getElementById("btn-prev") as HTMLButtonElement;
+    const btnNext = document.getElementById("btn-next") as HTMLButtonElement;
+    const btnReload = document.getElementById("btn-reload")!;
+
+    async function loadData() {
+      try {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="px-4 py-8 text-center text-slate-400 font-sans">
+              <div class="inline-block h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-orange-600 mb-2"></div>
+              <p>Memuat direktori peserta...</p>
+            </td>
+          </tr>`;
+
+        const tickets = await authedFetch<Ticket[]>(`/organizations/${orgId}/events/${eventId}/tickets`);
+        allTickets = Array.isArray(tickets) ? tickets : [];
+
+        // Populate category dropdown
+        const categories = Array.from(new Set(allTickets.map(t => t.categoryName).filter(Boolean)));
+        filterCategory.innerHTML = `<option value="">Semua Kategori</option>` +
+          categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+
+        updateStats();
+        applyFilter();
+      } catch (err: unknown) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="px-4 py-8 text-center text-red-500 font-sans">
+              Gagal memuat peserta: ${esc((err as Error)?.message || "Terjadi kesalahan jaringan")}
+            </td>
+          </tr>`;
+      }
+    }
+
+    function updateStats() {
+      statTotal.textContent = allTickets.length.toString();
+      statValid.textContent = allTickets.filter(t => t.status === "VALID").length.toString();
+      statUsed.textContent = allTickets.filter(t => t.status === "USED").length.toString();
+      statBib.textContent = allTickets.filter(t => Boolean(t.bibNumber)).length.toString();
+    }
+
+    function applyFilter() {
+      const q = filterSearch.value.trim().toLowerCase();
+      const cat = filterCategory.value;
+      const status = filterStatus.value;
+      const bib = filterBib.value;
+
+      filteredTickets = allTickets.filter(t => {
+        if (cat && t.categoryName !== cat) return false;
+        if (status && t.status !== status) return false;
+        if (bib === "ASSIGNED" && !t.bibNumber) return false;
+        if (bib === "UNASSIGNED" && t.bibNumber) return false;
+
+        if (q) {
+          const matchName = (t.holderName || "").toLowerCase().includes(q);
+          const matchEmail = (t.holderEmail || "").toLowerCase().includes(q);
+          const matchTicket = (t.ticketNumber || "").toLowerCase().includes(q);
+          const matchBib = (t.bibNumber || "").toLowerCase().includes(q);
+          const matchPhone = (t.formAnswers?.phone || t.formAnswers?.guestPhone || "").toLowerCase().includes(q);
+          if (!matchName && !matchEmail && !matchTicket && !matchBib && !matchPhone) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      currentPage = 1;
+      renderTable();
+    }
+
+    function renderTable() {
+      const total = filteredTickets.length;
+      const totalPages = Math.ceil(total / pageSize) || 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const start = (currentPage - 1) * pageSize;
+      const paged = filteredTickets.slice(start, start + pageSize);
+
+      if (paged.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="px-4 py-8 text-center text-slate-400 font-sans">
+              Tidak ada peserta yang cocok dengan filter pencarian.
+            </td>
+          </tr>`;
+        paginationInfo.textContent = "Menampilkan 0 peserta";
+        btnPrev.disabled = true;
+        btnNext.disabled = true;
+        return;
+      }
+
+      tbody.innerHTML = paged.map(t => {
+        const fa = t.formAnswers || {};
+        const gender = fa.gender || "-";
+        const jersey = fa.jerseySize || "-";
+        const phone = fa.phone || fa.guestPhone || "";
+
+        let statusClass = "bg-emerald-50 text-emerald-700 border border-emerald-200";
+        if (t.status === "USED") statusClass = "bg-blue-50 text-blue-700 border border-blue-200";
+        if (t.status === "CANCELLED") statusClass = "bg-rose-50 text-rose-700 border border-rose-200";
+
+        return `
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-4 py-3">
+              <div class="font-sans font-semibold text-slate-900">${esc(t.holderName || "Tanpa Nama")}</div>
+              <div class="text-[11px] text-slate-500">${esc(t.holderEmail || "-")}</div>
+              ${phone ? `<div class="text-[11px] text-slate-400">${esc(phone)}</div>` : ""}
+            </td>
+            <td class="px-4 py-3 font-sans">
+              <span class="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700">${esc(t.categoryName)}</span>
+              <div class="text-[10px] text-slate-400 font-mono mt-0.5">${esc(t.ticketNumber)}</div>
+            </td>
+            <td class="px-4 py-3">
+              ${t.bibNumber ? `<span class="inline-flex items-center font-bold text-orange-600 bg-orange-50 border border-orange-200 rounded px-2 py-0.5 text-xs">${esc(t.bibNumber)}</span>` : `<span class="text-slate-400 italic font-sans text-xs">Belum diassign</span>`}
+            </td>
+            <td class="px-4 py-3 font-sans">
+              <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusClass}">
+                ${esc(t.status)}
+              </span>
+              ${t.usedAt ? `<div class="text-[10px] text-slate-400 mt-0.5">Check-in: ${new Date(t.usedAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</div>` : ""}
+            </td>
+            <td class="px-4 py-3 font-sans">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">G: ${esc(gender)}</span>
+                <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">J: ${esc(jersey)}</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-right font-sans">
+              <button
+                type="button"
+                data-ticket-id="${esc(t.id)}"
+                class="btn-open-drawer inline-flex items-center rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 min-h-[44px]"
+              >
+                Detail & Edit
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      paginationInfo.textContent = `Menampilkan ${start + 1}-${Math.min(start + pageSize, total)} dari ${total} peserta`;
+      btnPrev.disabled = currentPage <= 1;
+      btnNext.disabled = currentPage >= totalPages;
+
+      document.querySelectorAll(".btn-open-drawer").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const tid = (btn as HTMLElement).dataset.ticketId;
+          const found = allTickets.find(t => t.id === tid);
+          if (found) openDrawer(found);
+        });
+      });
+    }
+
+    function openDrawer(ticket: Ticket) {
+      selectedTicket = ticket;
+      const fa = ticket.formAnswers || {};
+
+      drawerSubtitle.textContent = ticket.ticketNumber;
+      drawerInputName.value = ticket.holderName || "";
+      drawerInputEmail.value = ticket.holderEmail || "";
+
+      drawerValCategory.textContent = ticket.categoryName || "-";
+      drawerValBib.textContent = ticket.bibNumber || "Belum ada BIB";
+
+      drawerValGender.textContent = fa.gender || "-";
+      drawerValBlood.textContent = fa.bloodType || "-";
+      drawerValJersey.textContent = fa.jerseySize || "-";
+      drawerValPhone.textContent = fa.phone || fa.guestPhone || "-";
+
+      const emName = fa.emergencyContactName || fa.emergencyContact || "";
+      const emPhone = fa.emergencyContactPhone || "";
+      drawerValEmergency.textContent = emName || emPhone ? `${emName} (${emPhone})` : "-";
+
+      // Status box
+      if (ticket.status === "VALID") {
+        drawerStatusBox.className = "rounded-lg p-3 text-xs bg-emerald-50 border border-emerald-200 text-emerald-800";
+        drawerStatusBox.innerHTML = `<strong>Status Tiket: VALID</strong>. Peserta terverifikasi dan belum melakukan scan race-pack/check-in.`;
+      } else if (ticket.status === "USED") {
+        drawerStatusBox.className = "rounded-lg p-3 text-xs bg-blue-50 border border-blue-200 text-blue-800";
+        drawerStatusBox.innerHTML = `<strong>Status Tiket: USED</strong>. Telah check-in pada: ${ticket.usedAt ? new Date(ticket.usedAt).toLocaleString("id-ID") : "-"}`;
+      } else {
+        drawerStatusBox.className = "rounded-lg p-3 text-xs bg-rose-50 border border-rose-200 text-rose-800";
+        drawerStatusBox.innerHTML = `<strong>Status Tiket: CANCELLED</strong>. Tiket tidak berlaku.`;
+      }
+
+      // Custom form answers
+      const standardKeys = new Set(["fullName", "email", "phone", "guestEmail", "guestName", "guestPhone", "gender", "bloodType", "jerseySize", "emergencyContactName", "emergencyContactPhone", "emergencyContact", "termsAccepted", "waiverAccepted", "consentVersion"]);
+      const customEntries = Object.entries(fa).filter(([k]) => !standardKeys.has(k));
+
+      if (customEntries.length > 0) {
+        drawerCustomAnswersList.innerHTML = customEntries.map(([k, v]) => `
+          <div class="border-b border-slate-100 pb-1.5 last:border-none last:pb-0">
+            <span class="text-slate-500 block text-[11px] font-medium">${esc(k)}</span>
+            <span class="text-slate-900 font-semibold text-xs">${esc(String(v))}</span>
+          </div>
+        `).join("");
+      } else {
+        drawerCustomAnswersList.innerHTML = `<p class="text-slate-400 italic text-xs">Tidak ada jawaban formulir tambahan.</p>`;
+      }
+
+      drawerOrderSubtext.textContent = `Order ID: ${ticket.orderId}`;
+
+      // Open drawer visually
+      drawerBackdrop.classList.remove("pointer-events-none", "opacity-0");
+      drawerBackdrop.classList.add("opacity-100");
+      drawerPanel.classList.remove("translate-x-full");
+    }
+
+    function closeDrawer() {
+      drawerBackdrop.classList.add("pointer-events-none", "opacity-0");
+      drawerBackdrop.classList.remove("opacity-100");
+      drawerPanel.classList.add("translate-x-full");
+      selectedTicket = null;
+    }
+
+    drawerClose.addEventListener("click", closeDrawer);
+    drawerBackdrop.addEventListener("click", closeDrawer);
+    drawerBtnCancel.addEventListener("click", closeDrawer);
+
+    // Handle Form Submit: Update Participant Contact & Details
+    drawerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!selectedTicket) return;
+
+      const newName = drawerInputName.value.trim();
+      const newEmail = drawerInputEmail.value.trim();
+      if (!newName || !newEmail) {
+        alert("Nama dan email wajib diisi.");
+        return;
+      }
+
+      const submitBtn = document.getElementById("drawer-btn-submit") as HTMLButtonElement;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Menyimpan...";
+
+      try {
+        const updated = await authedFetch<Ticket>(
+          `/organizations/${orgId}/events/${eventId}/tickets/${selectedTicket.id}/participant`,
+          {
+            method: "PUT",
+            body: {
+              holderName: newName,
+              holderEmail: newEmail,
+              formAnswers: {
+                ...(selectedTicket.formAnswers || {}),
+                fullName: newName,
+                email: newEmail,
+              },
+            },
+          }
+        );
+
+        // Update local state
+        const idx = allTickets.findIndex(t => t.id === selectedTicket!.id);
+        if (idx !== -1) {
+          allTickets[idx] = { ...allTickets[idx], ...updated };
+        }
+        applyFilter();
+        closeDrawer();
+        alert("Data peserta berhasil diperbarui.");
+      } catch (err: unknown) {
+        alert("Gagal menyimpan perubahan: " + ((err as Error)?.message || "Terjadi kesalahan"));
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Simpan Perubahan";
+      }
+    });
+
+    // Handle Refund Order
+    drawerBtnRefund.addEventListener("click", async () => {
+      if (!selectedTicket) return;
+      const reason = prompt("Masukkan alasan refund (contoh: Permintaan pembatalan peserta, cedera, dll):");
+      if (!reason) return;
+
+      if (!confirm(`Konfirmasi proses refund untuk pesanan tiket ${selectedTicket.ticketNumber}? Status tiket akan dibatalkan.`)) {
+        return;
+      }
+
+      drawerBtnRefund.disabled = true;
+      drawerBtnRefund.textContent = "Memproses...";
+
+      try {
+        await authedFetch(`/orders/${selectedTicket.orderId}/refund`, {
+          method: "POST",
+          body: {
+            reason: reason.trim(),
+          },
+        });
+        alert("Pesanan berhasil direfund.");
+        await loadData();
+        closeDrawer();
+      } catch (err: unknown) {
+        alert("Gagal refund: " + ((err as Error)?.message || "Terjadi kesalahan"));
+      } finally {
+        drawerBtnRefund.disabled = false;
+        drawerBtnRefund.textContent = "Proses Refund";
+      }
+    });
+
+    // Pagination events
+    btnPrev.addEventListener("click", () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderTable();
+      }
+    });
+
+    btnNext.addEventListener("click", () => {
+      const totalPages = Math.ceil(filteredTickets.length / pageSize) || 1;
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderTable();
+      }
+    });
+
+    // Filter listeners
+    filterSearch.addEventListener("input", applyFilter);
+    filterCategory.addEventListener("change", applyFilter);
+    filterStatus.addEventListener("change", applyFilter);
+    filterBib.addEventListener("change", applyFilter);
+    btnReload.addEventListener("click", loadData);
+
+    // Initial load
+    loadData();
+  </script>
+</OrganizerLayout>

@@ -3,41 +3,455 @@ export const prerender = false;
 import OrganizerLayout from "../../../layouts/OrganizerLayout.astro";
 const { orgId } = Astro.params;
 ---
-<OrganizerLayout title="Dashboard — ivyticketing">
-  <div class="space-y-6">
-    <h1 class="text-2xl font-bold text-slate-900">Dashboard</h1>
-    <p class="text-slate-600">
-      Selamat datang di panel organizer. Pilih menu di samping untuk mengelola event Anda.
-    </p>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <a
-        href={`/org/${orgId}/events`}
-        class="rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-400 transition-colors"
-      >
-        <p class="font-semibold text-slate-900 mb-1">Events</p>
-        <p class="text-sm text-slate-500">Kelola daftar event organisasi Anda.</p>
-      </a>
+<OrganizerLayout title="Dashboard Organizer : ivyticketing" orgId={orgId}>
+  <div id="org-dashboard-root" data-org-id={orgId} class="space-y-8">
+    <!-- Hero / Org Banner Header -->
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold text-orange-800">
+              <span class="h-1.5 w-1.5 rounded-full bg-orange-600"></span>
+              Pusat Kendali Penyelenggara
+            </span>
+            <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+              Terverifikasi
+            </span>
+          </div>
+          <h1 id="org-name-title" class="font-display text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Memuat Organisasi...
+          </h1>
+          <p id="org-meta" class="text-xs sm:text-sm text-slate-500 mt-1 font-mono">
+            ID: {orgId}
+          </p>
+        </div>
 
-      <a
-        href={`/org/${orgId}/members`}
-        class="rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-400 transition-colors"
-      >
-        <p class="font-semibold text-slate-900 mb-1">Anggota</p>
-        <p class="text-sm text-slate-500">Segera tersedia.</p>
-      </a>
+        <div class="flex flex-wrap items-center gap-2.5">
+          <a
+            href={`/org/${orgId}/events/new`}
+            class="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 transition-colors"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Buat Event Baru
+          </a>
+          <a
+            href={`/org/${orgId}/events`}
+            class="min-h-[44px] inline-flex items-center justify-center rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            Kelola Semua Event
+          </a>
+          <a
+            href={`/org/${orgId}/settings`}
+            class="min-h-[44px] inline-flex items-center justify-center rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+            title="Pengaturan Organisasi"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </a>
+        </div>
+      </div>
 
-      <a
-        href={`/org/${orgId}/settings`}
-        class="rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-400 transition-colors"
-      >
-        <p class="font-semibold text-slate-900 mb-1">Pengaturan</p>
-        <p class="text-sm text-slate-500">Segera tersedia.</p>
-      </a>
+      <!-- KPI Analytics Counters -->
+      <div class="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-4 pt-6 border-t border-slate-100">
+        <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Event</p>
+          <p id="kpi-events-count" class="font-display text-2xl sm:text-3xl font-black text-slate-900 mt-1">-</p>
+          <p class="text-[11px] text-slate-500 mt-0.5">Aktif & terdaftar</p>
+        </div>
+        <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Peserta</p>
+          <p id="kpi-participants-count" class="font-display text-2xl sm:text-3xl font-black text-slate-900 mt-1">-</p>
+          <p class="text-[11px] text-emerald-600 font-medium mt-0.5">Tiket terkonfirmasi</p>
+        </div>
+        <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Estimasi Pendapatan</p>
+          <p id="kpi-revenue" class="font-display text-2xl sm:text-3xl font-black text-slate-900 mt-1">-</p>
+          <p class="text-[11px] text-slate-500 mt-0.5">Penjualan kotor tiket</p>
+        </div>
+        <div class="rounded-xl bg-slate-50 p-4 border border-slate-100">
+          <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Status War & Antrean</p>
+          <div class="flex items-center gap-1.5 mt-2">
+            <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+            <span class="font-bold text-sm text-slate-900">Sistem Siap</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-0.5">High-throughput mode</p>
+        </div>
+      </div>
     </div>
 
-    <p class="text-xs text-slate-400">
-      <a href="/" class="underline hover:text-slate-600">Kembali ke Beranda</a>
-    </p>
+    <!-- Active Events Section -->
+    <div class="space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+        <div>
+          <h2 class="font-display text-xl font-bold uppercase tracking-tight text-slate-900">
+            Perlombaan Organisasi
+          </h2>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Pilih event untuk mengelola kategori tiket, antrean war, loket racepack, dan rekap hasil timing.
+          </p>
+        </div>
+        <a
+          href={`/org/${orgId}/events/new`}
+          class="text-xs font-bold text-orange-600 hover:text-orange-700 min-h-[44px] inline-flex items-center gap-1"
+        >
+          + Tambah Perlombaan Baru
+        </a>
+      </div>
+
+      <!-- Events List Container -->
+      <div id="events-grid" class="grid grid-cols-1 gap-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-400 text-sm">
+          Memuat daftar perlombaan organisasi...
+        </div>
+      </div>
+    </div>
+
+    <!-- Operations & Management Hub (Command Cards) -->
+    <div class="space-y-4">
+      <h2 class="font-display text-xl font-bold uppercase tracking-tight text-slate-900">
+        Pusat Operasional Lapangan & Layanan
+      </h2>
+      <p class="text-xs text-slate-500 -mt-2">
+        Akses cepat modul verifikasi, racepack pickup desk, kolaborasi tim, dan pelaporan keuangan.
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Card 1: Anggota Tim & Staf -->
+        <a
+          href={`/org/${orgId}/members`}
+          class="group block rounded-2xl border border-slate-200 bg-white p-5 hover:border-orange-500 hover:shadow-md transition-all"
+        >
+          <div class="flex items-center gap-3 mb-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-slate-900 group-hover:text-orange-600 transition-colors">Anggota & Staf</h3>
+              <p class="text-xs text-slate-500">Hak akses tim & panitia</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Atur perizinan panitia lapangan, staf verifikasi identitas, dan race director untuk setiap pos lomba.
+          </p>
+        </a>
+
+        <!-- Card 2: Notifikasi & Blast Peserta -->
+        <a
+          href={`/org/${orgId}/notifications`}
+          class="group block rounded-2xl border border-slate-200 bg-white p-5 hover:border-orange-500 hover:shadow-md transition-all"
+        >
+          <div class="flex items-center gap-3 mb-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-slate-900 group-hover:text-orange-600 transition-colors">Notifikasi & Pengumuman</h3>
+              <p class="text-xs text-slate-500">Email & broadcast peserta</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Kirimkan informasi race guide, alokasi nomor BIB, jadwal flag-off, dan pengingat pengambilan racepack.
+          </p>
+        </a>
+
+        <!-- Card 3: Tagihan & Langganan SaaS -->
+        <a
+          href={`/org/${orgId}/billing`}
+          class="group block rounded-2xl border border-slate-200 bg-white p-5 hover:border-orange-500 hover:shadow-md transition-all"
+        >
+          <div class="flex items-center gap-3 mb-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-slate-900 group-hover:text-orange-600 transition-colors">Tagihan & Billing</h3>
+              <p class="text-xs text-slate-500">Paket SaaS & kuota war</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Pantau penggunaan kuota transaksi war, status langganan platform, dan riwayat invoice platform fee.
+          </p>
+        </a>
+
+        <!-- Card 4: Branding & Tampilan -->
+        <a
+          href={`/org/${orgId}/branding`}
+          class="group block rounded-2xl border border-slate-200 bg-white p-5 hover:border-orange-500 hover:shadow-md transition-all"
+        >
+          <div class="flex items-center gap-3 mb-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-slate-900 group-hover:text-orange-600 transition-colors">Branding & Logo</h3>
+              <p class="text-xs text-slate-500">Kustomisasi identitas race</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Unggah logo resmi, sesuaikan warna tema landing page, dan tambahkan sponsor resmi pada e-tiket & sertifikat.
+          </p>
+        </a>
+
+        <!-- Card 5: Integrasi API & Webhook -->
+        <a
+          href={`/org/${orgId}/enterprise`}
+          class="group block rounded-2xl border border-slate-200 bg-white p-5 hover:border-orange-500 hover:shadow-md transition-all"
+        >
+          <div class="flex items-center gap-3 mb-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-slate-900 group-hover:text-orange-600 transition-colors">API & Webhook</h3>
+              <p class="text-xs text-slate-500">Integrasi pihak ketiga</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Hubungkan data peserta secara langsung ke sistem timing RFID eksternal, CRM, atau server cloud Anda.
+          </p>
+        </a>
+
+        <!-- Card 6: Pengaturan Organisasi -->
+        <a
+          href={`/org/${orgId}/settings`}
+          class="group block rounded-2xl border border-slate-200 bg-white p-5 hover:border-orange-500 hover:shadow-md transition-all"
+        >
+          <div class="flex items-center gap-3 mb-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 group-hover:bg-slate-900 group-hover:text-white transition-colors">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-slate-900 group-hover:text-orange-600 transition-colors">Pengaturan Organisasi</h3>
+              <p class="text-xs text-slate-500">Profil & legalitas badan</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Kelola nama resmi yayasan/perusahaan, alamat kantor, rekening bank penampung, dan nomor kontak PIC.
+          </p>
+        </a>
+      </div>
+    </div>
   </div>
 </OrganizerLayout>
+
+<script>
+  import { authedFetch } from "../../../lib/api";
+  import { esc } from "../../../lib/safe";
+
+  const root = document.getElementById("org-dashboard-root");
+  const orgId = root?.getAttribute("data-org-id") || window.location.pathname.split("/")[2] || "";
+
+  function formatRupiah(amount: number | string) {
+    return "Rp " + Number(amount || 0).toLocaleString("id-ID");
+  }
+
+  function statusBadge(status: string) {
+    const s = String(status || "").toUpperCase();
+    if (s === "PUBLISHED") {
+      return '<span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">Dipublikasikan</span>';
+    }
+    if (s === "DRAFT") {
+      return '<span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">Draf</span>';
+    }
+    if (s === "ARCHIVED") {
+      return '<span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">Diarsipkan</span>';
+    }
+    return `<span class="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">${esc(status)}</span>`;
+  }
+
+  async function loadOrgDashboard() {
+    if (!orgId) return;
+    // 1. Fetch Org Details
+    try {
+      const org = await authedFetch(`/organizations/${orgId}`).catch(() => null);
+      const nameTitleEl = document.getElementById("org-name-title");
+      const metaEl = document.getElementById("org-meta");
+
+      if (org && org.name) {
+        if (nameTitleEl) nameTitleEl.textContent = org.name;
+        if (metaEl) metaEl.textContent = `Slug: ${org.slug || "-"} | ID: ${org.id}`;
+      } else {
+        if (nameTitleEl) nameTitleEl.textContent = "Akses Terbatas : Organisasi Tidak Ditemukan";
+        if (metaEl) metaEl.textContent = `ID: ${orgId}`;
+      }
+    } catch {
+      const nameTitleEl = document.getElementById("org-name-title");
+      if (nameTitleEl) nameTitleEl.textContent = "Akses Terbatas : Organisasi Tidak Ditemukan";
+    }
+
+    // 2. Fetch Events
+    let events = [];
+    try {
+      events = await authedFetch(`/organizations/${orgId}/events`).catch(() => []);
+    } catch {
+      events = [];
+    }
+
+    // Update Events KPI
+    const eventsCountEl = document.getElementById("kpi-events-count");
+    if (eventsCountEl) eventsCountEl.textContent = String(events.length);
+
+    // 3. Fetch Summary Reports (Participant & Sales)
+    let totalParticipants = 0;
+    let totalRevenue = 0;
+    try {
+      const pSummary = await authedFetch<any>(`/organizations/${orgId}/reports/participant/summary`).catch(() => null);
+      if (pSummary) {
+        totalParticipants = Number(
+          pSummary.TotalTickets ??
+          pSummary.total_tickets ??
+          pSummary.UniqueParticipants ??
+          pSummary.unique_participants ??
+          pSummary.totalParticipants ??
+          pSummary.count ??
+          0
+        );
+      }
+    } catch {
+      // Keep default
+    }
+
+    try {
+      const sSummary = await authedFetch<any>(`/organizations/${orgId}/reports/sales/summary`).catch(() => null);
+      if (sSummary) {
+        totalRevenue = Number(
+          sSummary.GrossPaid ??
+          sSummary.gross_paid ??
+          sSummary.totalRevenue ??
+          sSummary.total ??
+          0
+        );
+      }
+    } catch {
+      // Keep default
+    }
+
+    const participantsCountEl = document.getElementById("kpi-participants-count");
+    const revenueEl = document.getElementById("kpi-revenue");
+    if (participantsCountEl) participantsCountEl.textContent = String(totalParticipants);
+    if (revenueEl) revenueEl.textContent = formatRupiah(totalRevenue);
+
+    // 4. Render Events Cards
+    const eventsGrid = document.getElementById("events-grid");
+    if (!eventsGrid) return;
+
+    if (!events || events.length === 0) {
+      eventsGrid.innerHTML = `
+        <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+          <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 text-orange-600 mb-3">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </div>
+          <h3 class="font-display text-base font-bold text-slate-900">Belum Ada Perlombaan</h3>
+          <p class="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-5">
+            Organisasi Anda belum membuat event. Buat event pertama sekarang untuk mulai mengatur kategori race, antrean war, dan kuota peserta.
+          </p>
+          <a
+            href="/org/${orgId}/events/new"
+            class="min-h-[44px] inline-flex items-center justify-center rounded-xl bg-orange-600 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 transition-colors"
+          >
+            + Buat Event Pertama
+          </a>
+        </div>`;
+    } else {
+      eventsGrid.innerHTML = events
+        .map((ev) => `
+          <div class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm hover:border-slate-300 transition-all">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-100">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  ${statusBadge(ev.status)}
+                  <span class="rounded bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-600 uppercase">
+                    ${esc(ev.eventType || "RUNNING")}
+                  </span>
+                </div>
+                <h3 class="font-display text-lg sm:text-xl font-bold text-slate-900 leading-snug">
+                  ${esc(ev.name || "Perlombaan Tanpa Nama")}
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">
+                  ${ev.venueName ? esc(ev.venueName) : "Lokasi belum ditentukan"} • Slug: <span class="font-mono text-slate-700">${esc(ev.slug || "-")}</span>
+                </p>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <a
+                  href="/org/${orgId}/events/${ev.id}"
+                  class="min-h-[44px] inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-orange-600 transition-colors"
+                >
+                  Command Center &rarr;
+                </a>
+              </div>
+            </div>
+
+            <!-- Quick Action Hub per Event -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              <a
+                href="/org/${orgId}/events/${ev.id}/categories"
+                class="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-center hover:border-orange-300 hover:bg-orange-50/50 transition-colors"
+              >
+                <span class="text-base">🎫</span>
+                <span class="text-xs font-bold text-slate-800 mt-1">Kategori & Kuota</span>
+                <span class="text-[10px] text-slate-500">Harga & BIB</span>
+              </a>
+
+              <a
+                href="/org/${orgId}/events/${ev.id}/queue-controls"
+                class="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-center hover:border-orange-300 hover:bg-orange-50/50 transition-colors"
+              >
+                <span class="text-base">⚡</span>
+                <span class="text-xs font-bold text-slate-800 mt-1">War & Ballot</span>
+                <span class="text-[10px] text-slate-500">Antrean Traffic</span>
+              </a>
+
+              <a
+                href="/org/${orgId}/events/${ev.id}/racepack-dashboard"
+                class="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-center hover:border-orange-300 hover:bg-orange-50/50 transition-colors"
+              >
+                <span class="text-base">🎽</span>
+                <span class="text-xs font-bold text-slate-800 mt-1">Racepack RPC</span>
+                <span class="text-[10px] text-slate-500">Pengambilan Jersey</span>
+              </a>
+
+              <a
+                href="/org/${orgId}/events/${ev.id}/results"
+                class="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-center hover:border-orange-300 hover:bg-orange-50/50 transition-colors"
+              >
+                <span class="text-base">⏱️</span>
+                <span class="text-xs font-bold text-slate-800 mt-1">Hasil & Timing</span>
+                <span class="text-[10px] text-slate-500">Leaderboard RFID</span>
+              </a>
+
+              <a
+                href="/org/${orgId}/events/${ev.id}/reports"
+                class="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-center hover:border-orange-300 hover:bg-orange-50/50 transition-colors"
+              >
+                <span class="text-base">📊</span>
+                <span class="text-xs font-bold text-slate-800 mt-1">Laporan & Rekap</span>
+                <span class="text-[10px] text-slate-500">Export CSV / Excel</span>
+              </a>
+            </div>
+          </div>`)
+        .join("");
+    }
+  }
+
+  loadOrgDashboard();
+</script>

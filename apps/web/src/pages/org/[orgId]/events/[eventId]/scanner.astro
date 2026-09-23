@@ -1,0 +1,560 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+
+<OrganizerLayout title="Race Day Scanner - ivyticketing">
+  <div id="scanner-root" data-org-id={orgId} data-event-id={eventId} class="space-y-6 max-w-5xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <a href={`/org/${orgId}/events/${eventId}`} class="text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors">&larr; Kembali ke Ringkasan</a>
+        </div>
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mt-1">Race Day Scanner & Check-in</h1>
+        <p class="text-xs sm:text-sm text-slate-500">Pindai QR code tiket atlet untuk verifikasi registrasi dan check-in race pack / race day.</p>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs shadow-sm">
+          <span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span class="font-medium text-slate-700">Scanner Online</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Counter Stats -->
+    <div class="grid grid-cols-3 gap-3 sm:gap-4">
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm text-center">
+        <p class="text-xs font-medium text-slate-500">Total Scan Sesi Ini</p>
+        <p id="stat-scans" class="text-2xl sm:text-3xl font-bold text-slate-900 mt-1">0</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm text-center">
+        <p class="text-xs font-medium text-slate-500">Check-In Berhasil</p>
+        <p id="stat-valid" class="text-2xl sm:text-3xl font-bold text-emerald-600 mt-1">0</p>
+      </div>
+      <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm text-center">
+        <p class="text-xs font-medium text-slate-500">Duplikat / Ditolak</p>
+        <p id="stat-duplicates" class="text-2xl sm:text-3xl font-bold text-amber-600 mt-1">0</p>
+      </div>
+    </div>
+
+    <!-- Scanner & Manual Input Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Left: Camera Viewfinder & Manual Barcode Input -->
+      <div class="lg:col-span-7 space-y-4">
+        <div class="rounded-2xl border border-slate-200 bg-slate-900 text-white overflow-hidden shadow-sm relative">
+          <!-- Video viewport -->
+          <div class="relative aspect-video sm:aspect-[4/3] bg-black flex items-center justify-center">
+            <video id="camera-feed" class="w-full h-full object-cover hidden" playsinline muted></video>
+            <div id="camera-placeholder" class="text-center p-6 space-y-3">
+              <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-800 text-slate-400">
+                <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-200">Kamera Scanner Siaga</p>
+                <p class="text-xs text-slate-400 mt-1">Klik tombol di bawah untuk mengaktifkan kamera perangkat.</p>
+              </div>
+              <button
+                type="button"
+                id="btn-toggle-camera"
+                class="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-xs font-semibold text-white hover:bg-orange-700 transition-colors min-h-[44px]"
+              >
+                Aktifkan Kamera
+              </button>
+            </div>
+
+            <!-- Target Reticle Overlay -->
+            <div id="scanner-reticle" class="absolute inset-0 pointer-events-none hidden flex items-center justify-center">
+              <div class="w-56 h-56 border-2 border-orange-500 rounded-2xl relative">
+                <div class="absolute inset-x-0 top-0 h-0.5 bg-orange-400 shadow-[0_0_8px_#f97316] animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Camera Controls -->
+          <div class="p-3 bg-slate-800/80 border-t border-slate-700/50 flex items-center justify-between text-xs">
+            <span id="camera-status" class="text-slate-400">Kamera nonaktif</span>
+            <div class="flex items-center gap-2">
+              <label class="inline-flex items-center gap-1.5 cursor-pointer text-slate-300 select-none">
+                <input type="checkbox" id="auto-checkin-toggle" class="rounded border-slate-600 text-orange-600 focus:ring-0" checked />
+                <span>Auto Check-in (Instant)</span>
+              </label>
+              <label class="inline-flex items-center gap-1.5 cursor-pointer text-slate-300 select-none ml-2">
+                <input type="checkbox" id="sound-toggle" class="rounded border-slate-600 text-orange-600 focus:ring-0" checked />
+                <span>Suara Bip</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barcode / QR Manual Input Box (Hardware Handheld Scanner Ready) -->
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <form id="manual-scan-form" class="space-y-2">
+            <label for="manual-token-input" class="block text-xs font-bold text-slate-800">
+              Input Manual / Barcode Scanner Gun
+            </label>
+            <div class="flex gap-2">
+              <input
+                id="manual-token-input"
+                type="text"
+                placeholder="Scan QR token atau masukkan nomor tiket (TKT-XXXX)..."
+                autocomplete="off"
+                class="flex-1 rounded-lg border border-slate-300 px-3.5 py-2.5 text-xs font-mono focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              />
+              <button
+                type="submit"
+                id="btn-manual-submit"
+                class="rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors min-h-[44px]"
+              >
+                Verifikasi
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500">
+              Mendukung barcode scanner USB/Bluetooth eksternal (otomatis tekan Enter).
+            </p>
+          </form>
+        </div>
+      </div>
+
+      <!-- Right: Scanned Result Card & Actions -->
+      <div class="lg:col-span-5 space-y-4">
+        <!-- Verification Card -->
+        <div id="result-card" class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm min-h-[340px] flex flex-col justify-between">
+          <div id="result-placeholder" class="text-center py-12 space-y-3">
+            <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p class="text-sm font-semibold text-slate-700">Belum Ada Tiket yang Dipindai</p>
+            <p class="text-xs text-slate-400">Arahkan kamera ke QR tiket atlet atau masukkan kode untuk melihat rincian.</p>
+          </div>
+
+          <div id="result-content" class="hidden space-y-4">
+            <div id="result-badge-container" class="flex items-center justify-between">
+              <span id="result-status-badge" class="rounded-full px-3 py-1 text-xs font-bold bg-emerald-100 text-emerald-800">
+                VALID
+              </span>
+              <span id="result-timestamp" class="text-[11px] text-slate-400 font-mono">-</span>
+            </div>
+
+            <div>
+              <h2 id="result-athlete-name" class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Nama Peserta</h2>
+              <p id="result-ticket-number" class="text-xs font-mono text-slate-500 mt-0.5">TKT-XXXXXX</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div class="rounded-lg bg-slate-50 p-2.5 border border-slate-200">
+                <span class="text-slate-500 block text-[10px]">Nomor BIB</span>
+                <span id="result-bib-number" class="text-base font-mono font-black text-orange-600">-</span>
+              </div>
+              <div class="rounded-lg bg-slate-50 p-2.5 border border-slate-200">
+                <span class="text-slate-500 block text-[10px]">Kategori Lomba</span>
+                <span id="result-category-name" class="text-xs font-semibold text-slate-800 mt-0.5 block">-</span>
+              </div>
+            </div>
+
+            <!-- Racepack Pickup info if any -->
+            <div id="result-pickup-info" class="rounded-lg p-2.5 text-xs bg-slate-50 border border-slate-200 text-slate-700">
+              <span class="text-slate-500 block text-[10px]">Status Racepack:</span>
+              <span id="result-pickup-text" class="font-medium">-</span>
+            </div>
+
+            <!-- Action button for manual check-in -->
+            <div class="pt-3">
+              <button
+                type="button"
+                id="btn-confirm-checkin"
+                class="w-full rounded-lg bg-emerald-600 px-4 py-3 text-xs font-bold text-white hover:bg-emerald-700 transition-colors shadow-sm min-h-[44px]"
+              >
+                Konfirmasi Check-In Peserta
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scan History Log Table -->
+    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div class="border-b border-slate-200 px-4 py-3 bg-slate-50 flex items-center justify-between">
+        <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Riwayat Pemindaian Sesi Ini</h3>
+        <button id="btn-clear-history" class="text-[11px] text-slate-500 hover:text-slate-800">Bersihkan Riwayat</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-slate-700">
+          <thead class="border-b border-slate-200 bg-slate-50/50 text-[10px] font-semibold text-slate-500 uppercase">
+            <tr>
+              <th class="px-4 py-2.5">Waktu</th>
+              <th class="px-4 py-2.5">Peserta</th>
+              <th class="px-4 py-2.5">Kategori</th>
+              <th class="px-4 py-2.5">BIB</th>
+              <th class="px-4 py-2.5">Hasil</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody" class="divide-y divide-slate-100 font-mono">
+            <tr>
+              <td colspan="5" class="px-4 py-6 text-center text-slate-400 font-sans text-xs">
+                Belum ada riwayat pemindaian.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { authedFetch } from "../../../../../lib/api";
+    import { esc } from "../../../../../lib/safe";
+
+    const root = document.getElementById("scanner-root")!;
+    const orgId = root.dataset.orgId!;
+    const eventId = root.dataset.eventId!;
+
+    // Audio synthesizer for immediate sound feedback
+    let audioCtx: AudioContext | null = null;
+    function playBeep(type: "success" | "error") {
+      const soundEnabled = (document.getElementById("sound-toggle") as HTMLInputElement).checked;
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        if (audioCtx.state === "suspended") {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === "success") {
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+          osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.15); // A6
+          gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.2);
+        } else {
+          osc.frequency.setValueAtTime(220, audioCtx.currentTime); // A3
+          osc.frequency.setValueAtTime(180, audioCtx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.35);
+        }
+      } catch {}
+    }
+
+    // State
+    let scanCount = 0;
+    let validCount = 0;
+    let duplicateCount = 0;
+    interface HistoryItem {
+      time: string;
+      name: string;
+      category: string;
+      bib: string;
+      status: string;
+      isSuccess: boolean;
+    }
+    const history: HistoryItem[] = [];
+
+    let currentTicketId: string | null = null;
+    let currentTicketData: any = null;
+
+    // Elements
+    const statScansEl = document.getElementById("stat-scans")!;
+    const statValidEl = document.getElementById("stat-valid")!;
+    const statDuplicatesEl = document.getElementById("stat-duplicates")!;
+
+    const videoEl = document.getElementById("camera-feed") as HTMLVideoElement;
+    const cameraPlaceholder = document.getElementById("camera-placeholder")!;
+    const btnToggleCamera = document.getElementById("btn-toggle-camera")!;
+    const scannerReticle = document.getElementById("scanner-reticle")!;
+    const cameraStatus = document.getElementById("camera-status")!;
+    const autoCheckinToggle = document.getElementById("auto-checkin-toggle") as HTMLInputElement;
+
+    const manualForm = document.getElementById("manual-scan-form") as HTMLFormElement;
+    const manualInput = document.getElementById("manual-token-input") as HTMLInputElement;
+
+    const resultPlaceholder = document.getElementById("result-placeholder")!;
+    const resultContent = document.getElementById("result-content")!;
+    const resultStatusBadge = document.getElementById("result-status-badge")!;
+    const resultTimestamp = document.getElementById("result-timestamp")!;
+    const resultAthleteName = document.getElementById("result-athlete-name")!;
+    const resultTicketNumber = document.getElementById("result-ticket-number")!;
+    const resultBibNumber = document.getElementById("result-bib-number")!;
+    const resultCategoryName = document.getElementById("result-category-name")!;
+    const resultPickupInfo = document.getElementById("result-pickup-info")!;
+    const resultPickupText = document.getElementById("result-pickup-text")!;
+    const btnConfirmCheckin = document.getElementById("btn-confirm-checkin") as HTMLButtonElement;
+
+    const historyTbody = document.getElementById("history-tbody")!;
+    const btnClearHistory = document.getElementById("btn-clear-history")!;
+
+    // Camera Stream Management
+    let mediaStream: MediaStream | null = null;
+    let isScanning = false;
+    let barcodeDetector: any = null;
+
+    if ("BarcodeDetector" in window) {
+      try {
+        barcodeDetector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
+      } catch {}
+    }
+
+    async function startCamera() {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment", width: { ideal: 1280 } },
+        });
+        videoEl.srcObject = mediaStream;
+        await videoEl.play();
+
+        videoEl.classList.remove("hidden");
+        cameraPlaceholder.classList.add("hidden");
+        scannerReticle.classList.remove("hidden");
+        btnToggleCamera.textContent = "Matikan Kamera";
+        cameraStatus.textContent = "Kamera aktif";
+        isScanning = true;
+        requestAnimationFrame(scanLoop);
+      } catch (err: unknown) {
+        alert("Tidak dapat mengakses kamera: " + ((err as Error)?.message || "Akses ditolak"));
+      }
+    }
+
+    function stopCamera() {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+      }
+      videoEl.classList.add("hidden");
+      cameraPlaceholder.classList.remove("hidden");
+      scannerReticle.classList.add("hidden");
+      btnToggleCamera.textContent = "Aktifkan Kamera";
+      cameraStatus.textContent = "Kamera nonaktif";
+      isScanning = false;
+    }
+
+    btnToggleCamera.addEventListener("click", () => {
+      if (isScanning) {
+        stopCamera();
+      } else {
+        startCamera();
+      }
+    });
+
+    let lastScannedToken = "";
+    let lastScanTime = 0;
+
+    async function scanLoop() {
+      if (!isScanning) return;
+
+      if (barcodeDetector && videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+        try {
+          const barcodes = await barcodeDetector.detect(videoEl);
+          if (barcodes.length > 0) {
+            const rawValue = barcodes[0].rawValue;
+            const now = Date.now();
+            if (rawValue && (rawValue !== lastScannedToken || now - lastScanTime > 3000)) {
+              lastScannedToken = rawValue;
+              lastScanTime = now;
+              handleTokenScanned(rawValue);
+            }
+          }
+        } catch {}
+      }
+
+      requestAnimationFrame(scanLoop);
+    }
+
+    async function handleTokenScanned(token: string) {
+      scanCount++;
+      statScansEl.textContent = scanCount.toString();
+
+      // Show temporary loading state
+      resultPlaceholder.classList.add("hidden");
+      resultContent.classList.remove("hidden");
+      resultAthleteName.textContent = "Memverifikasi...";
+      resultTicketNumber.textContent = token.slice(0, 24) + "...";
+      resultBibNumber.textContent = "...";
+      resultCategoryName.textContent = "...";
+
+      try {
+        // Attempt verify via backend scanner API
+        const verifyRes = await authedFetch<any>(
+          `/organizations/${orgId}/events/${eventId}/scan/verify`,
+          {
+            method: "POST",
+            body: { qrToken: token.trim() },
+          }
+        );
+
+        currentTicketId = verifyRes.ticketId;
+        currentTicketData = verifyRes;
+
+        displayVerificationResult(verifyRes);
+
+        // If auto check-in is enabled and status is not already checked in
+        if (autoCheckinToggle.checked && !verifyRes.alreadyCheckedIn && verifyRes.display?.ticketStatus === "VALID") {
+          await executeCheckIn(verifyRes.ticketId);
+        } else {
+          if (verifyRes.alreadyCheckedIn) {
+            playBeep("error");
+            duplicateCount++;
+            statDuplicatesEl.textContent = duplicateCount.toString();
+          } else {
+            playBeep("success");
+            validCount++;
+            statValidEl.textContent = validCount.toString();
+          }
+        }
+      } catch (err: unknown) {
+        // If verify failed with invalid signature, check if it matches a ticket number
+        const msg = (err as Error)?.message || "Gagal verifikasi tiket";
+        playBeep("error");
+        duplicateCount++;
+        statDuplicatesEl.textContent = duplicateCount.toString();
+
+        resultStatusBadge.className = "rounded-full px-3 py-1 text-xs font-bold bg-rose-100 text-rose-800";
+        resultStatusBadge.textContent = "DITOLAK";
+        resultAthleteName.textContent = "Tiket Tidak Valid";
+        resultTicketNumber.textContent = msg;
+        btnConfirmCheckin.classList.add("hidden");
+
+        addHistory({
+          time: new Date().toLocaleTimeString("id-ID"),
+          name: "Tidak Dikenal",
+          category: "-",
+          bib: "-",
+          status: "DITOLAK (" + msg + ")",
+          isSuccess: false,
+        });
+      }
+    }
+
+    function displayVerificationResult(data: any) {
+      const d = data.display || {};
+      const status = d.ticketStatus || "VALID";
+      const isUsed = data.alreadyCheckedIn || status === "USED";
+
+      resultAthleteName.textContent = d.participantName || "Peserta";
+      resultTicketNumber.textContent = `ID: ${data.ticketId}`;
+      resultBibNumber.textContent = d.bibNumber || "-";
+      resultCategoryName.textContent = d.categoryName || "-";
+      resultTimestamp.textContent = new Date().toLocaleTimeString("id-ID");
+
+      if (isUsed) {
+        resultStatusBadge.className = "rounded-full px-3 py-1 text-xs font-bold bg-blue-100 text-blue-800";
+        resultStatusBadge.textContent = "SUDAH CHECK-IN (USED)";
+        btnConfirmCheckin.classList.add("hidden");
+      } else if (status === "VALID") {
+        resultStatusBadge.className = "rounded-full px-3 py-1 text-xs font-bold bg-emerald-100 text-emerald-800";
+        resultStatusBadge.textContent = "VALID (SIAP CHECK-IN)";
+        btnConfirmCheckin.classList.remove("hidden");
+        btnConfirmCheckin.disabled = false;
+        btnConfirmCheckin.textContent = "Konfirmasi Check-In Peserta";
+      } else {
+        resultStatusBadge.className = "rounded-full px-3 py-1 text-xs font-bold bg-rose-100 text-rose-800";
+        resultStatusBadge.textContent = status;
+        btnConfirmCheckin.classList.add("hidden");
+      }
+
+      if (data.alreadyPickedUp) {
+        resultPickupText.textContent = `Sudah diambil (${data.pickedUpAt ? new Date(data.pickedUpAt).toLocaleTimeString("id-ID") : "Ya"})`;
+      } else {
+        resultPickupText.textContent = "Belum diambil";
+      }
+
+      addHistory({
+        time: new Date().toLocaleTimeString("id-ID"),
+        name: d.participantName || "Peserta",
+        category: d.categoryName || "-",
+        bib: d.bibNumber || "-",
+        status: isUsed ? "DUPLIKAT (USED)" : status,
+        isSuccess: !isUsed && status === "VALID",
+      });
+    }
+
+    async function executeCheckIn(ticketId: string) {
+      btnConfirmCheckin.disabled = true;
+      btnConfirmCheckin.textContent = "Memproses Check-in...";
+
+      try {
+        await authedFetch(
+          `/organizations/${orgId}/events/${eventId}/scan/check-in`,
+          {
+            method: "POST",
+            headers: {
+              "Idempotency-Key": `chk-${ticketId}-${Date.now()}`,
+            },
+            body: { ticketId },
+          }
+        );
+
+        playBeep("success");
+        validCount++;
+        statValidEl.textContent = validCount.toString();
+
+        resultStatusBadge.className = "rounded-full px-3 py-1 text-xs font-bold bg-blue-100 text-blue-800";
+        resultStatusBadge.textContent = "BERHASIL CHECK-IN";
+        btnConfirmCheckin.classList.add("hidden");
+      } catch (err: unknown) {
+        playBeep("error");
+        alert("Gagal check-in: " + ((err as Error)?.message || "Terjadi kesalahan"));
+        btnConfirmCheckin.disabled = false;
+        btnConfirmCheckin.textContent = "Coba Lagi";
+      }
+    }
+
+    btnConfirmCheckin.addEventListener("click", () => {
+      if (currentTicketId) {
+        executeCheckIn(currentTicketId);
+      }
+    });
+
+    // Manual input submit
+    manualForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const val = manualInput.value.trim();
+      if (!val) return;
+      manualInput.value = "";
+      handleTokenScanned(val);
+    });
+
+    function addHistory(item: HistoryItem) {
+      history.unshift(item);
+      if (history.length > 50) history.pop();
+
+      historyTbody.innerHTML = history.map(h => `
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="px-4 py-2.5 text-slate-500">${esc(h.time)}</td>
+          <td class="px-4 py-2.5 font-sans font-semibold text-slate-900">${esc(h.name)}</td>
+          <td class="px-4 py-2.5 font-sans text-slate-600">${esc(h.category)}</td>
+          <td class="px-4 py-2.5 text-orange-600 font-bold">${esc(h.bib)}</td>
+          <td class="px-4 py-2.5 font-sans">
+            <span class="rounded px-2 py-0.5 text-[10px] font-semibold ${h.isSuccess ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+              ${esc(h.status)}
+            </span>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    btnClearHistory.addEventListener("click", () => {
+      history.length = 0;
+      historyTbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="px-4 py-6 text-center text-slate-400 font-sans text-xs">
+            Belum ada riwayat pemindaian.
+          </td>
+        </tr>`;
+    });
+  </script>
+</OrganizerLayout>

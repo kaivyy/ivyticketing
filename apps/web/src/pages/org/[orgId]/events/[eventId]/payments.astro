@@ -1,0 +1,333 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+
+<OrganizerLayout title="Kanal Pembayaran Event : ivyticketing" orgId={orgId}>
+  <div id="payments-root" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <a href={`/org/${orgId}/events/${eventId}`} class="text-xs font-semibold text-orange-600 hover:underline">
+            &larr; Detail Event
+          </a>
+          <span class="text-slate-300">/</span>
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Keuangan</span>
+        </div>
+        <h1 class="font-display text-2xl font-bold uppercase tracking-tight text-slate-900 mt-1">
+          Kanal Pembayaran Event
+        </h1>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Atur ketersediaan metode pembayaran khusus untuk event ini. Gateway utama dikelola di Platform Admin.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <a
+          href="/admin/payments"
+          class="min-h-[44px] inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors shadow-sm"
+        >
+          <svg class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Buka Platform Admin PG
+        </a>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-msg" class="hidden rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-800 text-xs font-semibold shadow-sm transition-all">
+      Perubahan kanal pembayaran event berhasil disimpan dan aktif di checkout!
+    </div>
+
+    <!-- Summary Box -->
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Gateway Global Terpasang</span>
+        <span class="text-lg font-bold text-slate-900 block mt-1" id="box-active-gw">Memuat...</span>
+        <span class="text-xs text-orange-600 font-medium" id="box-gw-mode">Mode Sandbox</span>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Kanal Aktif Untuk Event Ini</span>
+        <span class="text-lg font-bold text-emerald-600 block mt-1" id="box-channel-count">0 Kanal</span>
+        <span class="text-xs text-slate-500">Tersedia untuk peserta registrasi</span>
+      </div>
+
+      <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Preset Cepat</span>
+        <div class="flex gap-2 mt-2">
+          <button
+            type="button"
+            id="btn-all-default"
+            class="min-h-[44px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            Ikuti Standar Global
+          </button>
+          <button
+            type="button"
+            id="btn-qris-va-event"
+            class="min-h-[44px] rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 hover:bg-orange-100 transition-colors"
+          >
+            QRIS & VA Saja
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Channel Checklist -->
+    <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+      <div class="border-b border-slate-100 pb-3">
+        <h2 class="text-base font-bold text-slate-900 uppercase tracking-tight">
+          Pilihan Kanal Pembayaran Peserta
+        </h2>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Centang kanal yang diizinkan untuk registrasi event ini. Kanal yang dinonaktifkan di tingkat Platform Admin otomatis tidak dapat dipilih.
+        </p>
+      </div>
+
+      <div class="space-y-6" id="channels-container">
+        <!-- Will be rendered by script -->
+      </div>
+
+      <!-- Action Bar -->
+      <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+        <button
+          type="button"
+          id="btn-reset-event"
+          class="min-h-[44px] rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+        >
+          Reset ke Konfigurasi Standar
+        </button>
+        <button
+          type="button"
+          id="btn-save-event"
+          class="min-h-[44px] inline-flex items-center gap-2 rounded-xl bg-orange-600 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow hover:bg-orange-700 transition-colors"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          Simpan Kanal Event
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { getPaymentSettings } from "../../../../../lib/payment-settings";
+    import { authedFetch } from "../../../../../lib/api";
+
+    const root = document.getElementById("payments-root");
+    const orgId = root?.dataset.orgId || window.location.pathname.split("/")[2] || "";
+    const eventId = root?.dataset.eventId || window.location.pathname.split("/")[4] || "";
+
+    const storageKey = `ivy_event_payment_config_${eventId}`;
+    const container = document.getElementById("channels-container");
+    const toast = document.getElementById("toast-msg");
+    const boxActiveGw = document.getElementById("box-active-gw");
+    const boxGwMode = document.getElementById("box-gw-mode");
+    const boxChannelCount = document.getElementById("box-channel-count");
+
+    const platform = getPaymentSettings();
+    const activeGw = platform.gateways.find(g => g.code === platform.activeGateway) || platform.gateways[0];
+
+    boxActiveGw.textContent = activeGw ? activeGw.name : "Simulator";
+    boxGwMode.textContent = (activeGw && !activeGw.isProduction) ? "Mode Sandbox (Simulasi)" : "Mode Produksi";
+
+    let eventConfig = {
+      disabledChannels: []
+    };
+
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        eventConfig = JSON.parse(raw);
+        if (!Array.isArray(eventConfig.disabledChannels)) {
+          eventConfig.disabledChannels = [];
+        }
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+
+    async function loadServerConfig() {
+      try {
+        const serverChannels: any[] = await authedFetch(`/organizations/${orgId}/events/${eventId}/payment-channels`);
+        if (Array.isArray(serverChannels) && serverChannels.length > 0) {
+          eventConfig.disabledChannels = serverChannels
+            .filter((sc) => sc.is_enabled === false)
+            .map((sc) => sc.channel_code);
+          localStorage.setItem(storageKey, JSON.stringify(eventConfig));
+          renderChannels();
+        }
+      } catch (err) {
+        console.warn("Could not load payment channels from server:", err);
+      }
+    }
+
+    function renderChannels() {
+      container.innerHTML = "";
+      const categories = [
+        { key: "qris", title: "QRIS & Dompet Digital", desc: "Pembayaran instan scan QRIS dan aplikasi dompet" },
+        { key: "va", title: "Virtual Account Bank", desc: "Transfer otomatis BCA, Mandiri, BNI, BRI, Permata, CIMB" },
+        { key: "card", title: "Kartu Kredit & Debit", desc: "Visa, Mastercard, JCB online secure 3D" }
+      ];
+
+      let totalActive = 0;
+
+      categories.forEach(cat => {
+        const catChannels = platform.channels.filter(c => c.category === cat.key);
+        if (catChannels.length === 0) return;
+
+        const section = document.createElement("div");
+        section.className = "space-y-3";
+
+        const titleHeader = document.createElement("div");
+        titleHeader.className = "flex items-center justify-between";
+        titleHeader.innerHTML = `
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">${cat.title}</h3>
+            <p class="text-[11px] text-slate-500">${cat.desc}</p>
+          </div>
+        `;
+        section.appendChild(titleHeader);
+
+        const list = document.createElement("div");
+        list.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3";
+
+        catChannels.forEach(ch => {
+          const isPlatformDisabled = !ch.isActive;
+          const isEventDisabled = eventConfig.disabledChannels.includes(ch.code);
+          const isChecked = !isPlatformDisabled && !isEventDisabled;
+
+          if (isChecked) totalActive++;
+
+          const card = document.createElement("label");
+          card.className = `min-h-[52px] flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
+            isPlatformDisabled
+              ? "border-slate-200 bg-slate-50/70 opacity-60 cursor-not-allowed"
+              : isChecked
+              ? "border-orange-400 bg-orange-50/40 shadow-xs"
+              : "border-slate-200 bg-white hover:border-slate-300"
+          }`;
+
+          card.innerHTML = `
+            <div class="flex items-center gap-3">
+              <input
+                type="checkbox"
+                class="channel-checkbox h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                data-code="${ch.code}"
+                ${isChecked ? "checked" : ""}
+                ${isPlatformDisabled ? "disabled" : ""}
+              />
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-slate-900">${ch.name}</span>
+                  ${ch.badge ? `<span class="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600 border border-slate-200">${ch.badge}</span>` : ""}
+                </div>
+                <span class="text-[10px] text-slate-500 font-mono">Biaya: Rp ${ch.fee.toLocaleString("id-ID")}</span>
+              </div>
+            </div>
+            ${
+              isPlatformDisabled
+                ? '<span class="text-[10px] font-semibold text-slate-400">Nonaktif Global</span>'
+                : `<span class="text-[10px] font-bold ${isChecked ? "text-emerald-700" : "text-slate-400"}">${isChecked ? "Aktif" : "Mati"}</span>`
+            }
+          `;
+
+          if (!isPlatformDisabled) {
+            const cb = card.querySelector('input[type="checkbox"]');
+            cb.addEventListener("change", (e) => {
+              if (e.target.checked) {
+                eventConfig.disabledChannels = eventConfig.disabledChannels.filter(c => c !== ch.code);
+              } else {
+                if (!eventConfig.disabledChannels.includes(ch.code)) {
+                  eventConfig.disabledChannels.push(ch.code);
+                }
+              }
+              renderChannels();
+            });
+          }
+
+          list.appendChild(card);
+        });
+
+        section.appendChild(list);
+        container.appendChild(section);
+      });
+
+      boxChannelCount.textContent = `${totalActive} Kanal`;
+    }
+
+    renderChannels();
+    loadServerConfig();
+
+    // Reset button
+    document.getElementById("btn-reset-event")?.addEventListener("click", async () => {
+      eventConfig.disabledChannels = [];
+      const payload = {
+        channels: platform.channels.map((c) => ({
+          channel_code: c.code,
+          is_enabled: true,
+        })),
+      };
+      try {
+        await authedFetch(`/organizations/${orgId}/events/${eventId}/payment-channels`, {
+          method: "PUT",
+          body: payload,
+        });
+      } catch (err) {}
+      localStorage.removeItem(storageKey);
+      renderChannels();
+      showToast("Pengaturan dikembalikan ke standar platform global.");
+    });
+
+    // Preset standard
+    document.getElementById("btn-all-default")?.addEventListener("click", () => {
+      eventConfig.disabledChannels = [];
+      renderChannels();
+    });
+
+    // Preset QRIS & VA only
+    document.getElementById("btn-qris-va-event")?.addEventListener("click", () => {
+      eventConfig.disabledChannels = platform.channels
+        .filter(c => c.category === "card")
+        .map(c => c.code);
+      renderChannels();
+    });
+
+    // Save
+    document.getElementById("btn-save-event")?.addEventListener("click", async () => {
+      const payload = {
+        channels: platform.channels.map((c) => ({
+          channel_code: c.code,
+          is_enabled: !eventConfig.disabledChannels.includes(c.code),
+        })),
+      };
+
+      try {
+        await authedFetch(`/organizations/${orgId}/events/${eventId}/payment-channels`, {
+          method: "PUT",
+          body: payload,
+        });
+      } catch (err: any) {
+        console.warn("Server save error:", err);
+      }
+
+      localStorage.setItem(storageKey, JSON.stringify(eventConfig));
+      window.dispatchEvent(new CustomEvent("ivy:payment_settings_changed"));
+      showToast("Kanal pembayaran khusus event berhasil diperbarui dan tersimpan di server!");
+    });
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.remove("hidden");
+      setTimeout(() => {
+        toast.classList.add("hidden");
+      }, 4000);
+    }
+  </script>
+</OrganizerLayout>

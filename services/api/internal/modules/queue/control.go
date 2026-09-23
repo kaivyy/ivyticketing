@@ -15,7 +15,12 @@ import (
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
 )
 
-func (s *Service) Pause(ctx context.Context, eventID uuid.UUID) error {
+func (s *Service) Pause(ctx context.Context, eventID uuid.UUID, orgIDs ...uuid.UUID) error {
+	if len(orgIDs) > 0 && orgIDs[0] != uuid.Nil {
+		if err := s.assertEventOrg(ctx, orgIDs[0], eventID); err != nil {
+			return err
+		}
+	}
 	if err := s.ensureControl(ctx, eventID); err != nil {
 		return err
 	}
@@ -26,7 +31,12 @@ func (s *Service) Pause(ctx context.Context, eventID uuid.UUID) error {
 	return err
 }
 
-func (s *Service) Resume(ctx context.Context, eventID uuid.UUID) error {
+func (s *Service) Resume(ctx context.Context, eventID uuid.UUID, orgIDs ...uuid.UUID) error {
+	if len(orgIDs) > 0 && orgIDs[0] != uuid.Nil {
+		if err := s.assertEventOrg(ctx, orgIDs[0], eventID); err != nil {
+			return err
+		}
+	}
 	if err := s.ensureControl(ctx, eventID); err != nil {
 		return err
 	}
@@ -37,7 +47,12 @@ func (s *Service) Resume(ctx context.Context, eventID uuid.UUID) error {
 	return err
 }
 
-func (s *Service) SetRate(ctx context.Context, eventID uuid.UUID, rate int32) error {
+func (s *Service) SetRate(ctx context.Context, eventID uuid.UUID, rate int32, orgIDs ...uuid.UUID) error {
+	if len(orgIDs) > 0 && orgIDs[0] != uuid.Nil {
+		if err := s.assertEventOrg(ctx, orgIDs[0], eventID); err != nil {
+			return err
+		}
+	}
 	if err := s.ensureControl(ctx, eventID); err != nil {
 		return err
 	}
@@ -56,7 +71,12 @@ type StatsResponse struct {
 	State       string `json:"state"`
 }
 
-func (s *Service) Stats(ctx context.Context, eventID uuid.UUID) (StatsResponse, error) {
+func (s *Service) Stats(ctx context.Context, eventID uuid.UUID, orgIDs ...uuid.UUID) (StatsResponse, error) {
+	if len(orgIDs) > 0 && orgIDs[0] != uuid.Nil {
+		if err := s.assertEventOrg(ctx, orgIDs[0], eventID); err != nil {
+			return StatsResponse{}, err
+		}
+	}
 	ctrl, err := s.repo.GetControl(ctx, eventID)
 	if err != nil {
 		return StatsResponse{}, err
@@ -91,7 +111,12 @@ func (s *Service) ensureControl(ctx context.Context, eventID uuid.UUID) error {
 
 // SetSchedule sets the sale window and randomization seed for randomized/hybrid modes.
 // If seed is empty, a random hex seed is auto-generated and stored.
-func (s *Service) SetSchedule(ctx context.Context, eventID uuid.UUID, seed string, saleStart, presaleOpen *time.Time) error {
+func (s *Service) SetSchedule(ctx context.Context, eventID uuid.UUID, seed string, saleStart, presaleOpen *time.Time, orgIDs ...uuid.UUID) error {
+	if len(orgIDs) > 0 && orgIDs[0] != uuid.Nil {
+		if err := s.assertEventOrg(ctx, orgIDs[0], eventID); err != nil {
+			return err
+		}
+	}
 	if seed == "" {
 		seed = generateSeed()
 	}

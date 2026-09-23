@@ -41,5 +41,32 @@ func (h *Handler) RegisterEventRoutes(r chi.Router, loader middleware.Permission
 			r.With(middleware.RequirePermission(loader, "results.manage")).Put("/{templateId}", h.UpdateTemplate)
 			r.With(middleware.RequirePermission(loader, "results.manage")).Delete("/{templateId}", h.DeleteTemplate)
 		})
+
+		// Timing system & provider integration.
+		r.Route("/timing", func(r chi.Router) {
+			// Ingestion endpoint (token-authenticated; accepts push from RACE RESULT Exporter / stream forwarder)
+			r.Post("/passings", h.IngestPassings)
+
+			// Organizer management routes (require results.manage).
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.RequirePermission(loader, "results.manage"))
+
+				r.Get("/config", h.GetTimingConfig)
+				r.Post("/config", h.ConfigureTiming)
+
+				r.Get("/checkpoints", h.ListCheckpoints)
+				r.Post("/checkpoints", h.UpsertCheckpoint)
+
+				r.Get("/waves", h.ListWaves)
+				r.Post("/waves", h.CreateWave)
+
+				r.Get("/mappings", h.ListMappings)
+				r.Post("/mappings", h.AssignMapping)
+				r.Post("/mappings/import", h.ImportMappings)
+
+				r.Get("/passings/stats", h.GetPassingStats)
+				r.Post("/process", h.ProcessTiming)
+			})
+		})
 	})
 }

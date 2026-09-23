@@ -1,16 +1,370 @@
 ---
 import ParticipantLayout from "../../layouts/ParticipantLayout.astro";
 ---
-<ParticipantLayout title="Dashboard">
-  <h1 class="text-xl font-bold mb-4">Dashboard</h1>
-  <div class="grid grid-cols-2 gap-4">
-    <a href="/participant/orders" class="rounded-lg border border-slate-200 bg-white p-6 hover:border-slate-400">
-      <h2 class="font-semibold">Pesanan Saya</h2>
-      <p class="text-sm text-slate-600">Lihat status &amp; invoice</p>
-    </a>
-    <a href="/participant/tickets" class="rounded-lg border border-slate-200 bg-white p-6 hover:border-slate-400">
-      <h2 class="font-semibold">Tiket Saya</h2>
-      <p class="text-sm text-slate-600">Lihat tiket &amp; QR</p>
-    </a>
+
+<ParticipantLayout title="Dashboard Peserta : ivyticketing" maxWidthClass="max-w-5xl">
+  <div class="space-y-8">
+    <!-- Header: Athlete Greeting & Quick Info -->
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold text-orange-800">
+              <span class="h-1.5 w-1.5 rounded-full bg-orange-600 animate-pulse"></span>
+              Portal Atlet & Peserta
+            </span>
+            <span id="user-role-badge" class="hidden rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+              Terverifikasi
+            </span>
+          </div>
+          <h1 id="user-greeting" class="font-display text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Selamat Datang, Atlet
+          </h1>
+          <p id="user-email" class="text-sm text-slate-500 mt-0.5">
+            Memuat identitas akun...
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <a
+            href="/events"
+            class="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 transition-colors"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Daftar Event Baru
+          </a>
+          <a
+            href="/participant/tickets"
+            class="min-h-[44px] inline-flex items-center justify-center rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+          >
+            Dompet Tiket
+          </a>
+        </div>
+      </div>
+
+      <!-- Quick KPI Stats Bar -->
+      <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-slate-100">
+        <div class="rounded-xl bg-slate-50 p-3.5 border border-slate-100">
+          <p class="text-xs font-medium text-slate-500">Tiket Aktif</p>
+          <p id="stat-active-tickets" class="font-display text-xl sm:text-2xl font-bold text-slate-900 mt-0.5">-</p>
+        </div>
+        <div class="rounded-xl bg-slate-50 p-3.5 border border-slate-100">
+          <p class="text-xs font-medium text-slate-500">Total Pesanan</p>
+          <p id="stat-total-orders" class="font-display text-xl sm:text-2xl font-bold text-slate-900 mt-0.5">-</p>
+        </div>
+        <div class="rounded-xl bg-slate-50 p-3.5 border border-slate-100">
+          <p class="text-xs font-medium text-slate-500">Total Transaksi</p>
+          <p id="stat-total-spent" class="font-display text-xl sm:text-2xl font-bold text-slate-900 mt-0.5">-</p>
+        </div>
+        <div class="rounded-xl bg-slate-50 p-3.5 border border-slate-100">
+          <p class="text-xs font-medium text-slate-500">Status Akun</p>
+          <p class="font-display text-base sm:text-lg font-bold text-emerald-600 mt-1">Aktif & Siap Race</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Next Upcoming Race Featured Card -->
+    <div id="upcoming-race-container">
+      <div class="animate-pulse rounded-2xl border border-slate-200 bg-white p-6 h-48 flex items-center justify-center text-slate-400 text-sm">
+        Memeriksa jadwal perlombaan terdekat...
+      </div>
+    </div>
+
+    <!-- Two-Column Grid: Active Tickets & Recent Orders -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <!-- Active Tickets Section -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="font-display text-lg font-bold text-slate-900 uppercase tracking-tight">Tiket Saya</h2>
+            <p class="text-xs text-slate-500">Tiket terdaftar dan nomor dada perlombaan Anda</p>
+          </div>
+          <a href="/participant/tickets" class="text-xs font-semibold text-orange-600 hover:text-orange-700 min-h-[44px] inline-flex items-center">
+            Lihat Semua &rarr;
+          </a>
+        </div>
+
+        <div id="tickets-list" class="space-y-3">
+          <div class="rounded-xl border border-slate-200 bg-white p-6 text-center text-slate-400 text-sm">
+            Memuat daftar tiket...
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Orders Section -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="font-display text-lg font-bold text-slate-900 uppercase tracking-tight">Riwayat Pesanan</h2>
+            <p class="text-xs text-slate-500">Transaksi pendaftaran dan bukti pembayaran</p>
+          </div>
+          <a href="/participant/orders" class="text-xs font-semibold text-orange-600 hover:text-orange-700 min-h-[44px] inline-flex items-center">
+            Lihat Semua &rarr;
+          </a>
+        </div>
+
+        <div id="orders-list" class="space-y-3">
+          <div class="rounded-xl border border-slate-200 bg-white p-6 text-center text-slate-400 text-sm">
+            Memuat riwayat transaksi...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Race Day Preparation & Guidelines -->
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 sm:p-7">
+      <h2 class="font-display text-lg font-bold text-slate-900 uppercase tracking-tight mb-1">
+        Panduan Peserta & Hari Perlombaan (Race Day)
+      </h2>
+      <p class="text-xs text-slate-500 mb-5">
+        Pastikan Anda mempersiapkan seluruh syarat dan perlengkapan sebelum menuju Race Village.
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="rounded-xl border border-slate-100 bg-slate-50 p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-600 text-white font-bold text-xs">1</span>
+            <h3 class="text-xs sm:text-sm font-bold text-slate-900">Racepack Collection</h3>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Wajib membawa e-tiket (QR pass) dan identitas resmi (KTP/Paspor/SIM) saat mengambil jersey dan nomor BIB di RPC counter.
+          </p>
+        </div>
+
+        <div class="rounded-xl border border-slate-100 bg-slate-50 p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-white font-bold text-xs">2</span>
+            <h3 class="text-xs sm:text-sm font-bold text-slate-900">Timing & BIB Number</h3>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Pasang nomor dada (BIB) di bagian depan dada secara jelas. Jangan melipat atau menekuk chip timing RFID pada bagian belakang nomor.
+          </p>
+        </div>
+
+        <div class="rounded-xl border border-slate-100 bg-slate-50 p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-white font-bold text-xs">3</span>
+            <h3 class="text-xs sm:text-sm font-bold text-slate-900">Drop Bag & Corral</h3>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Titipkan barang di baggage drop minimal 45 menit sebelum start. Masuk ke corral/wave yang sesuai dengan warna atau kode BIB Anda.
+          </p>
+        </div>
+      </div>
+    </div>
   </div>
 </ParticipantLayout>
+
+<script>
+  import { getMe } from "../../lib/auth";
+  import { listMyTickets } from "../../lib/tickets";
+  import { listMyOrders } from "../../lib/invoice";
+  import { esc } from "../../lib/safe";
+
+  function formatRupiah(amount: number): string {
+    return "Rp " + amount.toLocaleString("id-ID");
+  }
+
+  function formatDate(iso: string): string {
+    try {
+      return new Date(iso).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return "-";
+    }
+  }
+
+  function statusBadge(status: string) {
+    const map: Record<string, { bg: string; text: string; label: string }> = {
+      VALID:     { bg: "bg-emerald-100", text: "text-emerald-800", label: "Aktif / Siap Race" },
+      USED:      { bg: "bg-slate-100",   text: "text-slate-700",   label: "Selesai / Terpakai" },
+      CANCELLED: { bg: "bg-red-100",     text: "text-red-700",     label: "Dibatalkan" },
+      PAID:      { bg: "bg-emerald-100", text: "text-emerald-800", label: "Lunas" },
+      PENDING:   { bg: "bg-amber-100",   text: "text-amber-800",   label: "Menunggu Bayar" },
+      EXPIRED:   { bg: "bg-slate-100",   text: "text-slate-600",   label: "Kedaluwarsa" },
+      REFUNDED:  { bg: "bg-blue-100",    text: "text-blue-800",    label: "Dikembalikan" },
+    };
+    const item = map[status] ?? { bg: "bg-slate-100", text: "text-slate-700", label: status };
+    return `<span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${item.bg} ${item.text}">${esc(item.label)}</span>`;
+  }
+
+  async function loadDashboard() {
+    // 1. Fetch User Identity
+    try {
+      const me = await getMe();
+      if (me?.user) {
+        const greetingEl = document.getElementById("user-greeting");
+        const emailEl = document.getElementById("user-email");
+        const roleBadge = document.getElementById("user-role-badge");
+
+        if (greetingEl) greetingEl.textContent = `Halo, ${me.user.fullName || "Atlet"}`;
+        if (emailEl) emailEl.textContent = me.user.email;
+        if (roleBadge) roleBadge.classList.remove("hidden");
+      }
+    } catch {
+      // Fallback already present
+    }
+
+    // 2. Fetch Tickets & Orders in Parallel
+    try {
+      const [tickets, orders] = await Promise.all([
+        listMyTickets().catch(() => []),
+        listMyOrders().catch(() => []),
+      ]);
+
+      // Update KPI counters
+      const activeTicketsCount = tickets.filter((t) => t.status === "VALID").length;
+      const statTicketsEl = document.getElementById("stat-active-tickets");
+      const statOrdersEl = document.getElementById("stat-total-orders");
+      const statSpentEl = document.getElementById("stat-total-spent");
+
+      if (statTicketsEl) statTicketsEl.textContent = String(activeTicketsCount);
+      if (statOrdersEl) statOrdersEl.textContent = String(orders.length);
+
+      const totalSpent = orders
+        .filter((o) => o.status === "PAID")
+        .reduce((sum, o) => sum + (o.total || 0), 0);
+      if (statSpentEl) statSpentEl.textContent = formatRupiah(totalSpent);
+
+      // Render Next Upcoming Race Hero
+      const upcomingContainer = document.getElementById("upcoming-race-container");
+      if (upcomingContainer) {
+        const validTicket = tickets.find((t) => t.status === "VALID") || tickets[0];
+        if (validTicket) {
+          upcomingContainer.innerHTML = `
+            <div class="relative overflow-hidden rounded-2xl border border-slate-900 bg-gradient-to-br from-slate-900 via-slate-850 to-slate-950 p-6 sm:p-8 text-white shadow-xl">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                <div class="space-y-3">
+                  <div class="inline-flex items-center gap-2 rounded-full bg-orange-500/20 border border-orange-500/30 px-3 py-1 text-xs font-bold uppercase tracking-wider text-orange-400">
+                    <span class="h-2 w-2 rounded-full bg-orange-400 animate-ping"></span>
+                    Perlombaan Anda Berikutnya
+                  </div>
+                  <h2 class="font-display text-2xl sm:text-3xl font-extrabold uppercase tracking-tight text-white">
+                    ${esc(validTicket.eventTitle)}
+                  </h2>
+                  <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-slate-300">
+                    <span class="font-semibold text-orange-400">${esc(validTicket.categoryName)}</span>
+                    <span class="text-slate-500">•</span>
+                    <span>No. Tiket: <span class="font-mono text-white">${esc(validTicket.ticketNumber)}</span></span>
+                  </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 border-t border-slate-800 md:border-t-0 pt-4 md:pt-0">
+                  <div class="rounded-xl border border-slate-800 bg-slate-900/90 px-4 py-3 text-center min-w-[140px]">
+                    <p class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Nomor BIB Dada</p>
+                    <p class="font-mono text-2xl font-black text-orange-400 mt-0.5">
+                      ${validTicket.bibNumber ? esc(validTicket.bibNumber) : '<span class="text-xs font-normal text-slate-400">Diundi / Segera</span>'}
+                    </p>
+                  </div>
+                  <a
+                    href="/participant/tickets/${esc(validTicket.id)}"
+                    class="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-orange-600 px-5 py-3 text-xs sm:text-sm font-bold uppercase tracking-wider text-white shadow-lg hover:bg-orange-500 transition-all text-center"
+                  >
+                    <span>Buka QR Pass Tiket</span>
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            </div>`;
+        } else {
+          upcomingContainer.innerHTML = `
+            <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+              <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 text-orange-600 mb-3">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h2 class="font-display text-lg font-bold text-slate-900">Belum Ada Perlombaan Terdaftar</h2>
+              <p class="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-1 mb-5">
+                Anda belum memiliki tiket aktif. Pilih perlombaan marathon, triathlon, atau trail run dan daftar sekarang sebelum kuota habis.
+              </p>
+              <a
+                href="/events"
+                class="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-orange-600 px-6 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 transition-colors"
+              >
+                Jelajahi Event & Jadwal Race
+              </a>
+            </div>`;
+        }
+      }
+
+      // Render Tickets List
+      const ticketsContainer = document.getElementById("tickets-list");
+      if (ticketsContainer) {
+        if (tickets.length === 0) {
+          ticketsContainer.innerHTML = `
+            <div class="rounded-xl border border-slate-200 bg-white p-6 text-center">
+              <p class="text-xs sm:text-sm font-semibold text-slate-700">Belum memiliki tiket lomba</p>
+              <p class="text-xs text-slate-500 mt-0.5 mb-3">Daftar sekarang untuk mengamankan slot race Anda.</p>
+              <a href="/events" class="text-xs font-bold text-orange-600 hover:text-orange-700 underline min-h-[44px] inline-flex items-center">
+                Lihat Kalender Event &rarr;
+              </a>
+            </div>`;
+        } else {
+          ticketsContainer.innerHTML = tickets
+            .slice(0, 3)
+            .map((t) => `
+              <a
+                href="/participant/tickets/${esc(t.id)}"
+                class="block rounded-xl border border-slate-200 bg-white p-4 hover:border-orange-500 hover:shadow-sm transition-all"
+              >
+                <div class="flex items-start justify-between gap-3 mb-2">
+                  <div>
+                    <h3 class="font-bold text-sm text-slate-900 leading-snug">${esc(t.eventTitle)}</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">${esc(t.categoryName)}</p>
+                  </div>
+                  ${statusBadge(t.status)}
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-600">
+                  <span>Tiket: <span class="font-mono text-slate-800">${esc(t.ticketNumber)}</span></span>
+                  ${t.bibNumber ? `<span class="font-bold text-orange-600 font-mono">BIB ${esc(t.bibNumber)}</span>` : '<span class="text-slate-400">BIB Belum Diatur</span>'}
+                </div>
+              </a>`)
+            .join("");
+        }
+      }
+
+      // Render Orders List
+      const ordersContainer = document.getElementById("orders-list");
+      if (ordersContainer) {
+        if (orders.length === 0) {
+          ordersContainer.innerHTML = `
+            <div class="rounded-xl border border-slate-200 bg-white p-6 text-center">
+              <p class="text-xs sm:text-sm font-semibold text-slate-700">Belum ada riwayat pesanan</p>
+              <p class="text-xs text-slate-500 mt-0.5">Semua tagihan dan invoice transaksi akan tercatat di sini.</p>
+            </div>`;
+        } else {
+          ordersContainer.innerHTML = orders
+            .slice(0, 3)
+            .map((o) => `
+              <a
+                href="/participant/orders/${esc(o.id)}"
+                class="block rounded-xl border border-slate-200 bg-white p-4 hover:border-slate-400 transition-all"
+              >
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                  <span class="font-mono text-xs font-semibold text-slate-900">${esc(o.orderNumber || o.id)}</span>
+                  ${statusBadge(o.status)}
+                </div>
+                <div class="flex items-center justify-between text-xs text-slate-500">
+                  <span>${formatDate(o.createdAt)}</span>
+                  <span class="font-bold text-slate-900">${formatRupiah(o.total || 0)}</span>
+                </div>
+              </a>`)
+            .join("");
+        }
+      }
+    } catch (err) {
+      console.error("Gagal memuat dashboard peserta:", err);
+    }
+  }
+
+  // Run on page load
+  loadDashboard();
+</script>

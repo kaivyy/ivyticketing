@@ -1,0 +1,808 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../layouts/OrganizerLayout.astro";
+import { MARATHON_TEMPLATES } from "../../../../lib/events-store";
+const { orgId } = Astro.params;
+---
+
+<OrganizerLayout title="Buat Event Baru : ivyticketing" orgId={orgId}>
+  <div class="max-w-4xl mx-auto space-y-6">
+    <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+      <div>
+        <a href={`/org/${orgId}/events`} class="text-xs font-semibold text-slate-500 hover:text-slate-800">
+          &larr; Kembali ke Daftar Event
+        </a>
+        <h1 class="font-display text-2xl font-bold uppercase tracking-tight text-slate-900 mt-1">
+          Buat Event Olahraga Baru
+        </h1>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Tentukan identitas lomba, sistem pendaftaran (War, Ballot, atau Normal), dan siapkan form kustom bagi atlet.
+        </p>
+      </div>
+    </div>
+
+    <!-- Template Preset Selector Section -->
+    <section class="rounded-2xl border border-orange-200/90 bg-gradient-to-b from-orange-50/70 via-orange-50/30 to-white p-4 sm:p-5 space-y-4 shadow-sm w-full min-w-0">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-orange-100 pb-3">
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h2 class="text-sm sm:text-base font-bold uppercase tracking-wider text-slate-900">
+              Pilih Template Lomba Siap Pakai (1-Klik Isi Cepat)
+            </h2>
+            <span class="rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold uppercase text-orange-700 border border-orange-300">
+              {MARATHON_TEMPLATES.length} Desain Siap Pakai
+            </span>
+          </div>
+          <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">
+            Pilih arsitektur lomba teruji dunia di bawah ini untuk mengisi seluruh nama, venue, mode pendaftaran (War/Ballot), dan kategori tiket secara otomatis. Seluruh data tetap dapat Anda ubah.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2 justify-between sm:justify-end shrink-0">
+          <button
+            type="button"
+            id="btn-reset-template"
+            class="hidden min-h-[38px] items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer shadow-xs"
+          >
+            <svg class="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>Mulai Form Kosong</span>
+          </button>
+          <span class="text-[11px] text-slate-500 sm:hidden flex items-center gap-1 font-medium">
+            Geser kartu &rarr;
+          </span>
+        </div>
+      </div>
+
+      <!-- Carousel Container: Mobile Swipeable, Desktop Grid -->
+      <div
+        id="org-templates-carousel"
+        class="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 overflow-x-auto sm:overflow-visible snap-x snap-mandatory gap-3 sm:gap-4 pb-2 sm:pb-0 scrollbar-none w-full max-w-full min-w-0 overscroll-x-contain"
+      >
+        {MARATHON_TEMPLATES.map((tpl) => {
+          const primaryCat = tpl.sampleCategories[0];
+          const modeLabel = primaryCat?.mode === "WAR_QUEUE" ? "War Ticket FIFO" :
+                            primaryCat?.mode === "BALLOT" ? "Sistem Ballot" : "Reguler";
+          const modeBadgeColor = primaryCat?.mode === "WAR_QUEUE" ? "bg-orange-100 text-orange-800 border-orange-300" :
+                                 primaryCat?.mode === "BALLOT" ? "bg-blue-100 text-blue-800 border-blue-300" : "bg-slate-100 text-slate-800 border-slate-300";
+
+          return (
+            <div
+              class="template-card flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-3 space-y-2.5 w-[260px] sm:w-auto shrink-0 sm:shrink snap-start transition-all hover:border-orange-400 hover:shadow-md cursor-pointer relative min-w-0"
+              data-template-id={tpl.id}
+            >
+              <div class="space-y-2">
+                <div class="relative h-28 w-full overflow-hidden rounded-lg bg-slate-100 border border-slate-200/60">
+                  <img src={tpl.defaultBanner} alt={tpl.name} class="h-full w-full object-cover" />
+                  <span class={`absolute top-2 left-2 rounded px-2 py-0.5 text-[9px] font-bold uppercase border bg-white/95 backdrop-blur ${tpl.badgeClass}`}>
+                    {tpl.badge}
+                  </span>
+                  <span class={`absolute bottom-2 left-2 rounded px-2 py-0.5 text-[9px] font-bold uppercase border bg-white/95 backdrop-blur ${modeBadgeColor}`}>
+                    {modeLabel}
+                  </span>
+                </div>
+
+                <div>
+                  <h3 class="text-xs font-bold text-slate-900 uppercase tracking-tight truncate">{tpl.name}</h3>
+                  <p class="text-[11px] text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">{tpl.description}</p>
+                </div>
+
+                <div class="flex flex-wrap gap-1 pt-0.5">
+                  {tpl.sampleCategories.slice(0, 3).map((c) => (
+                    <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-700 border border-slate-200 font-mono">
+                      {c.code}
+                    </span>
+                  ))}
+                  {tpl.sampleCategories.length > 3 && (
+                    <span class="text-[9px] text-slate-400 self-center">+{tpl.sampleCategories.length - 3}</span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                class="use-template-btn min-h-[44px] w-full rounded-lg bg-slate-100 text-xs font-bold uppercase tracking-wider text-slate-800 hover:bg-orange-600 hover:text-white transition-colors cursor-pointer flex items-center justify-center gap-1.5 border border-slate-200"
+                data-template-id={tpl.id}
+              >
+                <span>Gunakan Template</span>
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <!-- Active Template Feedback Bar -->
+      <div id="active-template-bar" class="hidden rounded-xl bg-orange-100/80 border border-orange-300/80 px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-orange-950">
+        <div class="flex items-center gap-2">
+          <span class="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Template Aktif: <strong id="active-template-name" class="font-bold">Tokyo Marathon</strong>. Data formulir telah disesuaikan secara otomatis.</span>
+        </div>
+        <button
+          type="button"
+          id="btn-clear-template"
+          class="min-h-[36px] px-2.5 py-1 text-xs font-bold text-orange-800 hover:text-orange-950 underline cursor-pointer"
+        >
+          Lepas Template
+        </button>
+      </div>
+    </section>
+
+    <form id="create-event-form" data-org-id={orgId} class="space-y-8 rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
+      <!-- Section 1: Data Utama Lomba -->
+      <div class="space-y-4">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-orange-600 border-b border-slate-100 pb-2">
+          1. Identitas & Informasi Lomba
+        </h2>
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <!-- Nama Event -->
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="name">
+              Nama Event Balap <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="name"
+              name="name"
+              required
+              placeholder="Contoh: Jakarta City Marathon 2026 atau Bali Coast Triathlon"
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            />
+          </div>
+
+          <!-- Tipe Event -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="eventType">
+              Disiplin Olahraga <span class="text-red-500">*</span>
+            </label>
+            <select
+              id="eventType"
+              name="eventType"
+              required
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+            >
+              <option value="MARATHON">Lari Marathon & Road Race</option>
+              <option value="TRIATHLON">Triathlon & Duathlon</option>
+              <option value="CYCLING">Balap Sepeda & Gran Fondo</option>
+              <option value="TRAIL_RUN">Trail Run & Mountain Ultra</option>
+              <option value="SWIMMING">Renang Perairan Terbuka (Open Water)</option>
+              <option value="OTHER">Multi-Sport / Lainnya</option>
+            </select>
+          </div>
+
+          <!-- Nama Venue / Lokasi -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="venueName">
+              Nama Venue / Titik Start
+            </label>
+            <input
+              id="venueName"
+              name="venueName"
+              placeholder="Contoh: Gelora Bung Karno, Senayan"
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            />
+          </div>
+
+          <!-- Tanggal & Waktu Mulai -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="startsAt">
+              Waktu Flag-Off / Mulai Lomba
+            </label>
+            <input
+              id="startsAt"
+              name="startsAt"
+              type="datetime-local"
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            />
+          </div>
+
+          <!-- Tanggal & Waktu Selesai -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="endsAt">
+              Waktu Cut-Off Akhir Event
+            </label>
+            <input
+              id="endsAt"
+              name="endsAt"
+              type="datetime-local"
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            />
+          </div>
+
+          <!-- Alamat Venue Lengkap -->
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="venueAddress">
+              Alamat Venue Lengkap
+            </label>
+            <input
+              id="venueAddress"
+              name="venueAddress"
+              placeholder="Jl. Pintu Satu Senayan, Gelora, Kecamatan Tanah Abang, Jakarta Pusat"
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            />
+          </div>
+
+          <!-- Deskripsi Singkat Event -->
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="description">
+              Deskripsi & Sorotan Lomba
+            </label>
+            <textarea
+              id="description"
+              name="description"
+              rows="2"
+              placeholder="Jelaskan rute lomba, rute pemandangan, cut-off time, dan sertifikasi perlombaan."
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Pemilihan Sistem / Mekanisme Pendaftaran -->
+      <div class="space-y-4 border-t border-slate-100 pt-6">
+        <div>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-orange-600 mb-1">
+            2. Mekanisme & Strategi Pendaftaran (War / Ballot / Normal)
+          </h2>
+          <p class="text-xs text-slate-500">
+            Pilih metode registrasi utama yang paling sesuai dengan antusiasme calon atlet.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3" id="mode-selector">
+          <!-- War Queue (FIFO) -->
+          <label class="flex flex-col justify-between p-4 rounded-xl border-2 border-orange-500 bg-orange-50/20 cursor-pointer transition-all hover:bg-orange-50/40">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <input type="radio" name="primaryMode" value="WAR_QUEUE" checked class="text-orange-600 focus:ring-orange-500" />
+                <span class="rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold uppercase text-orange-700">FIFO Murni</span>
+              </div>
+              <strong class="font-bold text-slate-900 block text-sm">War Ticket (FIFO)</strong>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Antre pertama / siapa paling cepat masuk ruang tunggu, dia yang nomor 1. Dilindungi proteksi bot dan rate limiter.
+              </p>
+            </div>
+            <div class="mt-3 text-[11px] font-medium text-orange-600">Siapa cepat dia dapat</div>
+          </label>
+
+          <!-- Randomized Queue (Smart Shuffle) -->
+          <label class="flex flex-col justify-between p-4 rounded-xl border border-slate-200 bg-white cursor-pointer transition-all hover:border-slate-400">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <input type="radio" name="primaryMode" value="RANDOMIZED_QUEUE" class="text-orange-600 focus:ring-orange-500" />
+                <span class="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">Acak Adil</span>
+              </div>
+              <strong class="font-bold text-slate-900 block text-sm">Randomized Queue</strong>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Urutan antrean diacak otomatis dengan seed kriptografis (ala Smart Queue Ticketmaster). Adil bagi semua kecepatan internet.
+              </p>
+            </div>
+            <div class="mt-3 text-[11px] font-medium text-emerald-600">Pencegahan calo & bot</div>
+          </label>
+
+          <!-- Ballot Lottery -->
+          <label class="flex flex-col justify-between p-4 rounded-xl border border-slate-200 bg-white cursor-pointer transition-all hover:border-slate-400">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <input type="radio" name="primaryMode" value="BALLOT" class="text-orange-600 focus:ring-orange-500" />
+                <span class="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-700">Undian Terbuka</span>
+              </div>
+              <strong class="font-bold text-slate-900 block text-sm">Ballot Lottery</strong>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Peserta mendaftar gratis ke pool undian. Pemenang diundi secara transparan dengan batas bayar 48 jam dan antrean waitlist.
+              </p>
+            </div>
+            <div class="mt-3 text-[11px] font-medium text-blue-600">Ala Sydney & Tokyo Marathon</div>
+          </label>
+
+          <!-- Normal Open Sale -->
+          <label class="flex flex-col justify-between p-4 rounded-xl border border-slate-200 bg-white cursor-pointer transition-all hover:border-slate-400">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <input type="radio" name="primaryMode" value="NORMAL" class="text-orange-600 focus:ring-orange-500" />
+                <span class="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-700">Reguler</span>
+              </div>
+              <strong class="font-bold text-slate-900 block text-sm">Normal (Open Sale)</strong>
+              <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                Pendaftaran langsung terbuka untuk umum (first-come first-served) tanpa antrean ruang tunggu virtual.
+              </p>
+            </div>
+            <div class="mt-3 text-[11px] font-medium text-slate-400">Cocok untuk race lokal</div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Section 3: Kategori Tiket Pertama (Opsional) -->
+      <div class="space-y-4 border-t border-slate-100 pt-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-orange-600 mb-0.5">
+              3. Kategori Tiket Perdana (Opsional)
+            </h2>
+            <p class="text-xs text-slate-500">
+              Anda bisa langsung membuat kategori lomba pertama sekarang atau mengaturnya nanti di menu Kategori.
+            </p>
+          </div>
+          <label class="inline-flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="toggle-initial-cat" class="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500" checked />
+            <span class="text-xs font-bold text-slate-700">Buat Kategori Awal</span>
+          </label>
+        </div>
+
+        <div id="initial-cat-fields" class="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1" for="catName">
+                Nama Kategori Lomba
+              </label>
+              <input
+                id="catName"
+                name="catName"
+                value="Full Marathon 42.195K"
+                placeholder="Contoh: Half Marathon 21K"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-orange-500 focus:outline-none bg-white"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1" for="catPrice">
+                Biaya Pendaftaran (Rp)
+              </label>
+              <input
+                id="catPrice"
+                name="catPrice"
+                type="number"
+                min="0"
+                step="10000"
+                value="750000"
+                placeholder="750000"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-orange-500 focus:outline-none bg-white"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1" for="catCapacity">
+                Kuota Slot Peserta
+              </label>
+              <input
+                id="catCapacity"
+                name="catCapacity"
+                type="number"
+                min="1"
+                value="2500"
+                placeholder="2500"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-orange-500 focus:outline-none bg-white"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase text-slate-700 mb-1" for="catBib">
+                Awalan Nomor BIB Dada
+              </label>
+              <input
+                id="catBib"
+                name="catBib"
+                value="FM"
+                placeholder="FM / HM / 10K"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-orange-500 focus:outline-none bg-white uppercase font-mono"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: Catatan Form Builder & Waiver -->
+      <div class="space-y-4 border-t border-slate-100 pt-6">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-orange-600 mb-1">
+          4. Formulir Pendaftaran & Waiver
+        </h2>
+        <div class="rounded-xl border border-blue-100 bg-blue-50/50 p-4 text-xs text-blue-900 space-y-1">
+          <strong class="font-bold block">Kustomisasi Formulir Peserta</strong>
+          <span>
+            Setelah event tersimpan, Anda dapat menambahkan pertanyaan kustom khusus (misal riwayat waktu PB, lokasi penjemputan shuttle bus, pertanyaan sponsor) melalui menu <strong>Formulir Kustom (Form Builder)</strong>.
+          </span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="waiver">
+            Waiver & Pernyataan Kesehatan Atlet (Opsional)
+          </label>
+          <textarea
+            id="waiver"
+            name="waiver"
+            rows="2"
+            placeholder="Peserta menyatakan dalam kondisi fisik prima dan menyetujui seluruh ketentuan keselamatan race..."
+            class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          ></textarea>
+        </div>
+      </div>
+
+      <p id="form-error" class="hidden rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700"></p>
+
+      <div class="flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
+        <a
+          href={`/org/${orgId}/events`}
+          class="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          Batal
+        </a>
+        <button
+          id="submit-btn"
+          type="submit"
+          class="rounded-lg bg-orange-600 px-8 py-3 text-sm font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 active:scale-95 transition-all disabled:opacity-50"
+        >
+          Simpan & Buka Workspace Event
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    import { authedFetch } from "../../../../lib/api";
+    import { MARATHON_TEMPLATES, saveMarathonEvent, DEFAULT_LAYOUT_CONFIG, type MarathonEvent } from "../../../../lib/events-store";
+
+    const form = document.getElementById("create-event-form");
+    const orgId = form?.getAttribute("data-org-id") || window.location.pathname.split("/")[2] || "";
+    const btn = document.getElementById("submit-btn");
+    const errEl = document.getElementById("form-error");
+    const toggleInitialCat = document.getElementById("toggle-initial-cat");
+    const initialCatFields = document.getElementById("initial-cat-fields");
+    const activeBar = document.getElementById("active-template-bar");
+    const activeName = document.getElementById("active-template-name");
+    const clearBtn = document.getElementById("btn-clear-template");
+    const resetBtn = document.getElementById("btn-reset-template");
+
+    let activeTemplateId = null;
+
+    const VENUE_INFO = {
+      "template-summarecon": {
+        venue: "Summarecon Mall Bandung",
+        address: "Jl. Bulevar Summarecon Bandung No. 1, Cisaranten Kidul, Gedebage, Bandung, Jawa Barat",
+        city: "Bandung",
+      },
+      "template-tokyo": {
+        venue: "Tokyo Metropolitan Government Building",
+        address: "2-8-1 Nishishinjuku, Shinjuku City, Tokyo, Japan",
+        city: "Tokyo",
+      },
+      "template-berlin": {
+        venue: "Strasse des 17. Juni (Brandenburg Gate)",
+        address: "Strasse des 17. Juni, 10785 Berlin, Germany",
+        city: "Berlin",
+      },
+      "template-borobudur": {
+        venue: "Taman Wisata Candi Borobudur",
+        address: "Jl. Badrawati, Kw. Candi Borobudur, Borobudur, Magelang, Jawa Tengah",
+        city: "Magelang",
+      },
+      "template-sydney": {
+        venue: "Bradfield Park Milsons Point (Sydney Harbour Bridge)",
+        address: "Alfred St S, Milsons Point NSW 2061, Sydney, Australia",
+        city: "Sydney",
+      },
+      "template-bangkok": {
+        venue: "Sanam Chai Road (Grand Palace Arena)",
+        address: "Sanam Chai Rd, Phra Borom Maha Ratchawang, Phra Nakhon, Bangkok, Thailand",
+        city: "Bangkok",
+      },
+      "template-ironman": {
+        venue: "Pelangi Beach Resort Pantai Cenang",
+        address: "Pantai Cenang, 07000 Langkawi, Kedah, Malaysia",
+        city: "Langkawi",
+      },
+      "template-baa": {
+        venue: "Hopkinton to Copley Square (Boylston St)",
+        address: "Boylston St, Boston, Massachusetts, USA",
+        city: "Boston",
+      },
+    };
+
+    // Toggle initial category visibility
+    toggleInitialCat?.addEventListener("change", () => {
+      if (toggleInitialCat.checked) {
+        initialCatFields?.classList.remove("hidden");
+      } else {
+        initialCatFields?.classList.add("hidden");
+      }
+    });
+
+    // Radio visual state switcher
+    const modeLabels = document.querySelectorAll("#mode-selector label");
+    function updateModeVisuals(selectedVal) {
+      modeLabels.forEach((lbl) => {
+        const input = lbl.querySelector('input[type="radio"]');
+        if (input && input.value === selectedVal) {
+          input.checked = true;
+          lbl.className = "flex flex-col justify-between p-4 rounded-xl border-2 border-orange-500 bg-orange-50/20 cursor-pointer transition-all hover:bg-orange-50/40";
+        } else {
+          lbl.className = "flex flex-col justify-between p-4 rounded-xl border border-slate-200 bg-white cursor-pointer transition-all hover:border-slate-400";
+        }
+      });
+    }
+
+    modeLabels.forEach((lbl) => {
+      lbl.addEventListener("click", () => {
+        const input = lbl.querySelector('input[type="radio"]');
+        if (input) updateModeVisuals(input.value);
+      });
+    });
+
+    function applyTemplate(tplId) {
+      const tpl = MARATHON_TEMPLATES.find((t) => t.id === tplId);
+      if (!tpl) return;
+
+      activeTemplateId = tpl.id;
+
+      // Update Form Inputs
+      const nameInput = document.getElementById("name");
+      const eventTypeInput = document.getElementById("eventType");
+      const venueNameInput = document.getElementById("venueName");
+      const venueAddressInput = document.getElementById("venueAddress");
+      const descInput = document.getElementById("description");
+      const waiverInput = document.getElementById("waiver");
+      const startsAtInput = document.getElementById("startsAt");
+      const endsAtInput = document.getElementById("endsAt");
+
+      if (nameInput) nameInput.value = `${tpl.name} 2026`;
+      if (eventTypeInput) eventTypeInput.value = tpl.id === "template-ironman" ? "TRIATHLON" : "MARATHON";
+
+      const venueMeta = VENUE_INFO[tpl.id] || { venue: "Gelora Arena", address: "Official Race Track", city: "Jakarta" };
+      if (venueNameInput) venueNameInput.value = venueMeta.venue;
+      if (venueAddressInput) venueAddressInput.value = venueMeta.address;
+
+      if (descInput) {
+        descInput.value = `${tpl.description} Jalur tersertifikasi resmi (${tpl.certifiedBy || "World Athletics"}), elevasi: ${tpl.elevationGain || "Flat PB Course"}.`;
+      }
+
+      if (waiverInput) {
+        waiverInput.value = `Peserta menyatakan dalam kondisi fisik prima, telah menjalani pemeriksaan medis, dan menyetujui seluruh regulasi resmi serta protokol keselamatan lomba ${tpl.name}.`;
+      }
+
+      // Default dates: 60 days ahead
+      const raceDate = new Date(Date.now() + 60 * 86400000);
+      raceDate.setHours(5, 0, 0, 0);
+      const raceEndDate = new Date(raceDate.getTime() + 8 * 3600000);
+
+      const toLocalISO = (d) => {
+        const offset = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - offset).toISOString().slice(0, 16);
+      };
+
+      if (startsAtInput && !startsAtInput.value) startsAtInput.value = toLocalISO(raceDate);
+      if (endsAtInput && !endsAtInput.value) endsAtInput.value = toLocalISO(raceEndDate);
+
+      // Select Primary Registration Mode
+      const primaryCat = tpl.sampleCategories[0];
+      const targetMode = primaryCat?.mode || "WAR_QUEUE";
+      updateModeVisuals(targetMode);
+
+      // Initial category
+      if (primaryCat) {
+        const catNameInput = document.getElementById("catName");
+        const catPriceInput = document.getElementById("catPrice");
+        const catCapInput = document.getElementById("catCapacity");
+        const catBibInput = document.getElementById("catBib");
+
+        if (catNameInput) catNameInput.value = primaryCat.name;
+        if (catPriceInput) catPriceInput.value = String(primaryCat.price);
+        if (catCapInput) catCapInput.value = String(primaryCat.quota);
+        if (catBibInput) catBibInput.value = primaryCat.code;
+
+        if (toggleInitialCat) {
+          toggleInitialCat.checked = true;
+          if (initialCatFields) initialCatFields.classList.remove("hidden");
+        }
+      }
+
+      // Highlight active card
+      document.querySelectorAll(".template-card").forEach((card) => {
+        const cardId = card.getAttribute("data-template-id");
+        const btnUse = card.querySelector(".use-template-btn");
+        if (cardId === tpl.id) {
+          card.classList.add("border-2", "border-orange-500", "ring-2", "ring-orange-500/20", "bg-orange-50/20");
+          card.classList.remove("border-slate-200", "bg-white");
+          if (btnUse) {
+            btnUse.classList.add("bg-orange-600", "text-white");
+            btnUse.classList.remove("bg-slate-100", "text-slate-800");
+            btnUse.innerHTML = `
+              <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Template Terpilih</span>
+            `;
+          }
+        } else {
+          card.classList.remove("border-2", "border-orange-500", "ring-2", "ring-orange-500/20", "bg-orange-50/20");
+          card.classList.add("border-slate-200", "bg-white");
+          if (btnUse) {
+            btnUse.classList.remove("bg-orange-600", "text-white");
+            btnUse.classList.add("bg-slate-100", "text-slate-800");
+            btnUse.innerHTML = `
+              <span>Gunakan Template</span>
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            `;
+          }
+        }
+      });
+
+      // Show Feedback Bar
+      if (activeBar && activeName) {
+        activeName.textContent = tpl.name;
+        activeBar.classList.remove("hidden");
+      }
+      if (resetBtn) resetBtn.classList.remove("hidden");
+    }
+
+    function resetTemplateSelection() {
+      activeTemplateId = null;
+      document.querySelectorAll(".template-card").forEach((card) => {
+        card.classList.remove("border-2", "border-orange-500", "ring-2", "ring-orange-500/20", "bg-orange-50/20");
+        card.classList.add("border-slate-200", "bg-white");
+        const btnUse = card.querySelector(".use-template-btn");
+        if (btnUse) {
+          btnUse.classList.remove("bg-orange-600", "text-white");
+          btnUse.classList.add("bg-slate-100", "text-slate-800");
+          btnUse.innerHTML = `
+            <span>Gunakan Template</span>
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          `;
+        }
+      });
+
+      if (activeBar) activeBar.classList.add("hidden");
+      if (resetBtn) resetBtn.classList.add("hidden");
+
+      if (form) (form as HTMLFormElement).reset();
+      updateModeVisuals("WAR_QUEUE");
+    }
+
+    // Attach click listeners to cards and buttons
+    document.querySelectorAll(".template-card").forEach((card) => {
+      card.addEventListener("click", (e) => {
+        const tplId = card.getAttribute("data-template-id");
+        if (tplId) applyTemplate(tplId);
+      });
+    });
+
+    clearBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      resetTemplateSelection();
+    });
+
+    resetBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      resetTemplateSelection();
+    });
+
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errEl?.classList.add("hidden");
+      if (btn) {
+        (btn as HTMLButtonElement).disabled = true;
+        btn.textContent = "Menyimpan Event...";
+      }
+
+      const fd = new FormData(form as HTMLFormElement);
+      const startsAtVal = fd.get("startsAt");
+      const endsAtVal = fd.get("endsAt");
+      const selectedMode = String(fd.get("primaryMode") || "WAR_QUEUE");
+
+      const eventPayload = {
+        name: String(fd.get("name") ?? "").trim(),
+        eventType: String(fd.get("eventType") ?? "MARATHON"),
+        description: String(fd.get("description") ?? "").trim(),
+        venueName: String(fd.get("venueName") ?? "").trim(),
+        venueAddress: String(fd.get("venueAddress") ?? "").trim(),
+        startsAt: startsAtVal ? new Date(String(startsAtVal)).toISOString() : null,
+        endsAt: endsAtVal ? new Date(String(endsAtVal)).toISOString() : null,
+        waiver: String(fd.get("waiver") ?? "").trim(),
+      };
+
+      try {
+        const createdEvent = await authedFetch(`/organizations/${orgId}/events`, {
+          method: "POST",
+          body: JSON.stringify(eventPayload),
+        });
+
+        // Jika opsi buat kategori awal aktif, buatkan kategori tiket perdana
+        if (toggleInitialCat?.checked) {
+          const catName = String(fd.get("catName") ?? "").trim();
+          const catPrice = Number(fd.get("catPrice") ?? 0);
+          const catCapacity = Number(fd.get("catCapacity") ?? 1000);
+          const catBib = String(fd.get("catBib") ?? "BIB").trim();
+
+          const now = new Date();
+          const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+
+          if (catName && catCapacity > 0) {
+            if (btn) btn.textContent = "Menyiapkan Kategori Tiket...";
+            await authedFetch(`/organizations/${orgId}/events/${createdEvent.id}/categories`, {
+              method: "POST",
+              body: JSON.stringify({
+                name: catName,
+                price: catPrice,
+                capacity: catCapacity,
+                bibPrefix: catBib || undefined,
+                minAge: 17,
+                maxOrderPerUser: 1,
+                registrationMode: selectedMode,
+                registrationOpensAt: now.toISOString(),
+                registrationClosesAt: endsAtVal ? new Date(String(endsAtVal)).toISOString() : oneYearLater.toISOString(),
+              }),
+            });
+          }
+        }
+
+        // Jika organizer memilih template, sinkronkan juga layoutConfig dan banner ke events-store
+        if (activeTemplateId) {
+          const tpl = MARATHON_TEMPLATES.find((t) => t.id === activeTemplateId);
+          if (tpl) {
+            const venueMeta = VENUE_INFO[tpl.id] || { venue: "Gelora Arena", address: "Official Race Track", city: "Jakarta" };
+            const richEvent = {
+              id: createdEvent.id,
+              slug: createdEvent.slug || `${tpl.id}-${Date.now()}`,
+              name: String(fd.get("name") ?? tpl.name).trim(),
+              tagline: tpl.sampleHighlights[0] ?? "Ajang Lari Resmi",
+              description: String(fd.get("description") ?? tpl.description).trim(),
+              eventType: String(fd.get("eventType") ?? "MARATHON"),
+              status: "published",
+              organizerName: "IvyTicketing Organizer",
+              organizerSlug: orgId,
+              city: venueMeta.city,
+              province: "DKI Jakarta",
+              country: "Indonesia",
+              venueName: String(fd.get("venueName") ?? venueMeta.venue).trim(),
+              venueAddress: String(fd.get("venueAddress") ?? venueMeta.address).trim(),
+              startsAt: startsAtVal ? new Date(String(startsAtVal)).toISOString() : new Date().toISOString(),
+              flagOffTime: tpl.sampleSchedule?.[1]?.time || "05:00 WIB",
+              bannerUrl: tpl.defaultBanner,
+              logoUrl: tpl.defaultBanner,
+              themeColor: tpl.themeColor,
+              accentColor: tpl.accentColor,
+              certifiedBy: tpl.certifiedBy,
+              elevationGain: tpl.elevationGain,
+              waterStationsCount: 16,
+              medicalStationsCount: 10,
+              categories: JSON.parse(JSON.stringify(tpl.sampleCategories)),
+              routeHighlights: JSON.parse(JSON.stringify(tpl.sampleHighlights)),
+              racepackInfo: {
+                dates: "H-2 dan H-1 Hari Lomba",
+                venue: "Race Village Official Expo",
+                address: venueMeta.address,
+                hours: "10:00 - 20:00 WIB",
+                requirements: ["E-KTP / Paspor", "QR Konfirmasi", "Surat Keterangan Sehat"],
+              },
+              schedule: JSON.parse(JSON.stringify(tpl.sampleSchedule)),
+              faqs: [
+                { q: "Apakah rute tersertifikasi?", a: "Ya, rute telah diukur dan disertifikasi resmi." }
+              ],
+              sponsors: [{ name: "IvyBank", role: "Title Sponsor" }],
+              layoutConfig: {
+                ...DEFAULT_LAYOUT_CONFIG,
+                ...(tpl.defaultLayout || { templateId: tpl.id }),
+              },
+              updatedAt: new Date().toISOString(),
+            };
+            saveMarathonEvent(richEvent);
+          }
+        }
+
+        // Redirect langsung ke dashboard/overview event
+        window.location.href = `/org/${orgId}/events/${createdEvent.id}`;
+      } catch (err) {
+        if (btn) {
+          (btn as HTMLButtonElement).disabled = false;
+          btn.textContent = "Simpan & Buka Workspace Event";
+        }
+        if (errEl) {
+          errEl.textContent = (err as any).message || "Gagal membuat event baru. Pastikan seluruh data terisi dengan benar.";
+          errEl.classList.remove("hidden");
+        }
+      }
+    });
+  </script>
+</OrganizerLayout>

@@ -21,6 +21,7 @@ type fakeRepo struct {
 	orders   map[uuid.UUID]db.Order
 	webhooks map[uuid.UUID]db.PaymentWebhook
 	dedupe   map[string]bool // set of claimed dedupe keys
+	channels map[string]bool // channelCode -> isEnabled
 
 	orderPaidCount           int
 	reservationCompletedCount int
@@ -33,6 +34,7 @@ func newFakeRepo() *fakeRepo {
 		orders:   make(map[uuid.UUID]db.Order),
 		webhooks: make(map[uuid.UUID]db.PaymentWebhook),
 		dedupe:   make(map[string]bool),
+		channels: make(map[string]bool),
 	}
 }
 
@@ -185,6 +187,47 @@ func (f *fakeRepo) UpdateOrderStatus(_ context.Context, arg db.UpdateOrderStatus
 func (f *fakeRepo) CompleteReservationsForOrder(_ context.Context, _ uuid.UUID) error {
 	f.reservationCompletedCount++
 	return nil
+}
+
+func (f *fakeRepo) ConvertBallotWinnerForOrder(_ context.Context, _ db.ConvertBallotWinnerForOrderParams) error {
+	return nil
+}
+
+func (f *fakeRepo) GetEventByID(_ context.Context, id uuid.UUID) (db.Event, error) {
+	return db.Event{ID: id}, nil
+}
+
+func (f *fakeRepo) ListPaymentChannelsByEvent(_ context.Context, eventID uuid.UUID) ([]db.EventPaymentChannel, error) {
+	var list []db.EventPaymentChannel
+	for code, enabled := range f.channels {
+		list = append(list, db.EventPaymentChannel{
+			EventID:     eventID,
+			ChannelCode: code,
+			IsEnabled:   enabled,
+		})
+	}
+	return list, nil
+}
+
+func (f *fakeRepo) UpsertEventPaymentChannel(_ context.Context, arg db.UpsertEventPaymentChannelParams) (db.EventPaymentChannel, error) {
+	if f.channels == nil {
+		f.channels = make(map[string]bool)
+	}
+	f.channels[arg.ChannelCode] = arg.IsEnabled
+	return db.EventPaymentChannel{
+		EventID:     arg.EventID,
+		ChannelCode: arg.ChannelCode,
+		IsEnabled:   arg.IsEnabled,
+	}, nil
+}
+
+func (f *fakeRepo) IsPaymentChannelEnabled(_ context.Context, arg db.IsPaymentChannelEnabledParams) (bool, error) {
+	if f.channels != nil {
+		if enabled, ok := f.channels[arg.ChannelCode]; ok {
+			return enabled, nil
+		}
+	}
+	return true, nil
 }
 
 // Helpers to add test data

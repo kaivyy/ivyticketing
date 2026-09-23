@@ -47,7 +47,7 @@ func TestCreatePayment_OrderNotPayable(t *testing.T) {
 
 	// Order is already PAID
 	o := repo.addOrder(orderID, "PAID")
-	o.ParticipantID = participantID
+	o.ParticipantID = &participantID
 	repo.orders[orderID] = o
 
 	reg := gw.NewRegistry()
@@ -72,10 +72,10 @@ func TestCreatePayment_GatewayNotAvailable(t *testing.T) {
 	participantID := uuid.New()
 
 	o := repo.addOrder(orderID, OrderPendingPayment)
-	o.ParticipantID = participantID
+	o.ParticipantID = &participantID
 	repo.orders[orderID] = o
 
-	// Empty registry — no gateways registered
+	// Empty registry - no gateways registered
 	reg := gw.NewRegistry()
 
 	svc := NewService(repo, reg, nil, 15*time.Minute)
@@ -96,7 +96,7 @@ func TestCreatePayment_Success(t *testing.T) {
 	participantID := uuid.New()
 
 	o := repo.addOrder(orderID, OrderPendingPayment)
-	o.ParticipantID = participantID
+	o.ParticipantID = &participantID
 	o.Total = 75000
 	repo.orders[orderID] = o
 

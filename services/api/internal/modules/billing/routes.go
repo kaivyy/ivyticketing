@@ -30,5 +30,11 @@ func (h *Handler) RegisterOrgRoutes(r chi.Router, loader middleware.PermissionLo
 		r.With(middleware.RequirePermission(loader, "billing.view")).Get("/packages", h.ListActivePackages)
 		r.With(middleware.RequirePermission(loader, "billing.view")).Get("/fees/summary", h.FeeSummary)
 		r.With(middleware.RequirePermission(loader, "billing.view")).Get("/invoices", h.ListInvoices)
+		r.With(middleware.RequirePermission(loader, "billing.view")).Get("/balance", h.GetBalance)
+		r.With(middleware.RequirePermission(loader, "billing.view")).Get("/payout-accounts", h.ListPayoutAccounts)
+		r.With(middleware.RequirePermission(loader, "billing.view")).Post("/payout-accounts", h.CreatePayoutAccount)
+		r.With(middleware.RequirePermission(loader, "billing.view")).Delete("/payout-accounts/{accountId}", h.DeletePayoutAccount)
+		r.With(middleware.RequirePermission(loader, "billing.view")).Get("/payouts", h.ListPayoutRequests)
+		r.With(middleware.RequirePermission(loader, "billing.view")).Post("/payouts", h.CreatePayoutRequest)
 	})
 }

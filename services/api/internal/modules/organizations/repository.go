@@ -13,6 +13,7 @@ type Repository interface {
 	ExecTx(ctx context.Context, fn func(Repository) error) error
 	CreateOrganization(ctx context.Context, arg db.CreateOrganizationParams) (db.Organization, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (db.Organization, error)
+	GetOrganizationBySlug(ctx context.Context, slug string) (db.Organization, error)
 	ListOrganizationsForUser(ctx context.Context, userID uuid.UUID) ([]db.Organization, error)
 	GetMemberByOrgAndUser(ctx context.Context, arg db.GetMemberByOrgAndUserParams) (db.OrganizationMember, error)
 	CreateMember(ctx context.Context, arg db.CreateMemberParams) (db.OrganizationMember, error)
@@ -21,6 +22,10 @@ type Repository interface {
 	CreateRole(ctx context.Context, arg db.CreateRoleParams) (db.Role, error)
 	AddRolePermission(ctx context.Context, arg db.AddRolePermissionParams) error
 	AddMemberRole(ctx context.Context, arg db.AddMemberRoleParams) error
+	ListAuditLogs(ctx context.Context, orgID uuid.UUID, limit int32) ([]db.ListAuditLogsWithActorByOrgRow, error)
+	ListAllOrganizationsWithStats(ctx context.Context) ([]db.ListAllOrganizationsWithStatsRow, error)
+	GetUserByEmail(ctx context.Context, email string) (db.User, error)
+	CreateUser(ctx context.Context, arg db.CreateUserParams) (db.User, error)
 }
 
 type sqlcRepo struct {
@@ -51,6 +56,9 @@ func (r *sqlcRepo) CreateOrganization(ctx context.Context, arg db.CreateOrganiza
 func (r *sqlcRepo) GetOrganizationByID(ctx context.Context, id uuid.UUID) (db.Organization, error) {
 	return r.q.GetOrganizationByID(ctx, id)
 }
+func (r *sqlcRepo) GetOrganizationBySlug(ctx context.Context, slug string) (db.Organization, error) {
+	return r.q.GetOrganizationBySlug(ctx, slug)
+}
 func (r *sqlcRepo) ListOrganizationsForUser(ctx context.Context, userID uuid.UUID) ([]db.Organization, error) {
 	return r.q.ListOrganizationsForUser(ctx, userID)
 }
@@ -74,4 +82,19 @@ func (r *sqlcRepo) AddRolePermission(ctx context.Context, arg db.AddRolePermissi
 }
 func (r *sqlcRepo) AddMemberRole(ctx context.Context, arg db.AddMemberRoleParams) error {
 	return r.q.AddMemberRole(ctx, arg)
+}
+func (r *sqlcRepo) ListAuditLogs(ctx context.Context, orgID uuid.UUID, limit int32) ([]db.ListAuditLogsWithActorByOrgRow, error) {
+	return r.q.ListAuditLogsWithActorByOrg(ctx, db.ListAuditLogsWithActorByOrgParams{
+		OrganizationID: &orgID,
+		Limit:          limit,
+	})
+}
+func (r *sqlcRepo) ListAllOrganizationsWithStats(ctx context.Context) ([]db.ListAllOrganizationsWithStatsRow, error) {
+	return r.q.ListAllOrganizationsWithStats(ctx)
+}
+func (r *sqlcRepo) GetUserByEmail(ctx context.Context, email string) (db.User, error) {
+	return r.q.GetUserByEmail(ctx, email)
+}
+func (r *sqlcRepo) CreateUser(ctx context.Context, arg db.CreateUserParams) (db.User, error) {
+	return r.q.CreateUser(ctx, arg)
 }

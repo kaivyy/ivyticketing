@@ -12,6 +12,8 @@ import (
 type Repository interface {
 	ListPublishedEventsByOrgSlug(ctx context.Context, slug string) ([]db.Event, error)
 	GetPublishedEventByOrgAndSlug(ctx context.Context, arg db.GetPublishedEventByOrgAndSlugParams) (db.Event, error)
+	ListAllPublishedEvents(ctx context.Context) ([]db.ListAllPublishedEventsRow, error)
+	GetPublishedEventByIDOrSlug(ctx context.Context, identifier string) (db.GetPublishedEventByIDOrSlugRow, error)
 	ListCategoriesByEventForPublic(ctx context.Context, eventID uuid.UUID) ([]db.EventCategory, error)
 	ListCategoriesByEventForPublicWithMode(ctx context.Context, eventID uuid.UUID) ([]db.EventCategoryWithMode, error)
 }
@@ -30,6 +32,12 @@ func (r *sqlcRepo) ListPublishedEventsByOrgSlug(ctx context.Context, slug string
 }
 func (r *sqlcRepo) GetPublishedEventByOrgAndSlug(ctx context.Context, arg db.GetPublishedEventByOrgAndSlugParams) (db.Event, error) {
 	return r.q.GetPublishedEventByOrgAndSlug(ctx, arg)
+}
+func (r *sqlcRepo) ListAllPublishedEvents(ctx context.Context) ([]db.ListAllPublishedEventsRow, error) {
+	return r.q.ListAllPublishedEvents(ctx)
+}
+func (r *sqlcRepo) GetPublishedEventByIDOrSlug(ctx context.Context, identifier string) (db.GetPublishedEventByIDOrSlugRow, error) {
+	return r.q.GetPublishedEventByIDOrSlug(ctx, identifier)
 }
 func (r *sqlcRepo) ListCategoriesByEventForPublic(ctx context.Context, eventID uuid.UUID) ([]db.EventCategory, error) {
 	return r.q.ListCategoriesByEventForPublic(ctx, eventID)

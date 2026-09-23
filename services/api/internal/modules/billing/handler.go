@@ -265,3 +265,109 @@ func (h *Handler) ListInvoices(w http.ResponseWriter, r *http.Request) {
 	}
 	apperr.WriteJSON(w, http.StatusOK, invs)
 }
+
+// GetBalance returns the financial balance and available payout sum.
+// GET /organizations/{orgId}/billing/balance
+func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := parseOrg(w, r)
+	if !ok {
+		return
+	}
+	bal, err := h.svc.GetBalance(r.Context(), orgID)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, bal)
+}
+
+// ListPayoutAccounts returns registered bank accounts for payouts.
+// GET /organizations/{orgId}/billing/payout-accounts
+func (h *Handler) ListPayoutAccounts(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := parseOrg(w, r)
+	if !ok {
+		return
+	}
+	accounts, err := h.svc.ListPayoutAccounts(r.Context(), orgID)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, accounts)
+}
+
+// CreatePayoutAccount registers a new bank account.
+// POST /organizations/{orgId}/billing/payout-accounts
+func (h *Handler) CreatePayoutAccount(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := parseOrg(w, r)
+	if !ok {
+		return
+	}
+	var req CreatePayoutAccountRequest
+	if !decode(w, r, &req) {
+		return
+	}
+	created, err := h.svc.CreatePayoutAccount(r.Context(), orgID, req)
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_ACCOUNT", err.Error()))
+		return
+	}
+	apperr.WriteJSON(w, http.StatusCreated, created)
+}
+
+// DeletePayoutAccount removes a bank account.
+// DELETE /organizations/{orgId}/billing/payout-accounts/{accountId}
+func (h *Handler) DeletePayoutAccount(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := parseOrg(w, r)
+	if !ok {
+		return
+	}
+	acctID, err := uuid.Parse(chi.URLParam(r, "accountId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_ID", "invalid account id"))
+		return
+	}
+	if err := h.svc.DeletePayoutAccount(r.Context(), orgID, acctID); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ListPayoutRequests returns payout requests for the org.
+// GET /organizations/{orgId}/billing/payouts
+func (h *Handler) ListPayoutRequests(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := parseOrg(w, r)
+	if !ok {
+		return
+	}
+	requests, err := h.svc.ListPayoutRequests(r.Context(), orgID)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, requests)
+}
+
+// CreatePayoutRequest requests a new payout.
+// POST /organizations/{orgId}/billing/payouts
+func (h *Handler) CreatePayoutRequest(w http.ResponseWriter, r *http.Request) {
+	orgID, ok := parseOrg(w, r)
+	if !ok {
+		return
+	}
+	actor, ok := actorID(w, r)
+	if !ok {
+		return
+	}
+	var req CreatePayoutRequestInput
+	if !decode(w, r, &req) {
+		return
+	}
+	created, err := h.svc.CreatePayoutRequest(r.Context(), orgID, actor, req)
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "PAYOUT_REQUEST_FAILED", err.Error()))
+		return
+	}
+	apperr.WriteJSON(w, http.StatusCreated, created)
+}

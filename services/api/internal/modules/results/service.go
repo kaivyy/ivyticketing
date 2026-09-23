@@ -254,7 +254,12 @@ func (s *Service) rowToParams(orgID, eventID uuid.UUID, cols map[string]int, rec
 			params.Age = pgInt4Ptr(&n)
 		}
 	}
-	if st := normalizeStatus(get(colStatus)); st != "" {
+	rawStatus := get(colStatus)
+	if rawStatus != "" {
+		st, ok := normalizeStatus(rawStatus)
+		if !ok {
+			return db.UpsertRaceResultParams{}, errors.New("status tidak valid: " + rawStatus)
+		}
 		params.Status = st
 	}
 	if chip := get(colChipTime); chip != "" {

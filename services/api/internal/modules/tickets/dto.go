@@ -21,6 +21,15 @@ type TicketResponse struct {
 	BibNumber           *string    `json:"bibNumber,omitempty"`
 	BibAssignedAt       *time.Time `json:"bibAssignedAt,omitempty"`
 	BibAssignmentMethod *string    `json:"bibAssignmentMethod,omitempty"`
+
+	// Custom registration form answers
+	FormAnswers map[string]any `json:"formAnswers,omitempty"`
+}
+
+type UpdateParticipantRequest struct {
+	HolderName  string         `json:"holderName"`
+	HolderEmail string         `json:"holderEmail"`
+	FormAnswers map[string]any `json:"formAnswers,omitempty"`
 }
 
 // TicketWithQR adds the signed QR token to a ticket view.

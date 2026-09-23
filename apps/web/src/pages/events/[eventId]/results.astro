@@ -1,0 +1,585 @@
+---
+export const prerender = false;
+import "../../../styles/global.css";
+const { eventId } = Astro.params;
+---
+
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hasil Resmi & Klasemen : ivyticketing</title>
+    <meta name="description" content="Hasil resmi, klasemen, catatan waktu, dan skor pertandingan kompetisi di ivyticketing." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style is:global>
+      .font-athletic {
+        font-family: 'Oswald', sans-serif;
+        letter-spacing: 0.03em;
+      }
+      .font-body {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+      }
+    </style>
+  </head>
+  <body class="bg-slate-900 text-slate-100 font-body min-h-screen">
+    <!-- Top Header -->
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-30">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <a href={`/events/${eventId}`} class="flex items-center gap-2 text-slate-400 hover:text-white transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span class="text-sm font-semibold">Kembali ke Event</span>
+        </a>
+        <div class="flex items-center gap-3">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Official Live Results
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8" id="competition-app" data-event-id={eventId}>
+      <!-- Event Header Skeleton -->
+      <div class="space-y-2">
+        <h1 id="event-title" class="font-athletic text-3xl sm:text-4xl uppercase text-white font-bold tracking-wide">
+          HASIL RESMI & KLASEMEN
+        </h1>
+        <p id="event-sport-meta" class="text-slate-400 text-sm">Memuat data kompetisi...</p>
+      </div>
+
+      <!-- Navigation Tabs (Dynamic per capability) -->
+      <div id="capability-tabs" class="flex border-b border-slate-800 gap-4 overflow-x-auto pb-2">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Content Area -->
+      <div id="content-container" class="space-y-6">
+        <div class="p-8 text-center text-slate-500">Memuat hasil kompetisi...</div>
+      </div>
+    </main>
+
+    <script>
+      import {
+        fetchCompetitionConfig,
+        fetchStages,
+        fetchMatches,
+        fetchStandings,
+        type CompetitionConfig,
+        type CompetitionStage,
+        type CompetitionMatch,
+        type GenericStandingsRow,
+      } from "../../../lib/competitions";
+      import { listResults, type ResultRow, STATUS_LABELS } from "../../../lib/results";
+      import { esc } from "../../../lib/safe";
+
+      const appEl = document.getElementById("competition-app");
+      if (appEl) {
+        const eventId = appEl.dataset.eventId || "";
+        init(eventId);
+      }
+
+      async function init(eventId: string) {
+        const metaEl = document.getElementById("event-sport-meta");
+        const container = document.getElementById("content-container");
+        if (!container) return;
+
+        try {
+          const config = await fetchCompetitionConfig(eventId);
+          if (metaEl) {
+            metaEl.textContent = `Cabang Olahraga: ${config.sportId.toUpperCase()} (${config.disciplineId})`;
+          }
+
+          // Case A: Team or Match-based sports (Football, Badminton)
+          if (config.hasMatches || config.hasStages || config.hasScoring) {
+            await renderMultiStageCompetition(eventId, config, container);
+          } else {
+            // Case B: Race / Timing-based sports (Running, Swimming, Cycling time trial)
+            await renderRaceResults(eventId, config, container);
+          }
+        } catch (e) {
+          container.innerHTML = `
+            <div class="p-6 bg-slate-800/50 rounded-xl border border-slate-700 text-slate-400">
+              Belum ada data kompetisi yang dipublikasikan untuk event ini.
+            </div>
+          `;
+        }
+      }
+
+      async function renderRaceResults(eventId: string, config: CompetitionConfig, container: HTMLElement) {
+        try {
+          const page = await listResults("", eventId, { limit: 200 });
+          const rows = page.results;
+
+          if (!rows || rows.length === 0) {
+            container.innerHTML = `
+              <div class="p-8 text-center bg-slate-950 rounded-xl border border-slate-800 text-slate-400">
+                Belum ada catatan waktu resmi yang tercatat.
+              </div>
+            `;
+            return;
+          }
+
+          container.innerHTML = `
+            <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">
+              <table class="w-full text-left text-sm text-slate-300">
+                <thead class="bg-slate-900/80 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                  <tr>
+                    <th class="py-3.5 px-4 font-semibold">Pos</th>
+                    <th class="py-3.5 px-4 font-semibold">BIB</th>
+                    <th class="py-3.5 px-4 font-semibold">Nama Peserta</th>
+                    <th class="py-3.5 px-4 font-semibold">Waktu Resmi (Gun Time)</th>
+                    <th class="py-3.5 px-4 font-semibold">Net Time (Chip)</th>
+                    <th class="py-3.5 px-4 font-semibold">Kategori</th>
+                    <th class="py-3.5 px-4 font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                  ${rows
+                    .map((r: ResultRow) => {
+                      const medal = r.rankOverall === 1 ? "🥇 1" : r.rankOverall === 2 ? "🥈 2" : r.rankOverall === 3 ? "🥉 3" : r.rankOverall ? String(r.rankOverall) : "-";
+                      const statusLabel = STATUS_LABELS[r.status] || r.status;
+                      const statusColor = r.status === "FINISHED" ? "text-emerald-400" : "text-amber-400";
+
+                      return `
+                        <tr class="hover:bg-slate-900/50 transition">
+                          <td class="py-3 px-4 font-bold text-white">${medal}</td>
+                          <td class="py-3 px-4 font-mono text-emerald-400 font-semibold">${esc(r.bibNumber)}</td>
+                          <td class="py-3 px-4 font-medium text-white">${esc(r.participantName)}</td>
+                          <td class="py-3 px-4 font-mono font-semibold text-white">${esc(r.gunTime || r.chipTime || "-")}</td>
+                          <td class="py-3 px-4 font-mono text-slate-400">${esc(r.chipTime || "-")}</td>
+                          <td class="py-3 px-4 text-slate-400">${esc(r.ageGroup || "-")}</td>
+                          <td class="py-3 px-4 font-semibold ${statusColor}">${esc(statusLabel)}</td>
+                        </tr>
+                      `;
+                    })
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          `;
+        } catch (e) {
+          container.innerHTML = `
+            <div class="p-6 bg-slate-800/50 rounded-xl border border-slate-700 text-slate-400">
+              Gagal memuat hasil lomba lari.
+            </div>
+          `;
+        }
+      }
+
+      async function renderMultiStageCompetition(eventId: string, config: CompetitionConfig, container: HTMLElement) {
+        const stages = await fetchStages(eventId);
+        if (stages.length === 0) {
+          container.innerHTML = `
+            <div class="p-8 text-center bg-slate-950 rounded-xl border border-slate-800 text-slate-400">
+              Belum ada babak atau jadwal pertandingan yang dipublikasikan.
+            </div>
+          `;
+          return;
+        }
+
+        const tabsEl = document.getElementById("capability-tabs");
+
+        function getActiveStage(): CompetitionStage {
+          const urlParams = new URLSearchParams(window.location.search);
+          const stageParam = urlParams.get("stage");
+          if (stageParam) {
+            const found = stages.find((s: CompetitionStage) => s.id === stageParam);
+            if (found) return found;
+          }
+          return stages[0];
+        }
+
+        let activeStage = getActiveStage();
+
+        function renderTabs() {
+          if (!tabsEl) return;
+          tabsEl.innerHTML = stages
+            .map((s: CompetitionStage) => {
+              const isActive = s.id === activeStage.id;
+              const activeClass = isActive
+                ? "bg-emerald-600 text-white shadow-sm"
+                : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white";
+              return `
+                <button
+                  type="button"
+                  data-stage-id="${esc(s.id)}"
+                  class="stage-tab-btn whitespace-nowrap px-4 py-2 rounded-lg text-sm font-semibold transition ${activeClass}"
+                >
+                  ${esc(s.name)}
+                </button>
+              `;
+            })
+            .join("");
+
+          tabsEl.querySelectorAll(".stage-tab-btn").forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const sid = (btn as HTMLElement).dataset.stageId;
+              if (sid && sid !== activeStage.id) {
+                const target = stages.find((s: CompetitionStage) => s.id === sid);
+                if (target) {
+                  activeStage = target;
+                  const url = new URL(window.location.href);
+                  url.searchParams.set("stage", sid);
+                  window.history.pushState({}, "", url.toString());
+                  renderTabs();
+                  renderStageContent(activeStage);
+                }
+              }
+            });
+          });
+        }
+
+        window.addEventListener("popstate", () => {
+          activeStage = getActiveStage();
+          renderTabs();
+          renderStageContent(activeStage);
+        });
+
+        async function renderStageContent(stage: CompetitionStage) {
+          container.innerHTML = `
+            <div class="p-8 text-center text-slate-500">Memuat data babak ${esc(stage.name)}...</div>
+          `;
+
+          try {
+            const [matches, standings] = await Promise.all([
+              fetchMatches(eventId, stage.id),
+              fetchStandings(eventId, stage.id),
+            ]);
+
+            let html = "";
+            const sportId = (config.sportId || "").toLowerCase();
+
+            // 1. Standings section
+            if (standings && standings.length > 0) {
+              html += `<div class="space-y-4">`;
+              html += `<h2 class="font-athletic text-2xl uppercase tracking-wide text-white">Klasemen / Hasil ${esc(stage.name)}</h2>`;
+              html += `<div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950">`;
+              html += `<table class="w-full text-left text-sm text-slate-300">`;
+
+              // Capability-driven format detection
+              const hasSetMetrics = standings.some((s: GenericStandingsRow) => s.customMetrics && typeof s.customMetrics.games_won === "number");
+              const isRacketOrSetBased = hasSetMetrics || config.rankingStrategy === "WIN_COUNT" || sportId === "badminton";
+              const hasPelotonMetrics = standings.some((s: GenericStandingsRow) => s.customMetrics && typeof s.customMetrics.peloton_group === "number");
+              const isPelotonStage = stage.stageType === "peloton_stage" || hasPelotonMetrics || sportId === "cycling";
+              const isPureTiming = config.hasTiming && !config.hasMatches;
+              const hasGoalMetrics = standings.some((s: GenericStandingsRow) => (s.goalsFor !== undefined && s.goalsFor !== null && s.goalsFor > 0) || (s.goalDifference !== undefined && s.goalDifference !== 0));
+              const isGoalBased = hasGoalMetrics || config.rankingStrategy === "GOAL_DIFFERENCE" || (config.rankingStrategy === "POINTS_DESC" && !isRacketOrSetBased) || sportId === "football" || sportId === "futsal";
+
+              if (isRacketOrSetBased) {
+                // Set/Game-based standings (Badminton, Table Tennis, Tennis, etc.)
+                html += `
+                  <thead class="bg-slate-900/80 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th class="py-3 px-4">Pos</th>
+                      <th class="py-3 px-4">Pemain / Pasangan</th>
+                      <th class="py-3 px-3 text-center">Main</th>
+                      <th class="py-3 px-3 text-center">Menang</th>
+                      <th class="py-3 px-3 text-center">Kalah</th>
+                      <th class="py-3 px-3 text-center">Game</th>
+                      <th class="py-3 px-3 text-center">Selisih Game</th>
+                      <th class="py-3 px-3 text-center">Selisih Poin</th>
+                      <th class="py-3 px-4 font-bold text-white text-center">Poin</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800/60">
+                    ${standings
+                      .map((s: GenericStandingsRow) => {
+                        const m = s.customMetrics || {};
+                        const gamesWon = typeof m.games_won === "number" ? m.games_won : 0;
+                        const gamesLost = typeof m.games_lost === "number" ? m.games_lost : 0;
+                        const gameDiff = typeof m.game_difference === "number" ? m.game_difference : 0;
+                        const rallyDiff = typeof m.rally_point_difference === "number" ? m.rally_point_difference : 0;
+                        return `
+                          <tr class="hover:bg-slate-900/50 transition">
+                            <td class="py-3 px-4 font-bold text-white">${s.rank}</td>
+                            <td class="py-3 px-4 font-semibold text-white">${esc(s.displayName)}</td>
+                            <td class="py-3 px-3 text-center text-slate-400">${s.played}</td>
+                            <td class="py-3 px-3 text-center text-emerald-400">${s.wins}</td>
+                            <td class="py-3 px-3 text-center text-rose-400">${s.losses}</td>
+                            <td class="py-3 px-3 text-center text-slate-300 font-mono">${gamesWon}-${gamesLost}</td>
+                            <td class="py-3 px-3 text-center font-semibold ${gameDiff > 0 ? "text-emerald-400" : gameDiff < 0 ? "text-rose-400" : "text-slate-400"}">${gameDiff > 0 ? "+" + gameDiff : gameDiff}</td>
+                            <td class="py-3 px-3 text-center font-semibold ${rallyDiff > 0 ? "text-emerald-400" : rallyDiff < 0 ? "text-rose-400" : "text-slate-400"}">${rallyDiff > 0 ? "+" + rallyDiff : rallyDiff}</td>
+                            <td class="py-3 px-4 text-center font-bold text-emerald-400 text-base">${s.points}</td>
+                          </tr>
+                        `;
+                      })
+                      .join("")}
+                  </tbody>
+                `;
+              } else if (isPelotonStage) {
+                // Cycling stage with peloton grouping
+                html += `
+                  <thead class="bg-slate-900/80 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th class="py-3 px-4">Pos</th>
+                      <th class="py-3 px-4">BIB / ID</th>
+                      <th class="py-3 px-4">Nama Peserta</th>
+                      <th class="py-3 px-4">Waktu Resmi</th>
+                      <th class="py-3 px-3 text-center">Selisih (Gap)</th>
+                      <th class="py-3 px-3 text-center">Grup Peloton</th>
+                      <th class="py-3 px-4">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800/60">
+                    ${standings
+                      .map((s: GenericStandingsRow) => {
+                        const m = s.customMetrics || {};
+                        const gapMs = typeof m.gap_to_leader_ms === "number" ? m.gap_to_leader_ms : 0;
+                        const gapStr = gapMs > 0 ? `+${(gapMs / 1000).toFixed(1)}s` : "0.0s";
+                        const pelotonGroup = typeof m.peloton_group === "number" ? `Peloton ${m.peloton_group}` : "-";
+                        const statusColor = s.status === "FINISHED" ? "text-emerald-400" : "text-amber-400";
+                        return `
+                          <tr class="hover:bg-slate-900/50 transition">
+                            <td class="py-3 px-4 font-bold text-white">${s.rank}</td>
+                            <td class="py-3 px-4 font-mono text-emerald-400 font-semibold">${esc(s.identifierCode || "-")}</td>
+                            <td class="py-3 px-4 font-semibold text-white">${esc(s.displayName)}</td>
+                            <td class="py-3 px-4 font-mono font-semibold text-white">${esc(s.primaryTime || "-")}</td>
+                            <td class="py-3 px-3 text-center font-mono text-slate-400">${gapStr}</td>
+                            <td class="py-3 px-3 text-center text-xs text-slate-400">${pelotonGroup}</td>
+                            <td class="py-3 px-4 font-semibold ${statusColor}">${esc(s.status)}</td>
+                          </tr>
+                        `;
+                      })
+                      .join("")}
+                  </tbody>
+                `;
+              } else if (isPureTiming) {
+                // Timing-based stage without peloton (e.g. Swimming, Running heats/stages)
+                html += `
+                  <thead class="bg-slate-900/80 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th class="py-3 px-4">Pos</th>
+                      <th class="py-3 px-4">BIB / ID</th>
+                      <th class="py-3 px-4">Nama Peserta</th>
+                      <th class="py-3 px-4">Waktu Resmi</th>
+                      <th class="py-3 px-3 text-center">Selisih (Gap)</th>
+                      <th class="py-3 px-4">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800/60">
+                    ${standings
+                      .map((s: GenericStandingsRow) => {
+                        const m = s.customMetrics || {};
+                        const gapMs = typeof m.gap_to_leader_ms === "number" ? m.gap_to_leader_ms : 0;
+                        const gapStr = gapMs > 0 ? `+${(gapMs / 1000).toFixed(1)}s` : "0.0s";
+                        const statusColor = s.status === "FINISHED" ? "text-emerald-400" : "text-amber-400";
+                        return `
+                          <tr class="hover:bg-slate-900/50 transition">
+                            <td class="py-3 px-4 font-bold text-white">${s.rank}</td>
+                            <td class="py-3 px-4 font-mono text-emerald-400 font-semibold">${esc(s.identifierCode || "-")}</td>
+                            <td class="py-3 px-4 font-semibold text-white">${esc(s.displayName)}</td>
+                            <td class="py-3 px-4 font-mono font-semibold text-white">${esc(s.primaryTime || "-")}</td>
+                            <td class="py-3 px-3 text-center font-mono text-slate-400">${gapStr}</td>
+                            <td class="py-3 px-4 font-semibold ${statusColor}">${esc(s.status)}</td>
+                          </tr>
+                        `;
+                      })
+                      .join("")}
+                  </tbody>
+                `;
+              } else if (isGoalBased) {
+                // Goal / Points league standings (Football, Futsal, Hockey, etc.)
+                html += `
+                  <thead class="bg-slate-900/80 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th class="py-3 px-4">Pos</th>
+                      <th class="py-3 px-4">Klub / Tim</th>
+                      <th class="py-3 px-3 text-center">P</th>
+                      <th class="py-3 px-3 text-center">M</th>
+                      <th class="py-3 px-3 text-center">S</th>
+                      <th class="py-3 px-3 text-center">K</th>
+                      <th class="py-3 px-3 text-center">GM</th>
+                      <th class="py-3 px-3 text-center">GA</th>
+                      <th class="py-3 px-3 text-center">SG</th>
+                      <th class="py-3 px-4 font-bold text-white text-center">Poin</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800/60">
+                    ${standings
+                      .map((s: GenericStandingsRow) => `
+                        <tr class="hover:bg-slate-900/50 transition">
+                          <td class="py-3 px-4 font-bold text-white">${s.rank}</td>
+                          <td class="py-3 px-4 font-semibold text-white">${esc(s.displayName)}</td>
+                          <td class="py-3 px-3 text-center text-slate-400">${s.played}</td>
+                          <td class="py-3 px-3 text-center text-emerald-400">${s.wins}</td>
+                          <td class="py-3 px-3 text-center text-amber-400">${s.draws}</td>
+                          <td class="py-3 px-3 text-center text-rose-400">${s.losses}</td>
+                          <td class="py-3 px-3 text-center text-slate-400">${s.goalsFor}</td>
+                          <td class="py-3 px-3 text-center text-slate-400">${s.goalsAgainst}</td>
+                          <td class="py-3 px-3 text-center font-semibold ${s.goalDifference > 0 ? "text-emerald-400" : s.goalDifference < 0 ? "text-rose-400" : "text-slate-400"}">${s.goalDifference > 0 ? "+" + s.goalDifference : s.goalDifference}</td>
+                          <td class="py-3 px-4 text-center font-bold text-emerald-400 text-base">${s.points}</td>
+                        </tr>
+                      `)
+                      .join("")}
+                  </tbody>
+                `;
+              } else {
+                // Generic Points standings
+                html += `
+                  <thead class="bg-slate-900/80 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
+                    <tr>
+                      <th class="py-3 px-4">Pos</th>
+                      <th class="py-3 px-4">Peserta / Tim</th>
+                      <th class="py-3 px-3 text-center">Main</th>
+                      <th class="py-3 px-3 text-center">M</th>
+                      <th class="py-3 px-3 text-center">S</th>
+                      <th class="py-3 px-3 text-center">K</th>
+                      <th class="py-3 px-4 font-bold text-white text-center">Poin</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800/60">
+                    ${standings
+                      .map((s: GenericStandingsRow) => `
+                        <tr class="hover:bg-slate-900/50 transition">
+                          <td class="py-3 px-4 font-bold text-white">${s.rank}</td>
+                          <td class="py-3 px-4 font-semibold text-white">${esc(s.displayName)}</td>
+                          <td class="py-3 px-3 text-center text-slate-400">${s.played}</td>
+                          <td class="py-3 px-3 text-center text-emerald-400">${s.wins}</td>
+                          <td class="py-3 px-3 text-center text-amber-400">${s.draws}</td>
+                          <td class="py-3 px-3 text-center text-rose-400">${s.losses}</td>
+                          <td class="py-3 px-4 text-center font-bold text-emerald-400 text-base">${s.points}</td>
+                        </tr>
+                      `)
+                      .join("")}
+                  </tbody>
+                `;
+              }
+
+              html += `</table></div></div>`;
+            }
+
+            // 2. Match fixtures section
+            if (matches && matches.length > 0) {
+              // Group matches by round number
+              const roundsMap = new Map<number, CompetitionMatch[]>();
+              for (const m of matches) {
+                const rNum = m.roundNumber || 1;
+                if (!roundsMap.has(rNum)) {
+                  roundsMap.set(rNum, []);
+                }
+                roundsMap.get(rNum)!.push(m);
+              }
+
+              html += `<div class="space-y-6 pt-6">`;
+              html += `<h2 class="font-athletic text-2xl uppercase tracking-wide text-white">Jadwal & Hasil Pertandingan</h2>`;
+
+              for (const [roundNum, roundMatches] of roundsMap.entries()) {
+                const roundLabel =
+                  stage.stageType === "single_elimination"
+                    ? `Babak ${roundNum}`
+                    : `Round ${roundNum}`;
+
+                html += `
+                  <div class="space-y-3">
+                    <h3 class="text-sm font-semibold text-emerald-400 uppercase tracking-wider">${esc(roundLabel)}</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      ${roundMatches
+                        .map((m: CompetitionMatch) => {
+                          const isBye = m.matchStatus === "BYE";
+                          const isWalkover = m.matchStatus === "WALKOVER";
+                          const isForfeit = m.matchStatus === "FORFEIT";
+                          const isCompleted = m.matchStatus === "COMPLETED";
+                          const isFinished = isCompleted || isBye || isWalkover || isForfeit;
+                          const isLive = m.matchStatus === "LIVE";
+
+                          const statusText =
+                            isBye ? "BYE" :
+                            isWalkover ? "WO" :
+                            isForfeit ? "FORFEIT" :
+                            isCompleted ? "FT" :
+                            isLive ? "LIVE" : "Jadwal";
+
+                          const statusBg =
+                            isBye
+                              ? "bg-sky-950 text-sky-400 border border-sky-800"
+                              : isWalkover || isForfeit
+                              ? "bg-amber-950 text-amber-400 border border-amber-800"
+                              : isCompleted
+                              ? "bg-slate-800 text-slate-300"
+                              : isLive
+                              ? "bg-emerald-950 text-emerald-400 border border-emerald-800"
+                              : "bg-slate-900 text-slate-500";
+
+                          const homeWinner = isBye || (m.winnerId && m.winnerId === m.homeEntryId) || (isFinished && m.homeScore > m.awayScore);
+                          const awayWinner = (!isBye && m.winnerId && m.winnerId === m.awayEntryId) || (isFinished && m.awayScore > m.homeScore);
+
+                          // Set scores for racket/set sports if present
+                          let setScoresText = "";
+                          if (m.scoreDetails && m.scoreDetails.length > 0) {
+                            const setStrs = m.scoreDetails.map((sd) => `${sd.homeScore}-${sd.awayScore}`);
+                            setScoresText = `<div class="text-[11px] font-mono text-slate-400 pt-1">Set: ${setStrs.join(", ")}</div>`;
+                          }
+
+                          const awayLabel = isBye
+                            ? "(BYE)"
+                            : m.awayEntryId
+                            ? "Peserta " + m.awayEntryId.slice(0, 8)
+                            : "Tim Away";
+
+                          return `
+                            <div class="p-4 rounded-xl border border-slate-800 bg-slate-950 space-y-3">
+                              <div class="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800/60 pb-2">
+                                <span>Match #${m.matchNumber}</span>
+                                <span class="px-2 py-0.5 rounded font-semibold text-[11px] ${statusBg}">${statusText}</span>
+                              </div>
+                              <div class="flex items-center justify-between py-1">
+                                <span class="font-semibold text-sm ${homeWinner ? "text-emerald-400 font-bold" : "text-white"}">
+                                  ${homeWinner ? "✓ " : ""}${m.homeEntryId ? "Peserta " + m.homeEntryId.slice(0, 8) : "Tim Home"}
+                                </span>
+                                <span class="font-mono text-xl font-bold ${homeWinner ? "text-emerald-400" : "text-white"}">${m.homeScore}</span>
+                              </div>
+                              <div class="flex items-center justify-between py-1">
+                                <span class="font-semibold text-sm ${awayWinner ? "text-emerald-400 font-bold" : isBye ? "text-slate-500 italic" : "text-white"}">
+                                  ${awayWinner ? "✓ " : ""}${awayLabel}
+                                </span>
+                                <span class="font-mono text-xl font-bold ${awayWinner ? "text-emerald-400" : isBye ? "text-slate-600" : "text-white"}">${isBye ? "-" : m.awayScore}</span>
+                              </div>
+                              ${setScoresText}
+                              ${
+                                m.venueCourtName
+                                  ? `<div class="text-[11px] text-slate-500 pt-1 border-t border-slate-900">Venue / Lapangan: ${esc(m.venueCourtName)}</div>`
+                                  : ""
+                              }
+                            </div>
+                          `;
+                        })
+                        .join("")}
+                    </div>
+                  </div>
+                `;
+              }
+              html += `</div>`;
+            }
+
+            if (!html) {
+              html = `
+                <div class="p-8 text-center bg-slate-950 rounded-xl border border-slate-800 text-slate-400">
+                  Belum ada hasil pertandingan atau catatan resmi pada babak ${esc(stage.name)}.
+                </div>
+              `;
+            }
+
+            container.innerHTML = html;
+          } catch (e) {
+            container.innerHTML = `
+              <div class="p-6 bg-slate-800/50 rounded-xl border border-slate-700 text-slate-400">
+                Gagal memuat data babak ${esc(stage.name)}. Silakan coba lagi.
+              </div>
+            `;
+          }
+        }
+
+        renderTabs();
+        await renderStageContent(activeStage);
+      }
+    </script>
+  </body>
+</html>

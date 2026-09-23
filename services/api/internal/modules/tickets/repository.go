@@ -18,6 +18,7 @@ type Repository interface {
 	GetTicketByOrderID(ctx context.Context, orderID uuid.UUID) (db.Ticket, error)
 	ListTicketsByParticipant(ctx context.Context, participantID uuid.UUID) ([]db.Ticket, error)
 	ListTicketsByEvent(ctx context.Context, arg db.ListTicketsByEventParams) ([]db.Ticket, error)
+	UpdateTicketParticipant(ctx context.Context, arg db.UpdateTicketParticipantParams) (db.Ticket, error)
 
 	// Lookups for snapshotting + invoice (reuse existing queries).
 	GetUserByID(ctx context.Context, id uuid.UUID) (db.User, error)
@@ -66,7 +67,7 @@ func (r *sqlcRepo) GetTicketByOrderID(ctx context.Context, orderID uuid.UUID) (d
 }
 
 func (r *sqlcRepo) ListTicketsByParticipant(ctx context.Context, participantID uuid.UUID) ([]db.Ticket, error) {
-	return r.q.ListTicketsByParticipant(ctx, participantID)
+	return r.q.ListTicketsByParticipant(ctx, &participantID)
 }
 
 func (r *sqlcRepo) ListTicketsByEvent(ctx context.Context, arg db.ListTicketsByEventParams) ([]db.Ticket, error) {
@@ -87,4 +88,8 @@ func (r *sqlcRepo) GetCategoryByID(ctx context.Context, id uuid.UUID) (db.EventC
 
 func (r *sqlcRepo) GetOrderByID(ctx context.Context, id uuid.UUID) (db.Order, error) {
 	return r.q.GetOrderByID(ctx, id)
+}
+
+func (r *sqlcRepo) UpdateTicketParticipant(ctx context.Context, arg db.UpdateTicketParticipantParams) (db.Ticket, error) {
+	return r.q.UpdateTicketParticipant(ctx, arg)
 }

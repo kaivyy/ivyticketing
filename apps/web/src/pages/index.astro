@@ -2,7 +2,7 @@
 export const prerender = false;
 import "../styles/global.css";
 
-// Flagship race date used for the hero countdown. Change per season.
+// Flagship race date for hero countdown
 const RACE_DATE = "2026-08-30T05:00:00+07:00";
 const raceDateLabel = new Date(RACE_DATE).toLocaleDateString("id-ID", {
   weekday: "long",
@@ -11,404 +11,2951 @@ const raceDateLabel = new Date(RACE_DATE).toLocaleDateString("id-ID", {
   year: "numeric",
 });
 
-const distances = [
+interface RaceCategory {
+  id: string;
+  sport: "running" | "triathlon" | "cycling" | "trail" | "swimming";
+  sportLabel: string;
+  name: string;
+  distance: string;
+  elevation: string;
+  cot: string;
+  price: string;
+  mode: "WAR_QUEUE" | "BALLOT" | "PRIORITY" | "NORMAL";
+  modeLabel: string;
+  badgeClass: string;
+  desc: string;
+  highlights: string[];
+}
+
+const raceCategories: RaceCategory[] = [
   {
-    tag: "42.2 KM",
-    name: "Marathon",
-    desc: "Jarak penuh untuk pelari yang mengejar personal best dan status finisher.",
-    price: "Rp 650.000",
-    accent: "from-orange-500 to-rose-500",
+    id: "fm-42k",
+    sport: "running",
+    sportLabel: "Lari Marathon",
+    name: "Full Marathon 42.2K",
+    distance: "42.195 KM",
+    elevation: "+180m",
+    cot: "7 Jam 00 Menit",
+    price: "Rp 750.000",
+    mode: "BALLOT",
+    modeLabel: "Sistem Ballot",
+    badgeClass: "bg-blue-900/40 text-blue-300 border-blue-500/30",
+    desc: "Jarak penuh standar World Athletics melintasi landmark ikonik kota dengan rute steril dan sertifikasi resmi.",
+    highlights: ["Finisher Medal & Tee", "Sertifikasi AIMS", "Water Station per 2.5KM"],
   },
   {
-    tag: "21.1 KM",
-    name: "Half Marathon",
-    desc: "Tantangan sempurna antara kecepatan dan daya tahan.",
+    id: "hm-21k",
+    sport: "running",
+    sportLabel: "Lari Marathon",
+    name: "Half Marathon 21.1K",
+    distance: "21.097 KM",
+    elevation: "+95m",
+    cot: "3 Jam 30 Menit",
+    price: "Rp 500.000",
+    mode: "WAR_QUEUE",
+    modeLabel: "War Ticket",
+    badgeClass: "bg-amber-900/40 text-amber-300 border-amber-500/30",
+    desc: "Kombinasi sempurna kecepatan dan daya tahan dengan antusiasme penonton di sepanjang rute tepi pantai.",
+    highlights: ["Finisher Medal", "Pacer Resmi 1:45-2:30", "Live Timing Split"],
+  },
+  {
+    id: "rr-10k",
+    sport: "running",
+    sportLabel: "Lari Jalan Raya",
+    name: "City Road Race 10K",
+    distance: "10.000 KM",
+    elevation: "+40m",
+    cot: "2 Jam 00 Menit",
+    price: "Rp 350.000",
+    mode: "NORMAL",
+    modeLabel: "Pendaftaran Buka",
+    badgeClass: "bg-emerald-900/40 text-emerald-300 border-emerald-500/30",
+    desc: "Rute datar dan cepat yang cocok bagi pelari yang mengejar personal best 10K pertama mereka.",
+    highlights: ["Finisher Medal", "Hydration Point per 2KM", "E-Certificate Instan"],
+  },
+  {
+    id: "tri-olympic",
+    sport: "triathlon",
+    sportLabel: "Triathlon",
+    name: "Olympic Distance Triathlon",
+    distance: "1.5K Swim · 40K Bike · 10K Run",
+    elevation: "+220m Bike",
+    cot: "4 Jam 15 Menit",
+    price: "Rp 1.450.000",
+    mode: "WAR_QUEUE",
+    modeLabel: "War Ticket",
+    badgeClass: "bg-amber-900/40 text-amber-300 border-amber-500/30",
+    desc: "Tantangan multi-disiplin spektakuler: renang teluk tenang, sepeda aspal mulus tertutup, dan lari jalan raya.",
+    highlights: ["Secure Transition Area", "Chip Timing 5 Titik", "Finisher Polo & Medal"],
+  },
+  {
+    id: "tri-sprint",
+    sport: "triathlon",
+    sportLabel: "Triathlon",
+    name: "Sprint Distance Triathlon",
+    distance: "750m Swim · 20K Bike · 5K Run",
+    elevation: "+110m Bike",
+    cot: "2 Jam 30 Menit",
+    price: "Rp 950.000",
+    mode: "NORMAL",
+    modeLabel: "Pendaftaran Buka",
+    badgeClass: "bg-emerald-900/40 text-emerald-300 border-emerald-500/30",
+    desc: "Pintu masuk ideal ke dunia multi-sports untuk pemula maupun atlet yang menginginkan tempo balapan eksplosif.",
+    highlights: ["Safety Marshall Renang", "Bike Racks Khusus", "Race Pack Premium"],
+  },
+  {
+    id: "bike-granfondo",
+    sport: "cycling",
+    sportLabel: "Balap Sepeda",
+    name: "Gran Fondo Century 130K",
+    distance: "130.0 KM",
+    elevation: "+1.250m",
+    cot: "6 Jam 30 Menit",
+    price: "Rp 850.000",
+    mode: "WAR_QUEUE",
+    modeLabel: "War Ticket",
+    badgeClass: "bg-amber-900/40 text-amber-300 border-amber-500/30",
+    desc: "Rute turing kompetitif dengan pengawalan polisi penuh, tanjakan ikonik, dan panorama perbukitan pesisir.",
+    highlights: ["Full Road Closure", "Mavic Neutral Support", "Finisher Jersey Eksklusif"],
+  },
+  {
+    id: "bike-medio",
+    sport: "cycling",
+    sportLabel: "Balap Sepeda",
+    name: "Medio Fondo 65K",
+    distance: "65.0 KM",
+    elevation: "+480m",
+    cot: "3 Jam 45 Menit",
+    price: "Rp 550.000",
+    mode: "NORMAL",
+    modeLabel: "Pendaftaran Buka",
+    badgeClass: "bg-emerald-900/40 text-emerald-300 border-emerald-500/30",
+    desc: "Gowes bersama komunitas dengan kecepatan terukur melintasi rute pedesaan asri dan jalan lingkar kota.",
+    highlights: ["Food Station Melimpah", "Broom Wagon Siaga", "Medali Logam Tempa"],
+  },
+  {
+    id: "trail-ultra",
+    sport: "trail",
+    sportLabel: "Trail Run",
+    name: "Mountain Ultra Trail 50K",
+    distance: "50.0 KM",
+    elevation: "+2.850m",
+    cot: "12 Jam 00 Menit",
+    price: "Rp 900.000",
+    mode: "BALLOT",
+    modeLabel: "Sistem Ballot",
+    badgeClass: "bg-blue-900/40 text-blue-300 border-blue-500/30",
+    desc: "Lintasan gunung teknikal dengan single track bebatuan, hutan pinus lembap, dan jalur puncak berkabut.",
+    highlights: ["Poin Kualifikasi UTMB", "Drop Bag Point di KM 28", "Safety Medical Team"],
+  },
+  {
+    id: "trail-short",
+    sport: "trail",
+    sportLabel: "Trail Run",
+    name: "Forest Trail Run 20K",
+    distance: "20.0 KM",
+    elevation: "+980m",
+    cot: "5 Jam 00 Menit",
     price: "Rp 450.000",
-    accent: "from-sky-400 to-indigo-500",
+    mode: "NORMAL",
+    modeLabel: "Pendaftaran Buka",
+    badgeClass: "bg-emerald-900/40 text-emerald-300 border-emerald-500/30",
+    desc: "Eksplorasi alam bebas dengan tanjakan bersahabat, cocok untuk pelari jalan raya yang ingin mencoba trail.",
+    highlights: ["Jalur Marka Jelas", "Aid Station Tradisional", "Finisher Buff & Medal"],
   },
   {
-    tag: "10 KM",
-    name: "Road Race",
-    desc: "Cepat, ramai, dan penuh energi sepanjang rute kota.",
-    price: "Rp 300.000",
-    accent: "from-emerald-400 to-teal-500",
-  },
-  {
-    tag: "5 KM",
-    name: "Fun Run",
-    desc: "Untuk keluarga, komunitas, dan pelari pemula. Semua bisa ikut.",
-    price: "Rp 200.000",
-    accent: "from-fuchsia-400 to-purple-500",
+    id: "swim-openwater",
+    sport: "swimming",
+    sportLabel: "Renang Terbuka",
+    name: "Open Water Challenge 3.8K",
+    distance: "3.800 Meter",
+    elevation: "Laut Terbuka",
+    cot: "2 Jam 15 Menit",
+    price: "Rp 600.000",
+    mode: "PRIORITY",
+    modeLabel: "Akses Terbatas",
+    badgeClass: "bg-purple-900/40 text-purple-300 border-purple-500/30",
+    desc: "Uji ketahanan mental di perairan biru dengan arus terkontrol, pengawalan kayak, dan perahu penyelamat.",
+    highlights: ["Silicone Swim Cap", "Personal Safety Buoy", "Hot Soup Recovery"],
   },
 ];
 
-const features = [
+// Initial Server Default Slides (matches DEFAULT_HOMEPAGE_CONFIG)
+const initialSlides = [
   {
-    title: "Antrean Adil",
-    body: "Sistem war ticket menahan lonjakan puluhan ribu pendaftar serentak tanpa server jatuh dan tanpa calo.",
-    icon: "M13 10V3L4 14h7v7l9-11h-7z",
+    id: "slide-bkk",
+    tag: "BANGKOK MIDNIGHT · SUNDAY NIGHT SPECIAL",
+    tagColor: "bg-amber-500 text-black font-black",
+    title: "Bangkok Midnight Marathon 2026",
+    subtitle: "Menembus gemerlap kuil megah Sanam Chai dan landmark Rama VIII di bawah langit malam Bangkok dengan rute steril berlisensi.",
+    bgImage: "/images/events/bangkok_marathon.jpg",
+    primaryCtaText: "Daftar Bangkok Midnight",
+    primaryCtaLink: "/events/bangkok-midnight-marathon-2026",
+    secondaryCtaText: "Lihat Detail Rute",
+    secondaryCtaLink: "/events/bangkok-midnight-marathon-2026#section-route",
+    stats: [
+      { label: "Flag-Off", value: "01:00 ICT" },
+      { label: "Kategori", value: "42K · 21K · 10K" },
+      { label: "Total Peserta", value: "15.000 Pelari" },
+    ],
   },
   {
-    title: "Tanpa Oversell",
-    body: "Kuota dikunci di level database. Slot yang habis benar-benar habis — tidak ada dobel booking.",
-    icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
+    id: "slide-ironman",
+    tag: "",
+    tagColor: "",
+    title: "IRONMAN 70.3 Triathlon Lombok 2026",
+    subtitle: "1.9K Ocean Swim Samudra Hindia, 90K Coastal Highway Cycling, dan 21.1K Sunset Boulevard Run menuju podium dunia.",
+    bgImage: "/images/events/ironman_triathlon.jpg",
+    primaryCtaText: "Daftar IRONMAN 70.3",
+    primaryCtaLink: "/events/ironman-703-triathlon-2026",
+    secondaryCtaText: "Jadwal & Logistik",
+    secondaryCtaLink: "/events/ironman-703-triathlon-2026#im-schedule",
+    stats: [
+      { label: "Jarak Total", value: "113.1 KM" },
+      { label: "Kona Slots", value: "45 Tiket Dunia" },
+      { label: "Status War", value: "Buka Sekarang" },
+    ],
   },
   {
-    title: "E-Ticket QR Instan",
-    body: "Tiket ber-QR aman langsung terbit setelah pembayaran terkonfirmasi. Scan sekali, anti-duplikat.",
-    icon: "M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m0 0V8m0 4v4m0 0H4",
+    id: "slide-tokyo",
+    tag: "ABBOTT WORLD MARATHON MAJORS",
+    tagColor: "bg-slate-900 text-red-400 border border-red-500/40 font-bold",
+    title: "Tokyo International Marathon 2026",
+    subtitle: "Satu dari enam maraton terakbar di dunia. Rute steril menyusuri landmark metropolitan Tokyo dengan sistem undian ballot transparan.",
+    bgImage: "/images/events/tokyo_marathon.jpg",
+    primaryCtaText: "Daftar Sistem Ballot",
+    primaryCtaLink: "/events/tokyo-marathon-2026",
+    secondaryCtaText: "Breakdown Kuota",
+    secondaryCtaLink: "/events/tokyo-marathon-2026#section-categories",
+    stats: [
+      { label: "Total Kuota", value: "38.000 Pelari" },
+      { label: "Sertifikasi", value: "AIMS & World Athletics" },
+      { label: "Race Expo", value: "Tokyo Big Sight" },
+    ],
   },
   {
-    title: "Sertifikat Digital",
-    body: "Hasil waktu tempuh dan sertifikat finisher otomatis dibuat dan bisa diunduh peserta.",
-    icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+    id: "slide-berlin",
+    tag: "WORLD RECORD TRACK · 2:01:09 SPEED",
+    tagColor: "bg-sky-950 text-sky-400 border border-sky-500/40 font-bold",
+    title: "BMW Berlin Speed Marathon 2026",
+    subtitle: "Lintasan maraton tercepat di muka bumi dengan elevasi flat 20m yang memecahkan rekor dunia maraton berkali-kali.",
+    bgImage: "/images/events/hero_marathon.jpg",
+    primaryCtaText: "Daftar Lomba Cepat",
+    primaryCtaLink: "/events/berlin-speed-marathon-2026",
+    secondaryCtaText: "Profil Elevasi",
+    secondaryCtaLink: "/events/berlin-speed-marathon-2026#section-elevation",
+    stats: [
+      { label: "Course Record", value: "2:01:09 World PB" },
+      { label: "Elevasi", value: "20m Ultra Datar" },
+      { label: "Finish Gate", value: "Gerbang Brandenburg" },
+    ],
   },
 ];
+
+import fs from "node:fs";
+import path from "node:path";
+import { DEFAULT_HOMEPAGE_CONFIG, type HomepageConfig } from "../lib/events-store";
+
+// Load configuration for SSR from server file with fallback
+let homepageConfig: HomepageConfig = DEFAULT_HOMEPAGE_CONFIG;
+try {
+  const configFile = path.resolve(process.cwd(), "homepage-config.json");
+  if (fs.existsSync(configFile)) {
+    const raw = fs.readFileSync(configFile, "utf-8");
+    const parsed = JSON.parse(raw);
+    homepageConfig = {
+      brand: { ...DEFAULT_HOMEPAGE_CONFIG.brand, ...(parsed.brand || {}) },
+      navbar: { ...DEFAULT_HOMEPAGE_CONFIG.navbar, ...(parsed.navbar || {}) },
+      corners: { ...DEFAULT_HOMEPAGE_CONFIG.corners, ...(parsed.corners || {}) },
+      theme: { ...DEFAULT_HOMEPAGE_CONFIG.theme, ...(parsed.theme || {}) },
+      features: { ...DEFAULT_HOMEPAGE_CONFIG.features, ...(parsed.features || {}) },
+      hero: {
+        ...DEFAULT_HOMEPAGE_CONFIG.hero,
+        ...(parsed.hero || {}),
+        slides:
+          Array.isArray(parsed.hero?.slides) && parsed.hero.slides.length > 0
+            ? parsed.hero.slides
+            : DEFAULT_HOMEPAGE_CONFIG.hero.slides,
+      },
+    };
+  }
+} catch {
+  // fallback
+}
+
+const brandMode = homepageConfig.brand?.displayMode || "icon_only";
+const brandName = homepageConfig.brand?.brandName || "IvyTicketing";
+const brandTagline = homepageConfig.brand?.tagline || "Sports Registration Engine";
+const navStyle = homepageConfig.navbar?.style || "transparent_gradient";
+const mobileNavType = homepageConfig.navbar?.mobileNavType || "bottom_nav";
+const cornersStyle = homepageConfig.corners?.style || "square";
+const currentTheme = homepageConfig.theme || DEFAULT_HOMEPAGE_CONFIG.theme;
+const heroOverlayDarkness = homepageConfig.hero?.overlayDarkness ?? 0.35;
+const heroStatsStyle = homepageConfig.hero?.statsStyle || "transparent";
+const heroImagePos = homepageConfig.hero?.imagePosition || "top";
+const heroShowTags = homepageConfig.hero?.showTags === true;
+const heroBottomBlur = homepageConfig.hero?.bottomBlur !== false;
+const topOverlayAlpha = Math.min(0.20, Number((heroOverlayDarkness * 0.15).toFixed(2)));
+const midOverlayAlpha = Number((heroOverlayDarkness * 0.35).toFixed(2));
+const botOverlayAlpha = Math.min(0.95, Number((heroOverlayDarkness * 1.9).toFixed(2)));
+const activeSlides = homepageConfig.hero?.slides && homepageConfig.hero.slides.length > 0
+  ? homepageConfig.hero.slides
+  : initialSlides;
 ---
 
 <!doctype html>
-<html lang="id" class="scroll-smooth">
+<html lang="id" class={`scroll-smooth corner-${cornersStyle}`} style={`--color-bg-dark: ${currentTheme.bgColor || '#0a1120'}; --color-surface-dark: ${currentTheme.surfaceColor || '#101a2e'}; --color-accent: ${currentTheme.accentColor || '#ea580c'}; --color-text: ${currentTheme.textColor || '#f8fafc'};`}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ivyticketing — Platform Registrasi Lomba Lari</title>
+    <title>IvyTicketing: Platform Registrasi Event Olahraga, Marathon & Triathlon</title>
     <meta
       name="description"
-      content="Platform registrasi dan tiket event lari skala besar. Antrean adil, tanpa oversell, e-ticket QR instan, dan sertifikat digital."
+      content="Platform tiket dan registrasi event lari marathon, triathlon, sepeda, dan trail run berkapasitas tinggi. Antrean war adil, sistem ballot transparan, dan tanpa oversell."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <style>
+    <style is:global>
       :root {
-        --ink: #0a0e1a;
-        --accent: #ff5a3c;
+        --color-bg-dark: #0a1120;
+        --color-bg-rgb: 10, 17, 32;
+        --color-surface-dark: #101a2e;
+        --color-surface-rgb: 16, 26, 46;
+        --color-surface-card: #15223c;
+        --color-surface-card-rgb: 21, 34, 60;
+        --color-accent: #ea580c;
+        --color-accent-rgb: 234, 88, 12;
+        --color-accent-hover: #c2410c;
+        --color-text: #f8fafc;
+        --color-text-muted: #94a3b8;
       }
       body {
-        font-family: "Inter", system-ui, sans-serif;
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        background-color: var(--color-bg-dark);
+        color: var(--color-text);
       }
-      .display {
+      .font-display {
         font-family: "Oswald", system-ui, sans-serif;
-        letter-spacing: 0.01em;
+        letter-spacing: 0.02em;
       }
-      .hero-bg {
-        background:
-          radial-gradient(1200px 600px at 15% -10%, rgba(255, 90, 60, 0.35), transparent 60%),
-          radial-gradient(900px 500px at 95% 10%, rgba(56, 120, 255, 0.28), transparent 55%),
-          linear-gradient(160deg, #0a0e1a 0%, #0d1428 55%, #0a0e1a 100%);
+
+      /* Fixed navbar enforcement: header must never push content down in normal flow */
+      #main-nav {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        z-index: 50;
+        box-sizing: border-box;
       }
-      .hero-grid {
-        background-image:
-          linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-        background-size: 64px 64px;
-        mask-image: radial-gradient(circle at 50% 40%, black, transparent 80%);
+
+      /* Theme utility classes */
+      .theme-bg-primary {
+        background-color: var(--color-bg-dark) !important;
       }
-      .ghost {
-        -webkit-text-stroke: 1px rgba(255, 255, 255, 0.06);
-        color: transparent;
+      .theme-bg-surface {
+        background-color: var(--color-surface-dark) !important;
       }
-      @keyframes floaty {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-8px); }
+      .theme-card {
+        background-color: var(--color-surface-card) !important;
+        border-color: rgba(255, 255, 255, 0.08) !important;
+      }
+      .theme-accent-bg {
+        background-color: var(--color-accent) !important;
+        color: #ffffff !important;
+      }
+      .theme-accent-bg:hover {
+        background-color: var(--color-accent-hover) !important;
+      }
+      .theme-accent-text {
+        color: var(--color-accent) !important;
+      }
+      .theme-accent-border {
+        border-color: var(--color-accent) !important;
+      }
+
+      /* Hide scrollbar for Chrome, Safari, Opera and Firefox */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      /* Centered slider track with safe overflow alignment */
+      .slider-track-centered {
+        display: flex;
+        justify-content: safe center;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        cursor: grab;
+      }
+      .slider-track-centered.active-drag {
+        cursor: grabbing;
+        user-select: none;
+        scroll-snap-type: none;
+      }
+
+      /* Dynamic Corner Radius Enforcements (Square / Rounded / Pill) */
+      .corner-square .theme-card,
+      .corner-square .category-card,
+      .corner-square .card-box,
+      .corner-square article,
+      .corner-square .rounded-xl,
+      .corner-square .rounded-2xl,
+      .corner-square .rounded-lg,
+      .corner-square .rounded-md {
+        border-radius: 0px !important;
+      }
+      .corner-square button,
+      .corner-square .theme-accent-bg,
+      .corner-square .sport-btn,
+      .corner-square .mode-btn,
+      .corner-square .dist-chip,
+      .corner-square .mob-bottom-tab {
+        border-radius: 0px !important;
+      }
+
+      .corner-pill .theme-card,
+      .corner-pill .category-card {
+        border-radius: 24px !important;
+      }
+
+      .corner-rounded .theme-card,
+      .corner-rounded .category-card {
+        border-radius: 12px !important;
+      }
+
+      /* Slider Slide Transitions */
+      .hero-slide {
+        transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .hero-slide.active-slide {
+        opacity: 1;
+        pointer-events: auto;
+        transform: scale(1);
+        z-index: 10;
+      }
+      .hero-slide.inactive-slide {
+        opacity: 0;
+        pointer-events: none;
+        transform: scale(1.02);
+        z-index: 1;
+      }
+
+      /* Liquid glass : built with https://vanta.supply/tools/glassmorphism-generator */
+      /* Drawn for a navbar, 720x72px : the refraction filter's map is baked
+         for that box. Different size? Regenerate at the tool rather than stretching. */
+      .glass {
+        /* The material, in numbers : retune here. */
+        --glass-blur: 0px;
+        --glass-saturate: 1;
+        --glass-tint: rgba(255, 255, 255, 0.255);
+        --glass-radius: 48px;
+
+        box-sizing: border-box;
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        background: var(--glass-tint);
+        border-radius: var(--glass-radius);
+        border: 1px solid rgba(255, 255, 255, 0.128);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.245);
+      }
+
+      /* The rim: a 1px gradient ring, light where the light is. */
+      .glass::before {
+        content: "";
+        position: absolute;
+        inset: -1px;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.38) 0%,
+          rgba(255, 255, 255, 0.16) 35%,
+          rgba(255, 255, 255, 0.04) 65%,
+          rgba(255, 255, 255, 0.22) 100%
+        );
+        -webkit-mask:
+          linear-gradient(#000 0 0) content-box,
+          linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+      }
+
+      /* The shine: an inner highlight along the top edge.
+         Pseudo on a pseudo doesn't exist, so this is a child layer. */
+      .glass > .glass-specular {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        overflow: hidden;
+        pointer-events: none;
+      }
+      .glass > .glass-specular::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 24px;
+        right: 24px;
+        height: 50%;
+        background: radial-gradient(
+          ellipse at top,
+          rgba(255, 255, 255, 0.42) 0%,
+          rgba(255, 255, 255, 0) 70%
+        );
+      }
+
+      /* The distortion: live refraction displacement map.
+         Backdrop-filter: url(#id) needs an inline SVG with that filter in the DOM.
+         Chromium desktop only (behind flag or recent build). Fallback to plain blur elsewhere. */
+      @supports (background: paint(gg-glass-probe)) {
+        .glass {
+          -webkit-backdrop-filter: url(#gg-glass-filter) blur(var(--glass-blur)) saturate(var(--glass-saturate));
+          backdrop-filter: url(#gg-glass-filter) blur(var(--glass-blur)) saturate(var(--glass-saturate));
+        }
+      }
+
+      /* Accessibility: respect user choice on reduced transparency. */
+      @media (prefers-reduced-transparency: reduce) {
+        .glass {
+          -webkit-backdrop-filter: none;
+          backdrop-filter: none;
+          background: #0f172a;
+          border-color: rgba(255, 255, 255, 0.15);
+        }
+      }
+
+      /* Transparent Gradient Navbar (Ironman Triathlon Style) */
+      .nav-transparent-gradient {
+        background: linear-gradient(180deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.45) 60%, rgba(0, 0, 0, 0) 100%) !important;
+        background-color: transparent !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        border-bottom: none !important;
+        box-shadow: none !important;
+      }
+      .nav-transparent-gradient.scrolled {
+        background: rgba(10, 17, 32, 0.96) !important;
+        background-color: rgba(10, 17, 32, 0.96) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+      }
+
+      /* Hero Stats Styling: Transparent Clean vs Boxed */
+      .slide-stats.stats-transparent {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.5rem 1.5rem;
+      }
+      .slide-stats.stats-transparent .stat-chip {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.375rem;
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        backdrop-filter: none !important;
+        box-shadow: none !important;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
+      }
+      .slide-stats.stats-transparent .stat-chip:first-child .stat-divider {
+        display: none;
+      }
+      .slide-stats.stats-transparent .stat-chip .stat-divider {
+        display: inline;
+        color: rgba(249, 115, 22, 0.7);
+        font-weight: 700;
+        margin-right: 0.5rem;
+        user-select: none;
+      }
+      .slide-stats.stats-transparent .stat-chip .stat-label {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #cbd5e1;
+      }
+      .slide-stats.stats-transparent .stat-chip .stat-value {
+        font-family: "Oswald", sans-serif;
+        font-weight: 700;
+        font-size: 0.9375rem;
+        color: #ffffff;
+        letter-spacing: 0.025em;
+      }
+
+      .slide-stats.stats-boxed {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.625rem;
+      }
+      .slide-stats.stats-boxed .stat-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(51, 65, 85, 0.8);
+        background-color: rgba(15, 23, 42, 0.8);
+        padding: 0.375rem 0.875rem;
+        backdrop-filter: blur(8px);
+      }
+      .slide-stats.stats-boxed .stat-chip .stat-divider {
+        display: none;
+      }
+      .slide-stats.stats-boxed .stat-chip .stat-label {
+        font-size: 0.625rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #94a3b8;
+      }
+      .slide-stats.stats-boxed .stat-chip .stat-value {
+        font-family: "Oswald", sans-serif;
+        font-weight: 700;
+        font-size: 0.875rem;
+        color: #ffffff;
       }
     </style>
   </head>
-  <body class="bg-[var(--ink)] text-white antialiased">
-    <!-- Nav -->
+  <body class="theme-bg-primary corner-square text-slate-100 antialiased selection:bg-orange-500 selection:text-white">
+    <!-- SVG Refraction Filter for Liquid Glass Navbar (720x72) -->
+    <svg class="pointer-events-none absolute h-0 w-0" aria-hidden="true" focusable="false">
+      <defs>
+        <filter id="gg-glass-filter" filterUnits="userSpaceOnUse" x="0" y="0" width="720" height="72">
+          <feTurbulence type="fractalNoise" baseFrequency="0.02 0.05" numOctaves="1" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </defs>
+    </svg>
+
+    <!-- Navbar Navigasi Utama (Bentuk, Transparansi & Brand Dinamis dari Admin) -->
     <header
-      id="nav"
-      class="fixed inset-x-0 top-0 z-50 transition-all duration-300"
+      id="main-nav"
+      class={`fixed top-0 left-0 right-0 w-full z-50 transition-all duration-300 overflow-hidden ${navStyle === "liquid_glass" ? "glass" : ""} ${navStyle === "transparent_gradient" ? "nav-transparent-gradient" : ""}`}
+      style={navStyle === "liquid_glass" ? `--glass-blur: ${homepageConfig.navbar?.glassBlur ?? 0}px; --glass-saturate: ${homepageConfig.navbar?.glassSaturate ?? 1.0}; --glass-tint: ${homepageConfig.navbar?.glassTint || "rgba(255, 255, 255, 0.255)"}; --glass-radius: ${homepageConfig.navbar?.glassRadius ?? 48}px;` : ""}
     >
-      <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <a href="/" class="display text-2xl font-700 tracking-wide">
-          ivy<span class="text-[var(--accent)]">ticketing</span>
+      <span class={`glass-specular ${navStyle === "liquid_glass" ? "" : "hidden"}`} id="main-nav-specular" aria-hidden="true"></span>
+      <div id="main-nav-inner" class="mx-auto flex max-w-7xl items-center justify-between px-3 py-2.5 sm:px-6 sm:py-3 w-full h-full">
+        <!-- Brand Link dengan Mode Kustomisasi: icon_only / text_only / both -->
+        <a href="/" id="nav-brand-container" class="flex items-center gap-2.5 sm:gap-3 group focus:outline-none focus:ring-2 focus:ring-orange-500 rounded-lg p-1 min-w-0">
+          <!-- Athletic Vector Icon (Default: IVY Icon Only) -->
+          <div id="nav-brand-icon-wrapper" class={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center shrink-0 ${brandMode === "text_only" ? "hidden" : ""}`}>
+            <img
+              id="nav-brand-icon-img"
+              src="/images/ivy-icon.svg"
+              alt="IVY Icon"
+              class="h-9 w-9 sm:h-10 sm:w-10 shrink-0 transition-transform group-hover:scale-105"
+            />
+          </div>
+          <!-- Brand Text (Hidden by default in icon_only mode) -->
+          <div id="nav-brand-text-wrapper" class={`flex flex-col min-w-0 ${brandMode === "icon_only" ? "hidden" : ""}`}>
+            <span id="nav-brand-title" class="font-display text-lg sm:text-2xl font-bold tracking-tight text-white uppercase leading-none truncate">
+              {brandName.includes("Ivy") ? (
+                <>Ivy<span class="brand-accent-highlight theme-accent-text">{brandName.replace("Ivy", "") || "Ticketing"}</span></>
+              ) : (
+                brandName
+              )}
+            </span>
+            <span id="nav-brand-tagline" class="text-[9px] sm:text-[10px] font-semibold tracking-widest text-slate-400 uppercase truncate max-w-[140px] sm:max-w-none">
+              {brandTagline}
+            </span>
+          </div>
         </a>
-        <nav class="hidden items-center gap-8 text-sm font-medium text-slate-200 md:flex">
-          <a href="#distances" class="transition-colors hover:text-white">Kategori</a>
-          <a href="#why" class="transition-colors hover:text-white">Kenapa Kami</a>
-          <a href="/events" class="transition-colors hover:text-white">Event</a>
-          <a href="/status" class="transition-colors hover:text-white">Status</a>
+
+        <!-- Menu Desktop -->
+        <nav class="hidden items-center gap-7 text-sm font-medium text-slate-300 lg:flex" aria-label="Navigasi Utama">
+          <a href="#featured-events" class="transition-colors hover:text-orange-400">Event Pilihan</a>
+          <a href="#categories" class="transition-colors hover:text-orange-400">Kategori Lomba</a>
+          <a href="#registration-modes" class="transition-colors hover:text-orange-400">Sistem War & Ballot</a>
+          <a href="#templates" class="transition-colors hover:text-orange-400">Template Organizer</a>
+          <a href="/events" class="transition-colors hover:text-orange-400">Jelajahi Semua</a>
         </nav>
-        <div class="flex items-center gap-3">
+
+        <!-- CTA Desktop -->
+        <div class="hidden items-center gap-3 sm:flex">
           <a
             href="/login"
-            class="hidden text-sm font-medium text-slate-200 transition-colors hover:text-white sm:block"
-            >Masuk</a
+            class="min-h-[44px] inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900/80 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-800"
           >
+            Masuk Akun
+          </a>
+          <a
+            href="/register"
+            class="min-h-[44px] inline-flex items-center justify-center rounded-lg border border-orange-500/40 bg-orange-950/40 px-4 py-2 text-sm font-bold text-orange-400 transition-colors hover:bg-orange-900/60"
+          >
+            Daftar Akun
+          </a>
           <a
             href="/events"
-            class="rounded-full bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 transition-transform hover:scale-105"
-            >Daftar Sekarang</a
+            class="min-h-[44px] inline-flex items-center justify-center rounded-lg theme-accent-bg px-5 py-2 text-sm font-bold uppercase tracking-wide text-white shadow-md transition-all active:scale-95"
           >
+            Daftar Event
+          </a>
         </div>
+
+        <!-- Tombol Mobile Menu -->
+        <button
+          id="mobile-menu-btn"
+          type="button"
+          class="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-white/20 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white focus:outline-none active:scale-95 lg:hidden transition-all"
+          aria-label="Buka Menu Navigasi"
+          aria-expanded="false"
+        >
+          <svg id="menu-icon-open" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <svg id="menu-icon-close" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Drawer Navigasi Mobile -->
+      <div id="mobile-menu" class="hidden px-4 py-5 lg:hidden max-h-[calc(100vh-5rem)] overflow-y-auto transition-all">
+        <nav class="flex flex-col gap-4 text-base font-medium text-slate-200">
+          <a href="#featured-events" class="mobile-nav-link py-1 hover:text-orange-400">Event Pilihan</a>
+          <a href="#categories" class="mobile-nav-link py-1 hover:text-orange-400">Kategori Lomba</a>
+          <a href="#registration-modes" class="mobile-nav-link py-1 hover:text-orange-400">Sistem War & Ballot</a>
+          <a href="#templates" class="mobile-nav-link py-1 hover:text-orange-400">Template Organizer</a>
+          <a href="/events" class="mobile-nav-link py-1 hover:text-orange-400">Jelajahi Semua Event</a>
+          <div class="mt-3 flex flex-col gap-2.5 pt-3 border-t border-white/10">
+            <div class="grid grid-cols-2 gap-2">
+              <a
+                href="/login"
+                class="min-h-[44px] flex items-center justify-center rounded-lg border border-slate-700 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-800"
+              >
+                Masuk
+              </a>
+              <a
+                href="/register"
+                class="min-h-[44px] flex items-center justify-center rounded-lg border border-orange-500/40 bg-orange-950/40 py-2.5 text-sm font-bold text-orange-400 hover:bg-orange-900/60"
+              >
+                Daftar Akun
+              </a>
+            </div>
+            <a
+              href="/events"
+              class="min-h-[44px] flex items-center justify-center rounded-lg theme-accent-bg py-2.5 text-sm font-bold uppercase text-white shadow-md"
+            >
+              Daftar Event Sekarang
+            </a>
+          </div>
+        </nav>
       </div>
     </header>
 
-    <!-- Hero -->
-    <section class="hero-bg relative flex min-h-screen items-center overflow-hidden">
-      <div class="hero-grid absolute inset-0"></div>
-      <div
-        class="ghost display pointer-events-none absolute -right-10 top-24 hidden select-none text-[18rem] font-700 leading-none lg:block"
+    <!-- Mobile Bottom Navigation Bar (Khusus Layar Mobile: 4 Menu Utama Ergonomis) -->
+    <nav
+      id="mobile-bottom-nav"
+      class={`${mobileNavType === "top_bar" ? "hidden" : "flex"} fixed bottom-0 left-0 right-0 z-50 lg:hidden items-center justify-around border-t border-white/10 bg-slate-950/95 backdrop-blur-xl px-2 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl transition-all duration-200`}
+      aria-label="Navigasi Utama Mobile"
+    >
+      <a
+        href="/"
+        id="mob-tab-home"
+        class="mob-bottom-tab active flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 text-[11px] font-bold tracking-tight text-orange-500 transition-colors"
       >
-        26
-      </div>
+        <svg class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        <span>Beranda</span>
+      </a>
 
-      <div class="relative mx-auto w-full max-w-7xl px-6 pt-28 pb-16">
-        <div class="max-w-3xl">
-          <div
-            class="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-slate-200 backdrop-blur"
-          >
-            <span class="h-2 w-2 animate-pulse rounded-full bg-[var(--accent)]"></span>
-            Pendaftaran Dibuka
-          </div>
+      <a
+        href="/events"
+        id="mob-tab-events"
+        class="mob-bottom-tab flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 text-[11px] font-semibold tracking-tight text-slate-400 hover:text-slate-200 transition-colors"
+      >
+        <svg class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span>Event</span>
+      </a>
 
-          <h1 class="display text-5xl font-700 uppercase leading-[0.95] sm:text-7xl lg:text-8xl">
-            Lari Menuju
-            <span
-              class="block bg-gradient-to-r from-[var(--accent)] via-orange-400 to-amber-300 bg-clip-text text-transparent"
-              >Garis Finish</span
+      <a
+        href="#registration-modes"
+        id="mob-tab-war"
+        class="mob-bottom-tab flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 text-[11px] font-semibold tracking-tight text-slate-400 hover:text-slate-200 transition-colors"
+      >
+        <svg class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        <span>War & Ballot</span>
+      </a>
+
+      <a
+        href="/login"
+        id="mob-tab-account"
+        class="mob-bottom-tab flex flex-1 flex-col items-center justify-center min-h-[48px] py-1 text-[11px] font-semibold tracking-tight text-slate-400 hover:text-slate-200 transition-colors"
+      >
+        <svg class="h-5 w-5 mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        <span>Akun</span>
+      </a>
+    </nav>
+
+    <main id="main-content" class="pb-24 lg:pb-0">
+      <!-- HERO SLIDER SECTION (Bangkok Midnight Marathon & IRONMAN Style) -->
+      <section
+        id="hero-slider-section"
+        class="relative min-h-[100dvh] sm:min-h-screen flex items-end overflow-hidden border-b border-white/10 theme-bg-primary"
+        aria-label="Slider Perlombaan Unggulan"
+      >
+        <!-- Dynamic Slides Container (Ironman Web Style: Judul dan Konten di Bawah) -->
+        <div id="slides-viewport" class="relative w-full min-h-[100dvh] sm:min-h-screen flex items-end">
+          {activeSlides.map((slide, idx) => (
+            <div
+              class={`hero-slide absolute inset-0 w-full h-full flex flex-col justify-end ${idx === 0 ? "active-slide" : "inactive-slide"}`}
+              data-slide-index={idx}
+              data-slide-id={slide.id}
             >
-          </h1>
+              <!-- Slide Background Image with Vignette & Natural Cinematic Clarity -->
+              <div
+                class={`slide-overlay-bg absolute inset-0 bg-cover transition-transform duration-1000 scale-105 ${heroImagePos === "top" ? "bg-[center_top]" : "bg-center"}`}
+                data-bg-img={slide.bgImage}
+                style={`background-image: linear-gradient(180deg, rgba(10, 17, 32, ${topOverlayAlpha}) 0%, rgba(10, 17, 32, ${midOverlayAlpha}) 35%, rgba(10, 17, 32, ${botOverlayAlpha}) 100%), url('${slide.bgImage}'); background-position: ${heroImagePos === "top" ? "center top" : "center center"};`}
+              ></div>
 
-          <p class="mt-6 max-w-xl text-lg text-slate-300">
-            Platform registrasi lomba lari skala besar. Ribuan peserta mendaftar
-            serentak — antrean tetap adil, kuota tetap aman, tiket langsung di tangan.
-          </p>
+              <!-- Subtle Athletic Racing Glow -->
+              <div class="pointer-events-none absolute right-0 top-1/4 h-96 w-96 rounded-full bg-orange-600/15 blur-3xl"></div>
+              <div class="pointer-events-none absolute left-0 bottom-10 h-80 w-80 rounded-full bg-amber-600/10 blur-3xl"></div>
 
-          <div class="mt-9 flex flex-wrap items-center gap-4">
-            <a
-              href="/events"
-              class="group inline-flex items-center gap-2 rounded-full bg-[var(--accent)] px-8 py-4 text-base font-semibold shadow-xl shadow-orange-500/30 transition-transform hover:scale-105"
-            >
-              Daftar Sekarang
-              <svg class="h-5 w-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-            </a>
-            <a
-              href="#distances"
-              class="inline-flex items-center gap-2 rounded-full border border-white/20 px-8 py-4 text-base font-semibold text-white transition-colors hover:bg-white/10"
-            >
-              Lihat Kategori
-            </a>
-          </div>
+              <!-- Progressive Bottom Cinematic Dark Gradient (Di belakang teks & tombol, di atas foto) -->
+              <div
+                class={`hero-bottom-gradient-layer pointer-events-none absolute inset-x-0 bottom-0 h-[62%] sm:h-[58%] z-10 transition-opacity duration-500 ${heroBottomBlur !== false ? "opacity-100" : "opacity-0 hidden"}`}
+                style="background: linear-gradient(to bottom, transparent 0%, rgba(10, 17, 32, 0.45) 35%, rgba(10, 17, 32, 0.98) 100%);"
+                aria-hidden="true"
+              ></div>
 
-          <!-- Countdown -->
-          <div class="mt-14">
-            <p class="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">
-              Hitung Mundur Race Day · {raceDateLabel}
-            </p>
-            <div id="countdown" class="flex gap-4">
-              {["Hari", "Jam", "Menit", "Detik"].map((label) => (
-                <div class="min-w-[76px] rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center backdrop-blur">
-                  <div
-                    class="display cd-value text-4xl font-700 tabular-nums"
-                    data-unit={label}
-                  >
-                    --
+              <!-- Slide Foreground Content Container (Style Web Ironman: Judul, Info & Tombol Menempel di Bawah) -->
+              <div class="relative mx-auto w-full max-w-7xl px-4 sm:px-6 z-20 flex flex-col justify-end pb-[7.25rem] sm:pb-24">
+                <div class="max-w-4xl">
+                  <!-- Race Tag Badge -->
+                  <div class={`inline-flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-black uppercase tracking-wider shadow-sm slide-badge ${heroShowTags && slide.tag && slide.tag.trim() ? "" : "hidden"}`}>
+                    <span class={`px-2.5 py-0.5 rounded text-[11px] ${slide.tagColor || ""}`}>
+                      {slide.tag}
+                    </span>
                   </div>
-                  <div class="mt-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                    {label}
+
+                  <!-- Slide Title (Ironman Bold Aesthetic) -->
+                  <h1 class="font-display mt-2 sm:mt-3 text-3xl sm:text-5xl md:text-6xl xl:text-7xl font-black uppercase tracking-tight text-white leading-[0.96] slide-title drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)]">
+                    {slide.title}
+                  </h1>
+
+                  <!-- Slide Subtitle -->
+                  <p class={`mt-2.5 sm:mt-3.5 max-w-2xl text-xs sm:text-base md:text-lg text-slate-100 leading-relaxed font-normal slide-subtitle drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)] line-clamp-3 sm:line-clamp-none ${slide.showSubtitle === false ? "hidden" : ""}`}>
+                    {slide.subtitle}
+                  </p>
+
+                  <!-- Key Stats Chips / Clean Typography (Bisa Transparan / Kotak via Admin) -->
+                  <div class={`mt-3.5 sm:mt-5 flex flex-wrap items-center gap-x-4 sm:gap-x-5 gap-y-1.5 sm:gap-y-2 slide-stats ${heroStatsStyle === "transparent" ? "stats-transparent" : "stats-boxed"}`}>
+                    {slide.stats.map((st) => (
+                      <div class="stat-chip">
+                        <span class="stat-divider" aria-hidden="true">/</span>
+                        <span class="stat-label">{st.label}:</span>
+                        <span class="stat-value">{st.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <!-- Action CTA Buttons (Grounded di Bawah, Posisi Sama di Seluruh Slide) -->
+                  <div class="mt-5 sm:mt-7 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-4 z-20">
+                    <a
+                      href={slide.primaryCtaLink}
+                      class="w-full sm:w-auto min-h-[48px] inline-flex items-center justify-center gap-2 rounded-lg theme-accent-bg px-5 sm:px-7 py-3 sm:py-3.5 text-xs sm:text-base font-bold uppercase tracking-wider text-white shadow-xl transition-all active:scale-95 slide-cta-primary text-center"
+                    >
+                      <span>{slide.primaryCtaText}</span>
+                      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </a>
+                    <a
+                      href={slide.secondaryCtaLink}
+                      class="w-full sm:w-auto min-h-[48px] inline-flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900/80 px-5 sm:px-7 py-3 sm:py-3.5 text-xs sm:text-base font-bold uppercase tracking-wider text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-800 slide-cta-secondary text-center"
+                    >
+                      {slide.secondaryCtaText}
+                    </a>
                   </div>
                 </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <!-- Slider Controls Navigation Bar (Bottom Center / Right, diatas mobile bottom nav) -->
+        <div class="absolute bottom-[4.25rem] sm:bottom-6 inset-x-0 z-30 mx-auto max-w-7xl px-4 sm:px-6 flex items-center justify-between">
+          <!-- Slide Counter & Dots -->
+          <div class="flex items-center gap-4">
+            <span id="slider-counter" class="font-mono text-xs font-bold text-orange-400 tracking-wider">
+              01 / 04
+            </span>
+            <div id="slider-dots" class="flex items-center gap-2" role="tablist" aria-label="Slide Navigasi">
+              {initialSlides.map((_, idx) => (
+                <button
+                  type="button"
+                  class={`slider-dot-btn h-2 rounded-full transition-all duration-300 ${idx === 0 ? "w-8 bg-orange-500" : "w-2 bg-slate-700 hover:bg-slate-500"}`}
+                  data-target-slide={idx}
+                  aria-label={`Buka slide ${idx + 1}`}
+                  aria-selected={idx === 0 ? "true" : "false"}
+                ></button>
               ))}
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Stat strip -->
-      <div class="absolute inset-x-0 bottom-0 border-t border-white/10 bg-black/20 backdrop-blur">
-        <div class="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-white/10 px-6 md:grid-cols-4">
-          {[
-            ["50K+", "Peserta terlayani"],
-            ["0", "Insiden oversell"],
-            ["4", "Kategori jarak"],
-            ["99.9%", "Uptime saat war"],
-          ].map(([stat, label]) => (
-            <div class="py-5 text-center">
-              <div class="display text-3xl font-700 text-[var(--accent)]">{stat}</div>
-              <div class="mt-0.5 text-xs uppercase tracking-wider text-slate-400">{label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-
-    <!-- Distances -->
-    <section id="distances" class="bg-slate-50 py-24 text-slate-900">
-      <div class="mx-auto max-w-7xl px-6">
-        <div class="mb-14 max-w-2xl">
-          <p class="text-sm font-semibold uppercase tracking-widest text-[var(--accent)]">
-            Pilih Tantanganmu
-          </p>
-          <h2 class="display mt-2 text-4xl font-700 uppercase sm:text-5xl">
-            Kategori Lomba
-          </h2>
-          <p class="mt-3 text-slate-600">
-            Dari fun run santai sampai marathon penuh. Setiap kategori punya kuota,
-            harga, dan jadwal registrasi sendiri.
-          </p>
-        </div>
-
-        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {distances.map((d) => (
-            <div
-              class="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-7 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
+          <!-- Arrow Buttons (Touch Target >= 44px) -->
+          <div class="flex items-center gap-2">
+            <button
+              id="slider-prev-btn"
+              type="button"
+              class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900/80 text-white hover:bg-orange-500 hover:text-slate-950 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+              aria-label="Slide Sebelumnya"
             >
-              <div
-                class={`absolute -right-8 -top-8 h-28 w-28 rounded-full bg-gradient-to-br ${d.accent} opacity-20 blur-2xl transition-opacity group-hover:opacity-40`}
-              ></div>
-              <div
-                class={`display inline-block rounded-lg bg-gradient-to-r ${d.accent} bg-clip-text text-4xl font-700 text-transparent`}
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              id="slider-next-btn"
+              type="button"
+              class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-slate-700 bg-slate-900/80 text-white hover:bg-orange-500 hover:text-slate-950 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500"
+              aria-label="Slide Selanjutnya"
+            >
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section Event Marathon & Triathlon Unggulan (Horizontal Slider Showcase) -->
+      <section id="featured-events" class="py-16 border-b border-white/10 theme-bg-surface overflow-hidden">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6">
+          <!-- Header Section Event (Centered) -->
+          <div class="mx-auto max-w-3xl text-center pb-6 border-b border-white/10">
+            <span class="text-xs font-bold uppercase tracking-widest theme-accent-text">World & National Sports Circuit</span>
+            <h2 class="font-display mt-2 text-3xl font-bold uppercase tracking-tight text-white sm:text-4xl">
+              Kalender Event Pilihan Musim 2026/2027
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-300 mt-2 max-w-2xl mx-auto leading-relaxed">
+              Pilih lomba maraton atau triatlon kelas dunia dengan rute terverifikasi dan sistem registrasi resmi. Geser ke samping untuk menjelajahi pilihan event.
+            </p>
+            <div class="mt-4 flex justify-center">
+              <a
+                href="/events"
+                class="min-h-[44px] inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider theme-accent-text hover:underline"
               >
-                {d.tag}
-              </div>
-              <h3 class="display mt-2 text-2xl font-600 uppercase text-slate-900">
-                {d.name}
-              </h3>
-              <p class="mt-3 min-h-[3.5rem] text-sm text-slate-600">{d.desc}</p>
-              <div class="mt-6 flex items-center justify-between border-t border-slate-100 pt-5">
-                <div>
-                  <div class="text-[11px] uppercase tracking-wider text-slate-400">Mulai dari</div>
-                  <div class="display text-xl font-700 text-slate-900">{d.price}</div>
-                </div>
-                <a
-                  href="/events"
-                  class="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent)]"
-                  >Daftar</a
-                >
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-
-    <!-- Why -->
-    <section id="why" class="relative overflow-hidden bg-[var(--ink)] py-24">
-      <div class="hero-grid absolute inset-0 opacity-40"></div>
-      <div class="relative mx-auto max-w-7xl px-6">
-        <div class="mb-14 max-w-2xl">
-          <p class="text-sm font-semibold uppercase tracking-widest text-[var(--accent)]">
-            Dibangun untuk skala
-          </p>
-          <h2 class="display mt-2 text-4xl font-700 uppercase text-white sm:text-5xl">
-            Kenapa Lewat Kami
-          </h2>
-          <p class="mt-3 text-slate-400">
-            Infrastruktur yang sama dipakai untuk event dengan puluhan ribu pendaftar
-            serentak. Bukan sekadar form pendaftaran.
-          </p>
-        </div>
-
-        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {features.map((f) => (
-            <div class="rounded-3xl border border-white/10 bg-white/5 p-7 backdrop-blur transition-colors hover:bg-white/10">
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent)]/15">
-                <svg class="h-6 w-6 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                  <path stroke-linecap="round" stroke-linejoin="round" d={f.icon} />
+                Lihat Seluruh Event
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                 </svg>
-              </div>
-              <h3 class="display mt-5 text-xl font-600 uppercase text-white">{f.title}</h3>
-              <p class="mt-2 text-sm leading-relaxed text-slate-400">{f.body}</p>
+              </a>
             </div>
-          ))}
+          </div>
+
+          <!-- Carousel Slider Track Event (Centered, Geser Kanan Kiri) -->
+          <div class="relative mt-8">
+            <div
+              id="events-slider-track"
+              class="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 pt-2 no-scrollbar px-4 sm:px-6 lg:px-8 slider-track-centered"
+              tabindex="0"
+              aria-label="Daftar Event Pilihan Carousel"
+            >
+              <!-- 1. Bangkok Midnight Marathon -->
+              <article class="event-slide-card theme-card rounded-2xl border overflow-hidden flex flex-col justify-between group hover:border-white/30 transition-all duration-300 shadow-lg hover:shadow-2xl w-[86vw] sm:w-[330px] md:w-[360px] lg:w-[380px] shrink-0 snap-center">
+                <div>
+                  <div class="relative h-48 overflow-hidden bg-slate-900">
+                    <img
+                      src="/images/events/bangkok_marathon.jpg"
+                      alt="Bangkok Midnight Marathon 2026"
+                      class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent"></div>
+                    <span class="absolute top-3 left-3 rounded-md bg-amber-500 px-2.5 py-1 font-display text-[11px] font-bold uppercase text-black shadow-sm">
+                      War Queue
+                    </span>
+                    <span class="absolute top-3 right-3 rounded-md bg-slate-950/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200 backdrop-blur border border-white/10 shadow-sm">
+                      Bangkok, Thailand
+                    </span>
+                    <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
+                      <span class="font-mono text-[11px] font-bold bg-slate-950/80 border border-slate-700/60 px-2 py-0.5 rounded">29 Nov 2026</span>
+                      <span class="text-[11px] font-bold text-amber-400">Flag-Off 01:00 ICT</span>
+                    </div>
+                  </div>
+                  <div class="p-5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider theme-accent-text">Night Road Race</span>
+                    <h3 class="font-display text-xl font-bold uppercase text-white mt-1 group-hover:theme-accent-text transition-colors">
+                      Bangkok Midnight Marathon 2026
+                    </h3>
+                    <p class="text-xs text-slate-300 mt-2 line-clamp-2 leading-relaxed">
+                      Menembus gemerlap kuil Sanam Chai dan jembatan megah Rama VIII di bawah langit malam Bangkok dengan rute steril berlisensi.
+                    </p>
+                    <div class="mt-4 flex items-center justify-between text-xs text-slate-400 border-t border-white/10 pt-3">
+                      <span class="font-mono font-medium text-slate-300">42K · 21K · 10K</span>
+                      <span class="font-bold text-white">15.000 Slot</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="p-5 pt-0">
+                  <div class="flex items-center justify-between border-t border-slate-800/80 pt-3 mb-3">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400">Mulai Dari</span>
+                    <span class="font-display text-base font-bold text-white font-mono">Rp 550.000</span>
+                  </div>
+                  <a
+                    href="/events/bangkok-midnight-marathon-2026"
+                    class="min-h-[44px] w-full inline-flex items-center justify-center rounded-xl theme-accent-bg py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-all shadow-md hover:brightness-110 text-center"
+                  >
+                    Daftar War Queue
+                  </a>
+                </div>
+              </article>
+
+              <!-- 2. IRONMAN 70.3 Lombok -->
+              <article class="event-slide-card theme-card rounded-2xl border overflow-hidden flex flex-col justify-between group hover:border-white/30 transition-all duration-300 shadow-lg hover:shadow-2xl w-[86vw] sm:w-[330px] md:w-[360px] lg:w-[380px] shrink-0 snap-center">
+                <div>
+                  <div class="relative h-48 overflow-hidden bg-slate-900">
+                    <img
+                      src="/images/events/ironman_triathlon.jpg"
+                      alt="IRONMAN 70.3 Triathlon Lombok 2026"
+                      class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent"></div>
+                    <span class="absolute top-3 left-3 rounded-md bg-red-600 px-2.5 py-1 font-display text-[11px] font-bold uppercase text-white shadow-sm">
+                      War Mode
+                    </span>
+                    <span class="absolute top-3 right-3 rounded-md bg-slate-950/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200 backdrop-blur border border-white/10 shadow-sm">
+                      Lombok, Indonesia
+                    </span>
+                    <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
+                      <span class="font-mono text-[11px] font-bold bg-slate-950/80 border border-slate-700/60 px-2 py-0.5 rounded">04 Okt 2026</span>
+                      <span class="text-[11px] font-bold text-red-400">113.1 KM Total</span>
+                    </div>
+                  </div>
+                  <div class="p-5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-red-400">World Triathlon</span>
+                    <h3 class="font-display text-xl font-bold uppercase text-white mt-1 group-hover:text-red-400 transition-colors">
+                      IRONMAN 70.3 Lombok 2026
+                    </h3>
+                    <p class="text-xs text-slate-300 mt-2 line-clamp-2 leading-relaxed">
+                      1.9K Ocean Swim Samudra Hindia, 90K Coastal Highway Bike, dan 21.1K Sunset Run menuju tiket dunia VinFast Kona.
+                    </p>
+                    <div class="mt-4 flex items-center justify-between text-xs text-slate-400 border-t border-white/10 pt-3">
+                      <span class="font-mono font-medium text-slate-300">Swim · Bike · Run</span>
+                      <span class="font-bold text-white">45 Kona Slots</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="p-5 pt-0">
+                  <div class="flex items-center justify-between border-t border-slate-800/80 pt-3 mb-3">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400">Mulai Dari</span>
+                    <span class="font-display text-base font-bold text-white font-mono">Rp 1.450.000</span>
+                  </div>
+                  <a
+                    href="/events/ironman-703-triathlon-2026"
+                    class="min-h-[44px] w-full inline-flex items-center justify-center rounded-xl bg-red-600 hover:bg-red-700 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-all shadow-md text-center"
+                  >
+                    Daftar Sekarang
+                  </a>
+                </div>
+              </article>
+
+              <!-- 3. Borobudur Heritage Marathon -->
+              <article class="event-slide-card theme-card rounded-2xl border overflow-hidden flex flex-col justify-between group hover:border-white/30 transition-all duration-300 shadow-lg hover:shadow-2xl w-[86vw] sm:w-[330px] md:w-[360px] lg:w-[380px] shrink-0 snap-center">
+                <div>
+                  <div class="relative h-48 overflow-hidden bg-slate-900">
+                    <img
+                      src="/images/events/borobudur_marathon.jpg"
+                      alt="Borobudur Heritage Marathon 2026"
+                      class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent"></div>
+                    <span class="absolute top-3 left-3 rounded-md bg-amber-600 px-2.5 py-1 font-display text-[11px] font-bold uppercase text-white shadow-sm">
+                      War Ticket
+                    </span>
+                    <span class="absolute top-3 right-3 rounded-md bg-slate-950/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200 backdrop-blur border border-white/10 shadow-sm">
+                      Magelang, Jateng
+                    </span>
+                    <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
+                      <span class="font-mono text-[11px] font-bold bg-slate-950/80 border border-slate-700/60 px-2 py-0.5 rounded">15 Nov 2026</span>
+                      <span class="text-[11px] font-bold text-amber-300">UNESCO Landmark</span>
+                    </div>
+                  </div>
+                  <div class="p-5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-amber-400">Heritage Marathon</span>
+                    <h3 class="font-display text-xl font-bold uppercase text-white mt-1 group-hover:text-amber-400 transition-colors">
+                      Borobudur Heritage Marathon 2026
+                    </h3>
+                    <p class="text-xs text-slate-300 mt-2 line-clamp-2 leading-relaxed">
+                      Melintasi rute perdesaan asri dengan latar kemegahan Candi Borobudur, sambutan hangat warga lokal, dan elevasi menantang.
+                    </p>
+                    <div class="mt-4 flex items-center justify-between text-xs text-slate-400 border-t border-white/10 pt-3">
+                      <span class="font-mono font-medium text-slate-300">42K · 21K · 10K</span>
+                      <span class="font-bold text-white">10.000 Slot</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="p-5 pt-0">
+                  <div class="flex items-center justify-between border-t border-slate-800/80 pt-3 mb-3">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400">Mulai Dari</span>
+                    <span class="font-display text-base font-bold text-white font-mono">Rp 375.000</span>
+                  </div>
+                  <a
+                    href="/events/borobudur-heritage-marathon-2026"
+                    class="min-h-[44px] w-full inline-flex items-center justify-center rounded-xl bg-amber-600 hover:bg-amber-700 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-all shadow-md text-center"
+                  >
+                    Daftar War Ticket
+                  </a>
+                </div>
+              </article>
+
+              <!-- 4. Tokyo International Marathon -->
+              <article class="event-slide-card theme-card rounded-2xl border overflow-hidden flex flex-col justify-between group hover:border-white/30 transition-all duration-300 shadow-lg hover:shadow-2xl w-[86vw] sm:w-[330px] md:w-[360px] lg:w-[380px] shrink-0 snap-center">
+                <div>
+                  <div class="relative h-48 overflow-hidden bg-slate-900">
+                    <img
+                      src="/images/events/tokyo_marathon.jpg"
+                      alt="Tokyo International Marathon 2026"
+                      class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent"></div>
+                    <span class="absolute top-3 left-3 rounded-md bg-blue-600 px-2.5 py-1 font-display text-[11px] font-bold uppercase text-white shadow-sm">
+                      Ballot Open
+                    </span>
+                    <span class="absolute top-3 right-3 rounded-md bg-slate-950/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200 backdrop-blur border border-white/10 shadow-sm">
+                      Tokyo, Japan
+                    </span>
+                    <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
+                      <span class="font-mono text-[11px] font-bold bg-slate-950/80 border border-slate-700/60 px-2 py-0.5 rounded">01 Mar 2027</span>
+                      <span class="text-[11px] font-bold text-blue-300">World Major</span>
+                    </div>
+                  </div>
+                  <div class="p-5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-blue-400">Abbott World Major</span>
+                    <h3 class="font-display text-xl font-bold uppercase text-white mt-1 group-hover:text-blue-400 transition-colors">
+                      Tokyo International Marathon 2026
+                    </h3>
+                    <p class="text-xs text-slate-300 mt-2 line-clamp-2 leading-relaxed">
+                      Satu dari enam maraton terakbar di dunia dengan rute metropolitan steril dan undian ballot transparan anti-calo.
+                    </p>
+                    <div class="mt-4 flex items-center justify-between text-xs text-slate-400 border-t border-white/10 pt-3">
+                      <span class="font-mono font-medium text-slate-300">42.195 KM Full</span>
+                      <span class="font-bold text-white">38.000 Kuota</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="p-5 pt-0">
+                  <div class="flex items-center justify-between border-t border-slate-800/80 pt-3 mb-3">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400">Mulai Dari</span>
+                    <span class="font-display text-base font-bold text-white font-mono">Rp 0 (Ballot)</span>
+                  </div>
+                  <a
+                    href="/events/tokyo-international-marathon-2026"
+                    class="min-h-[44px] w-full inline-flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-all shadow-md text-center"
+                  >
+                    Ikut Undian Ballot
+                  </a>
+                </div>
+              </article>
+
+              <!-- 5. BMW Berlin Speed Marathon -->
+              <article class="event-slide-card theme-card rounded-2xl border overflow-hidden flex flex-col justify-between group hover:border-white/30 transition-all duration-300 shadow-lg hover:shadow-2xl w-[86vw] sm:w-[330px] md:w-[360px] lg:w-[380px] shrink-0 snap-center">
+                <div>
+                  <div class="relative h-48 overflow-hidden bg-slate-900">
+                    <img
+                      src="/images/events/hero_marathon.jpg"
+                      alt="BMW Berlin Speed Marathon 2026"
+                      class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent"></div>
+                    <span class="absolute top-3 left-3 rounded-md bg-sky-600 px-2.5 py-1 font-display text-[11px] font-bold uppercase text-white shadow-sm">
+                      World Record
+                    </span>
+                    <span class="absolute top-3 right-3 rounded-md bg-slate-950/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200 backdrop-blur border border-white/10 shadow-sm">
+                      Berlin, Germany
+                    </span>
+                    <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
+                      <span class="font-mono text-[11px] font-bold bg-slate-950/80 border border-slate-700/60 px-2 py-0.5 rounded">27 Sep 2026</span>
+                      <span class="text-[11px] font-bold text-sky-300">Flat 20m Elevation</span>
+                    </div>
+                  </div>
+                  <div class="p-5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-sky-400">Fastest Course</span>
+                    <h3 class="font-display text-xl font-bold uppercase text-white mt-1 group-hover:text-sky-400 transition-colors">
+                      BMW Berlin Speed Marathon 2026
+                    </h3>
+                    <p class="text-xs text-slate-300 mt-2 line-clamp-2 leading-relaxed">
+                      Lintasan maraton tercepat di muka bumi dengan elevasi 20 meter dan finish legendaris di Gerbang Brandenburg.
+                    </p>
+                    <div class="mt-4 flex items-center justify-between text-xs text-slate-400 border-t border-white/10 pt-3">
+                      <span class="font-mono font-medium text-slate-300">Course Record 2:01:09</span>
+                      <span class="font-bold text-white">45.000 Slot</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="p-5 pt-0">
+                  <div class="flex items-center justify-between border-t border-slate-800/80 pt-3 mb-3">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400">Mulai Dari</span>
+                    <span class="font-display text-base font-bold text-white font-mono">Rp 850.000</span>
+                  </div>
+                  <a
+                    href="/events/berlin-speed-marathon-2026"
+                    class="min-h-[44px] w-full inline-flex items-center justify-center rounded-xl bg-sky-600 hover:bg-sky-700 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-all shadow-md text-center"
+                  >
+                    Daftar Berlin Speed
+                  </a>
+                </div>
+              </article>
+
+              <!-- 6. Summarecon Bandung RunFest -->
+              <article class="event-slide-card theme-card rounded-2xl border overflow-hidden flex flex-col justify-between group hover:border-white/30 transition-all duration-300 shadow-lg hover:shadow-2xl w-[86vw] sm:w-[330px] md:w-[360px] lg:w-[380px] shrink-0 snap-center">
+                <div>
+                  <div class="relative h-48 overflow-hidden bg-slate-900">
+                    <img
+                      src="/images/events/bandung_runfest.jpg"
+                      alt="Summarecon Bandung RunFest 2026"
+                      class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent"></div>
+                    <span class="absolute top-3 left-3 rounded-md bg-emerald-600 px-2.5 py-1 font-display text-[11px] font-bold uppercase text-white shadow-sm">
+                      Pendaftaran Buka
+                    </span>
+                    <span class="absolute top-3 right-3 rounded-md bg-slate-950/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200 backdrop-blur border border-white/10 shadow-sm">
+                      Bandung, Jabar
+                    </span>
+                    <div class="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs text-white">
+                      <span class="font-mono text-[11px] font-bold bg-slate-950/80 border border-slate-700/60 px-2 py-0.5 rounded">18 Okt 2026</span>
+                      <span class="text-[11px] font-bold text-emerald-300">Family & Community</span>
+                    </div>
+                  </div>
+                  <div class="p-5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Community RunFest</span>
+                    <h3 class="font-display text-xl font-bold uppercase text-white mt-1 group-hover:text-emerald-400 transition-colors">
+                      Summarecon Bandung RunFest 2026
+                    </h3>
+                    <p class="text-xs text-slate-300 mt-2 line-clamp-2 leading-relaxed">
+                      Festival lari keluarga dan komunitas di kawasan mandiri Summarecon Bandung dengan rute aspal sejuk dan festival kuliner.
+                    </p>
+                    <div class="mt-4 flex items-center justify-between text-xs text-slate-400 border-t border-white/10 pt-3">
+                      <span class="font-mono font-medium text-slate-300">10K · 5K · Kids Dash</span>
+                      <span class="font-bold text-white">8.000 Slot</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="p-5 pt-0">
+                  <div class="flex items-center justify-between border-t border-slate-800/80 pt-3 mb-3">
+                    <span class="text-[10px] uppercase tracking-wider text-slate-400">Mulai Dari</span>
+                    <span class="font-display text-base font-bold text-white font-mono">Rp 250.000</span>
+                  </div>
+                  <a
+                    href="/events/summarecon-bandung-runfest-2026"
+                    class="min-h-[44px] w-full inline-flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-all shadow-md text-center"
+                  >
+                    Daftar RunFest
+                  </a>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <!-- Dot Pagination Indicators (Indonesia Marathon Style) -->
+          <div
+            id="events-slider-dots"
+            class="mt-6 flex items-center justify-center gap-1 sm:gap-1.5"
+            role="tablist"
+            aria-label="Pilih Slide Event Pilihan"
+          >
+            <button type="button" aria-label="Slide 1: Bangkok Midnight Marathon 2026" aria-current="true" data-slide-index="0" class="event-dot-btn flex h-8 w-7 sm:w-8 items-center justify-center cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 rounded-full">
+              <span class="carousel-dot-pill h-1.5 w-6 theme-accent-bg block rounded-full transition-all duration-300"></span>
+            </button>
+            <button type="button" aria-label="Slide 2: IRONMAN 70.3 Lombok 2026" aria-current="false" data-slide-index="1" class="event-dot-btn flex h-8 w-7 sm:w-8 items-center justify-center cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 rounded-full">
+              <span class="carousel-dot-pill h-1.5 w-1.5 bg-white/30 group-hover:bg-white/60 block rounded-full transition-all duration-300"></span>
+            </button>
+            <button type="button" aria-label="Slide 3: Borobudur Heritage Marathon 2026" aria-current="false" data-slide-index="2" class="event-dot-btn flex h-8 w-7 sm:w-8 items-center justify-center cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 rounded-full">
+              <span class="carousel-dot-pill h-1.5 w-1.5 bg-white/30 group-hover:bg-white/60 block rounded-full transition-all duration-300"></span>
+            </button>
+            <button type="button" aria-label="Slide 4: Tokyo Major Marathon Experience 2027" aria-current="false" data-slide-index="3" class="event-dot-btn flex h-8 w-7 sm:w-8 items-center justify-center cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 rounded-full">
+              <span class="carousel-dot-pill h-1.5 w-1.5 bg-white/30 group-hover:bg-white/60 block rounded-full transition-all duration-300"></span>
+            </button>
+            <button type="button" aria-label="Slide 5: Berlin Speed Marathon 2026" aria-current="false" data-slide-index="4" class="event-dot-btn flex h-8 w-7 sm:w-8 items-center justify-center cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 rounded-full">
+              <span class="carousel-dot-pill h-1.5 w-1.5 bg-white/30 group-hover:bg-white/60 block rounded-full transition-all duration-300"></span>
+            </button>
+            <button type="button" aria-label="Slide 6: Summarecon Bandung RunFest 2026" aria-current="false" data-slide-index="5" class="event-dot-btn flex h-8 w-7 sm:w-8 items-center justify-center cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 rounded-full">
+              <span class="carousel-dot-pill h-1.5 w-1.5 bg-white/30 group-hover:bg-white/60 block rounded-full transition-all duration-300"></span>
+            </button>
+          </div>
+
+          <!-- Helper Geser Mobile / Track Indicator (Centered) -->
+          <div class="mt-2 flex items-center justify-center gap-2 text-xs text-slate-400 sm:hidden text-center">
+            <span class="inline-flex items-center gap-1.5">
+              <svg class="h-3.5 w-3.5 text-orange-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+              Geser ke samping atau ketuk titik untuk berganti event
+            </span>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- CTA band -->
-    <section class="relative overflow-hidden bg-gradient-to-r from-[var(--accent)] via-orange-500 to-rose-500 py-20">
-      <div class="mx-auto max-w-4xl px-6 text-center">
-        <h2 class="display text-4xl font-700 uppercase text-white sm:text-6xl">
-          Slot Terbatas.<br />Jangan Sampai Kehabisan.
-        </h2>
-        <p class="mx-auto mt-4 max-w-xl text-white/90">
-          Registrasi dibuka untuk semua kategori. Amankan tempatmu di garis start
-          sebelum kuota penuh.
-        </p>
-        <a
-          href="/events"
-          class="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-9 py-4 text-base font-bold text-slate-900 shadow-xl transition-transform hover:scale-105"
-        >
-          Daftar Sekarang
-          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-        </a>
-      </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="bg-[var(--ink)] pt-16 pb-10 text-slate-400">
-      <div class="mx-auto max-w-7xl px-6">
-        <div class="grid gap-10 border-b border-white/10 pb-12 md:grid-cols-4">
-          <div class="md:col-span-2">
-            <div class="display text-2xl font-700 text-white">
-              ivy<span class="text-[var(--accent)]">ticketing</span>
+      <!-- Section Kategori Lomba & Multi-Sports Filter (Horizontal Slider Model) -->
+      <section id="categories" class="py-20 border-b border-white/10 theme-bg-primary overflow-hidden">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6">
+          <!-- Header Section Kategori (Centered) -->
+          <div class="mx-auto max-w-3xl text-center pb-6 border-b border-white/10">
+            <span class="text-xs font-bold uppercase tracking-widest theme-accent-text">Multi-Sport Disciplines</span>
+            <h2 class="font-display mt-2 text-3xl font-bold uppercase tracking-tight text-white sm:text-5xl">
+              Kategori Lomba Resmi
+            </h2>
+            <p class="mt-2 text-sm text-slate-300 max-w-2xl mx-auto leading-relaxed">
+              Pilih cabang olahraga dan jarak tantangan Anda. Setiap kategori dilengkapi spesifikasi cut-off time (COT), total elevasi, dan metode registrasi terverifikasi. Geser ke samping untuk menjelajah kategori.
+            </p>
+            <div class="mt-4 flex justify-center">
+              <a
+                href="/events"
+                class="min-h-[44px] inline-flex items-center gap-1.5 text-sm font-semibold theme-accent-text hover:underline"
+              >
+                Lihat Kalender Lengkap
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </a>
             </div>
-            <p class="mt-3 max-w-sm text-sm">
-              Platform registrasi dan tiket event lari skala besar. Antrean adil,
-              tanpa oversell, e-ticket QR, dan sertifikat digital.
+          </div>
+
+          <!-- Tab Filter Cabang Olahraga (Centered) -->
+          <div
+            id="homepage-sport-filter-container"
+            class="mt-6 flex flex-nowrap sm:flex-wrap items-center justify-start sm:justify-center gap-2 border-b border-white/10 pb-4 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0"
+            role="tablist"
+            aria-label="Filter Cabang Olahraga"
+          >
+            <button
+              type="button"
+              class="sport-filter-btn active min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border theme-accent-border theme-accent-bg px-4 py-2 text-xs font-bold uppercase tracking-wider text-white transition-colors cursor-pointer"
+              data-sport="all"
+            >
+              Semua Olahraga (10)
+            </button>
+            <button
+              type="button"
+              class="sport-filter-btn min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800/80 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-300 transition-colors hover:border-slate-500 hover:text-white cursor-pointer"
+              data-sport="running"
+            >
+              Lari & Marathon (3)
+            </button>
+            <button
+              type="button"
+              class="sport-filter-btn min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800/80 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-300 transition-colors hover:border-slate-500 hover:text-white cursor-pointer"
+              data-sport="triathlon"
+            >
+              Triathlon (2)
+            </button>
+            <button
+              type="button"
+              class="sport-filter-btn min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800/80 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-300 transition-colors hover:border-slate-500 hover:text-white cursor-pointer"
+              data-sport="cycling"
+            >
+              Balap Sepeda (2)
+            </button>
+            <button
+              type="button"
+              class="sport-filter-btn min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800/80 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-300 transition-colors hover:border-slate-500 hover:text-white cursor-pointer"
+              data-sport="trail"
+            >
+              Trail Run (2)
+            </button>
+            <button
+              type="button"
+              class="sport-filter-btn min-h-[44px] shrink-0 whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800/80 px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-300 transition-colors hover:border-slate-500 hover:text-white cursor-pointer"
+              data-sport="swimming"
+            >
+              Renang Terbuka (1)
+            </button>
+          </div>
+
+          <!-- Carousel Slider Track Kategori Balap (Centered, Geser Kanan Kiri) -->
+          <div class="relative mt-8">
+            <div
+              id="categories-slider-track"
+              class="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-6 pt-2 no-scrollbar px-4 sm:px-6 lg:px-8 slider-track-centered"
+              tabindex="0"
+              aria-label="Kategori Lomba Carousel"
+            >
+              {raceCategories.map((cat) => (
+                <article
+                  class="category-card theme-card flex flex-col justify-between rounded-2xl border border-slate-800 bg-slate-900/95 p-5 sm:p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-white/30 hover:shadow-2xl w-[88vw] sm:w-[350px] md:w-[380px] lg:w-[390px] shrink-0 snap-center relative overflow-hidden group"
+                  data-sport={cat.sport}
+                >
+                  <div>
+                    <!-- Baris Header Kategori: Sport Label & Mode Pendaftaran -->
+                    <div class="flex items-center justify-between gap-2">
+                      <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        {cat.sportLabel}
+                      </span>
+                      <span class={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-[11px] font-bold uppercase shadow-xs ${cat.badgeClass}`}>
+                        {cat.modeLabel}
+                      </span>
+                    </div>
+
+                    <!-- Hero Distance (Khas Indonesia Marathon) -->
+                    <div class="mt-4 flex items-baseline justify-between border-b border-white/10 pb-3">
+                      <div>
+                        <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">Jarak Resmi</span>
+                        <div class="font-display text-4xl sm:text-5xl font-black uppercase text-white tracking-tight leading-none mt-1">
+                          {cat.distance}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Judul Kategori Lomba -->
+                    <h3 class="font-display mt-3 text-lg sm:text-xl font-bold uppercase text-orange-400">
+                      {cat.name}
+                    </h3>
+
+                    <!-- Metadata Spesifik Olahraga (Jarak, Elevasi, COT) -->
+                    <div class="mt-4 grid grid-cols-3 gap-1.5 sm:gap-2 rounded-xl bg-slate-950/80 p-2.5 sm:p-3 border border-slate-800 text-center">
+                      <div class="overflow-hidden">
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Jarak</p>
+                        <p class="font-display text-xs sm:text-sm font-bold text-white mt-0.5 break-words leading-tight">{cat.distance}</p>
+                      </div>
+                      <div class="border-x border-slate-800 px-1 overflow-hidden">
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Elevasi</p>
+                        <p class="font-display text-xs sm:text-sm font-bold text-white mt-0.5 break-words leading-tight">{cat.elevation}</p>
+                      </div>
+                      <div class="overflow-hidden">
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">COT</p>
+                        <p class="font-display text-xs sm:text-sm font-bold text-orange-400 mt-0.5 break-words leading-tight">{cat.cot}</p>
+                      </div>
+                    </div>
+
+                    <!-- Deskripsi Rute & Karakter Lomba -->
+                    <p class="mt-4 text-xs leading-relaxed text-slate-300">
+                      {cat.desc}
+                    </p>
+
+                    <!-- Fasilitas & Benefit Peserta -->
+                    <ul class="mt-4 space-y-2 border-t border-slate-800/80 pt-4 text-xs text-slate-300">
+                      {cat.highlights.map((item) => (
+                        <li class="flex items-center gap-2">
+                          <svg class="h-4 w-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <!-- Footer Kartu: Biaya & Tombol Pendaftaran -->
+                  <div class="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-800 pt-4">
+                    <div>
+                      <span class="text-[10px] uppercase tracking-wider text-slate-400">Biaya Pendaftaran</span>
+                      <p class="font-display text-lg sm:text-xl font-bold text-white font-mono">{cat.price}</p>
+                    </div>
+                    <a
+                      href="/events"
+                      class="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center rounded-xl theme-accent-bg px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-all shadow-md hover:brightness-110 text-center"
+                    >
+                      Daftar Sekarang
+                    </a>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <!-- Dot Pagination Indicators (Indonesia Marathon Style) -->
+          <div
+            id="categories-slider-dots"
+            class="mt-6 flex items-center justify-center gap-1 sm:gap-1.5 flex-wrap"
+            role="tablist"
+            aria-label="Pilih Slide Kategori Lomba"
+          >
+            {raceCategories.map((cat, idx) => (
+              <button
+                type="button"
+                aria-label={`Slide ${idx + 1}: ${cat.title}`}
+                aria-current={idx === 0 ? "true" : "false"}
+                data-slide-index={idx}
+                class="category-dot-btn flex h-8 w-6 sm:w-8 items-center justify-center cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 rounded-full"
+              >
+                <span class={`carousel-dot-pill h-1.5 ${idx === 0 ? "w-6 theme-accent-bg" : "w-1.5 bg-white/30 group-hover:bg-white/60"} block rounded-full transition-all duration-300`}></span>
+              </button>
+            ))}
+          </div>
+
+          <!-- Helper Geser Mobile / Kategori Indicator (Centered) -->
+          <div class="mt-2 flex items-center justify-center gap-2 text-xs text-slate-400 sm:hidden text-center">
+            <span class="inline-flex items-center gap-1.5">
+              <svg class="h-3.5 w-3.5 text-orange-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+              Geser ke samping atau ketuk titik untuk berganti kategori
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section Mekanisme Pendaftaran: War Ticket, Ballot, & Akses Prioritas -->
+      <section id="registration-modes" class="py-20 border-b border-white/10 theme-bg-surface">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6">
+          <div class="max-w-3xl">
+            <span class="text-xs font-bold uppercase tracking-widest theme-accent-text">Infrastruktur & Mekanisme</span>
+            <h2 class="font-display mt-1 text-3xl font-bold uppercase tracking-tight text-white sm:text-5xl">
+              Sistem Pendaftaran Adil & Bebas Calo
+            </h2>
+            <p class="mt-3 text-sm text-slate-300 leading-relaxed">
+              Kami memisahkan jenis pendaftaran sesuai karakteristik permintaan tiket. Tidak ada pendaftar yang dirugikan karena server crash, antrean palsu, atau calo tiket otomatis.
             </p>
           </div>
+
+          <!-- 4 Kartu Mekanisme Pendaftaran -->
+          <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <!-- 1. Sistem War -->
+            <div class="theme-card rounded-xl border p-6">
+              <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h3 class="font-display mt-5 text-xl font-bold uppercase text-white">1. War Ticket</h3>
+              <p class="mt-2 text-xs leading-relaxed text-slate-300">
+                Ruang tunggu interaktif dengan posisi antrean transparan, countdown checkout, dan estimasi giliran yang akurat tanpa perlu refresh halaman berulang kali.
+              </p>
+              <div class="mt-4 rounded bg-slate-900/60 p-2.5 text-[11px] text-amber-300/90 border border-amber-500/20">
+                Cocok untuk kuota rebutan cepat (Half Marathon, 10K, Gran Fondo).
+              </div>
+            </div>
+
+            <!-- 2. Sistem Ballot -->
+            <div class="theme-card rounded-xl border p-6">
+              <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <h3 class="font-display mt-5 text-xl font-bold uppercase text-white">2. Sistem Ballot</h3>
+              <p class="mt-2 text-xs leading-relaxed text-slate-300">
+                Sistem undian terbuka untuk kategori berkebutuhan tinggi. Peserta mendaftar santai selama periode buka, lalu diundi secara acak dan terverifikasi.
+              </p>
+              <div class="mt-4 rounded bg-slate-900/60 p-2.5 text-[11px] text-blue-300/90 border border-blue-500/20">
+                Cocok untuk Full Marathon 42K dan event oversubscribed.
+              </div>
+            </div>
+
+            <!-- 3. Akses Prioritas & Komunitas -->
+            <div class="theme-card rounded-xl border p-6">
+              <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h3 class="font-display mt-5 text-xl font-bold uppercase text-white">3. Akses Prioritas</h3>
+              <p class="mt-2 text-xs leading-relaxed text-slate-300">
+                Jendela pendaftaran eksklusif untuk pelari kualifikasi waktu (time qualifier), alumni tahun sebelumnya, komunitas rekanan, dan sponsor resmi.
+              </p>
+              <div class="mt-4 rounded bg-slate-900/60 p-2.5 text-[11px] text-purple-300/90 border border-purple-500/20">
+                Menggunakan kode unik atau validasi database alumni.
+              </div>
+            </div>
+
+            <!-- 4. Zero Oversell Protection -->
+            <div class="theme-card rounded-xl border p-6">
+              <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <h3 class="font-display mt-5 text-xl font-bold uppercase text-white">4. Zero-Oversell</h3>
+              <p class="mt-2 text-xs leading-relaxed text-slate-300">
+                Inventaris tiket dikunci ketat pada level transaksi database. Tidak ada insiden tiket terjual melebihi kuota fisik yang berujung pembatalan tiket sepihak.
+              </p>
+              <div class="mt-4 rounded bg-slate-900/60 p-2.5 text-[11px] text-emerald-300/90 border border-emerald-500/20">
+                Garansi integritas kuota inventaris 100%.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section Template Organizer & Customization Showcase -->
+      <section id="templates" class="py-20 border-b border-white/10 theme-bg-primary">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6">
+          <div class="grid items-center gap-12 lg:grid-cols-12">
+            <div class="lg:col-span-6">
+              <span class="text-xs font-bold uppercase tracking-widest theme-accent-text">Untuk Event Organizer & Race Director</span>
+              <h2 class="font-display mt-1 text-3xl font-bold uppercase tracking-tight text-white sm:text-5xl">
+                Kustomisasi Template UI Sesuai Brand Event Anda
+              </h2>
+              <p class="mt-4 text-sm leading-relaxed text-slate-300">
+                Setiap lomba memiliki identitasnya sendiri. IvyTicketing menyediakan sistem template modular yang memungkinkan penyelenggara mengkustomisasi warna brand, banner hero slider, transparansi navbar, hingga formulir data kesehatan atlet.
+              </p>
+
+              <div class="mt-8 space-y-4">
+                <div class="flex items-start gap-3 rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-orange-600/20 theme-accent-text font-bold text-sm">
+                    01
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-bold text-white">8 Preset Template Otentik Dunia</h4>
+                    <p class="text-xs text-slate-400 mt-1">Pilihan tema visual terbukti: Bangkok Midnight, IRONMAN 70.3, Tokyo Major, BMW Berlin Speed, Sydney Harbour, Borobudur Heritage, dan Summarecon Bandung.</p>
+                  </div>
+                </div>
+
+                <div class="flex items-start gap-3 rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-orange-600/20 theme-accent-text font-bold text-sm">
+                    02
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-bold text-white">Brand Logo & Navbar Transparency</h4>
+                    <p class="text-xs text-slate-400 mt-1">Kustomisasi logo (icon-only, text-only, atau keduanya) serta tingkat transparansi dan blur navbar untuk seluruh halaman secara terpadu.</p>
+                  </div>
+                </div>
+
+                <div class="flex items-start gap-3 rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-orange-600/20 theme-accent-text font-bold text-sm">
+                    03
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-bold text-white">Monitoring Antrean & War Room</h4>
+                    <p class="text-xs text-slate-400 mt-1">Pantau lonjakan pendaftar, rilis kuota per batch, dan kendalikan kecepatan antrean secara real-time dari konsol organizer.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-8">
+                <a
+                  href="/admin/events"
+                  class="min-h-[44px] inline-flex items-center gap-2 rounded-lg theme-accent-bg px-6 py-3 text-sm font-bold uppercase tracking-wider text-white transition-colors shadow-md"
+                >
+                  Buka Admin Kustomisasi & Events
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              </div>
+            </div>
+
+            <!-- Visual Mockup Card Template Builder -->
+            <div class="lg:col-span-6">
+              <div class="rounded-2xl border border-slate-700 bg-slate-900/90 p-6 shadow-2xl">
+                <!-- Baris Toolbar Atas Mockup -->
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                  <div class="flex items-center gap-2">
+                    <span class="h-3 w-3 rounded-full bg-rose-500/80"></span>
+                    <span class="h-3 w-3 rounded-full bg-amber-500/80"></span>
+                    <span class="h-3 w-3 rounded-full bg-emerald-500/80"></span>
+                    <span class="ml-2 font-mono text-xs text-slate-400">ivy-template-engine · preview</span>
+                  </div>
+                  <span class="rounded bg-orange-600/20 px-2 py-0.5 text-[10px] font-bold theme-accent-text uppercase">
+                    Live Customizer
+                  </span>
+                </div>
+
+                <!-- Konten Simulasi Template -->
+                <div class="mt-5 space-y-4">
+                  <!-- Header Event Simulasi -->
+                  <div class="theme-card rounded-xl border p-4">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-3">
+                        <div class="h-10 w-10 rounded-lg theme-accent-bg flex items-center justify-center font-display font-bold text-white text-lg">
+                          SR
+                        </div>
+                        <div>
+                          <p class="text-sm font-bold text-white">Sydney Coast Marathon 2026</p>
+                          <p class="text-[11px] text-slate-400">Tema: Athletic High-Contrast Slate</p>
+                        </div>
+                      </div>
+                      <span class="rounded bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 text-[11px] font-bold text-emerald-400">
+                        War Mode Aktif
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Simulasi Kontrol Warna & Elemen -->
+                  <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="rounded-lg border border-slate-800 bg-slate-900 p-3">
+                      <span class="text-[10px] uppercase tracking-wider text-slate-400">Warna Aksen Brand</span>
+                      <div class="mt-2 flex items-center gap-2">
+                        <span class="h-5 w-5 rounded-full theme-accent-bg border border-white/20"></span>
+                        <span class="font-mono text-xs text-slate-200">Warna Dinamis Sistem</span>
+                      </div>
+                    </div>
+                    <div class="rounded-lg border border-slate-800 bg-slate-900 p-3">
+                      <span class="text-[10px] uppercase tracking-wider text-slate-400">Jenis Antrean</span>
+                      <div class="mt-2 flex items-center gap-2">
+                        <span class="h-2 w-2 rounded-full bg-amber-400"></span>
+                        <span class="font-medium text-slate-200">Token-Bucket Queue</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Baris Progres Kuota Simulasi -->
+                  <div class="rounded-lg border border-slate-800 bg-slate-900/60 p-3.5">
+                    <div class="flex justify-between text-xs mb-1.5">
+                      <span class="font-semibold text-slate-300">Penyerapan Kuota (Real-Time)</span>
+                      <span class="font-mono font-bold theme-accent-text">8.420 / 10.000 Slot</span>
+                    </div>
+                    <div class="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                      <div class="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full" style="width: 84.2%"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Banner CTA Bawah -->
+      <section class="py-16 theme-accent-bg text-white">
+        <div class="mx-auto max-w-4xl px-4 text-center sm:px-6">
+          <h2 class="font-display text-3xl font-bold uppercase tracking-tight sm:text-5xl">
+            Siap Menghadapi Hari Perlombaan?
+          </h2>
+          <p class="mx-auto mt-4 max-w-xl text-sm sm:text-base text-white/90 leading-relaxed">
+            Pendaftaran kategori populer dibuka secara bertahap. Pastikan Anda telah memiliki akun dan menyiapkan data diri sebelum waktu registrasi dimulai.
+          </p>
+          <div class="mt-8 flex flex-wrap justify-center gap-4">
+            <a
+              href="/events"
+              class="min-h-[44px] inline-flex items-center justify-center rounded-lg bg-slate-950 px-8 py-3.5 font-display text-base font-bold uppercase tracking-wider text-white shadow-xl transition-transform hover:scale-105 active:scale-95"
+            >
+              Jelajahi Semua Event
+            </a>
+            <a
+              href="/admin/events"
+              class="min-h-[44px] inline-flex items-center justify-center rounded-lg border border-white/40 bg-white/10 px-8 py-3.5 font-display text-base font-bold uppercase tracking-wider text-white backdrop-blur transition-colors hover:bg-white/20"
+            >
+              Kustomisasi via Admin
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer Bersih & Fungsional -->
+    <footer class="border-t border-white/10 theme-bg-primary py-12 text-slate-400">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6">
+        <div class="grid gap-8 sm:grid-cols-2 md:grid-cols-4">
+          <!-- Info Brand Footer -->
+          <div class="md:col-span-2">
+            <div class="flex items-center gap-3">
+              <img src="/images/ivy-icon.svg" alt="IVY" class="h-8 w-8 shrink-0" />
+              <span class="font-display text-xl font-bold tracking-tight text-white uppercase">
+                Ivy<span class="brand-accent-highlight theme-accent-text">Ticketing</span>
+              </span>
+            </div>
+            <p class="mt-3 max-w-md text-xs leading-relaxed text-slate-400">
+              Platform registrasi dan penjualan tiket event olahraga performa tinggi. Mendukung ajang lari marathon, triathlon, balap sepeda, renang terbuka, dan trail run di Indonesia.
+            </p>
+          </div>
+
+          <!-- Link Peserta -->
           <div>
-            <h4 class="text-sm font-semibold uppercase tracking-wider text-white">Peserta</h4>
-            <ul class="mt-4 space-y-2 text-sm">
-              <li><a href="/events" class="transition-colors hover:text-white">Jelajahi Event</a></li>
-              <li><a href="/login" class="transition-colors hover:text-white">Masuk / Daftar Akun</a></li>
-              <li><a href="/status" class="transition-colors hover:text-white">Status Sistem</a></li>
+            <h3 class="text-xs font-bold uppercase tracking-widest text-slate-200">Untuk Peserta</h3>
+            <ul class="mt-3 space-y-2 text-xs">
+              <li><a href="/events" class="hover:text-white transition-colors">Jelajahi Event</a></li>
+              <li><a href="#categories" class="hover:text-white transition-colors">Kategori & COT</a></li>
+              <li><a href="#registration-modes" class="hover:text-white transition-colors">Panduan Sistem War & Ballot</a></li>
+              <li><a href="/login" class="hover:text-white transition-colors">Masuk Akun Peserta</a></li>
+              <li><a href="/register" class="hover:text-white transition-colors">Daftar Akun Baru</a></li>
             </ul>
           </div>
+
+          <!-- Link Penyelenggara -->
           <div>
-            <h4 class="text-sm font-semibold uppercase tracking-wider text-white">Platform</h4>
-            <ul class="mt-4 space-y-2 text-sm">
-              <li><a href="/login" class="transition-colors hover:text-white">Organizer Console</a></li>
-              <li><a href="#why" class="transition-colors hover:text-white">Fitur</a></li>
-              <li><a href="#distances" class="transition-colors hover:text-white">Kategori</a></li>
+            <h3 class="text-xs font-bold uppercase tracking-widest text-slate-200">Untuk Organizer</h3>
+            <ul class="mt-3 space-y-2 text-xs">
+              <li><a href="/admin/events" class="hover:text-white transition-colors">Organizer Console</a></li>
+              <li><a href="/admin/events" class="hover:text-white transition-colors">Kustomisasi Template & Slider</a></li>
+              <li><a href="/admin/warroom" class="hover:text-white transition-colors">War Room Monitoring</a></li>
+              <li><a href="/admin/status" class="hover:text-white transition-colors">Status Layanan & Server</a></li>
             </ul>
           </div>
         </div>
-        <div class="flex flex-col items-center justify-between gap-4 pt-8 text-xs sm:flex-row">
-          <p>&copy; {new Date().getFullYear()} ivyticketing. Seluruh hak cipta dilindungi.</p>
-          <p>Dibuat untuk event lari Indonesia.</p>
+
+        <div class="mt-10 flex flex-col items-center justify-between gap-4 border-t border-slate-800/80 pt-6 text-xs text-slate-500 sm:flex-row">
+          <p>&copy; {new Date().getFullYear()} IvyTicketing. Seluruh hak cipta dilindungi.</p>
+          <p>Dirancang untuk performa tinggi pendaftaran event olahraga.</p>
         </div>
       </div>
     </footer>
 
-    <script is:inline define:vars={{ RACE_DATE }}>
-      // Sticky nav background on scroll
-      const nav = document.getElementById("nav");
-      const onScroll = () => {
-        if (window.scrollY > 24) {
-          nav.classList.add("bg-[var(--ink)]/90", "backdrop-blur", "shadow-lg", "shadow-black/20");
-        } else {
-          nav.classList.remove("bg-[var(--ink)]/90", "backdrop-blur", "shadow-lg", "shadow-black/20");
-        }
-      };
-      window.addEventListener("scroll", onScroll, { passive: true });
-      onScroll();
+    <!-- Script Klien: Hero Slider, Brand Mode, Transparansi Navbar, Filter Kategori -->
+    <script is:inline>
+      (function () {
+        // Storage Key
+        const HOMEPAGE_CONFIG_STORAGE_KEY = "ivy_platform_homepage_config";
 
-      // Countdown
-      const target = new Date(RACE_DATE).getTime();
-      const cells = document.querySelectorAll("#countdown .cd-value");
-      const pad = (n) => String(n).padStart(2, "0");
-      function tick() {
-        const diff = Math.max(0, target - Date.now());
-        const s = Math.floor(diff / 1000);
-        const days = Math.floor(s / 86400);
-        const hours = Math.floor((s % 86400) / 3600);
-        const mins = Math.floor((s % 3600) / 60);
-        const secs = s % 60;
-        const map = { Hari: days, Jam: pad(hours), Menit: pad(mins), Detik: pad(secs) };
-        cells.forEach((el) => {
-          const unit = el.getAttribute("data-unit");
-          el.textContent = String(map[unit]);
+        // Default Configuration
+        const defaultCfg = {
+          brand: {
+            displayMode: "icon_only",
+            brandName: "IvyTicketing",
+            tagline: "Sports Registration Engine",
+          },
+          navbar: {
+            style: "transparent_gradient",
+            mobileNavType: "bottom_nav",
+            opacity: 0.95,
+            blur: "md",
+            showBorder: false,
+            glassBlur: 0,
+            glassSaturate: 1,
+            glassTint: "rgba(255, 255, 255, 0.255)",
+            glassRadius: 48,
+          },
+          corners: {
+            style: "square",
+          },
+          theme: {
+            mode: "athletic_dark",
+            bgColor: "#0a1120",
+            surfaceColor: "#101a2e",
+            textColor: "#f8fafc",
+            accentColor: "#ea580c",
+          },
+          hero: {
+            mode: "slider",
+            autoplay: true,
+            intervalSeconds: 5,
+            overlayDarkness: 0.35,
+            statsStyle: "transparent",
+            imagePosition: "top",
+            slides: [
+              {
+                id: "slide-bkk",
+                tag: "BANGKOK MIDNIGHT · SUNDAY NIGHT SPECIAL",
+                tagColor: "bg-amber-500 text-black font-black",
+                title: "Bangkok Midnight Marathon 2026",
+                subtitle: "Menembus gemerlap kuil megah Sanam Chai dan landmark Rama VIII di bawah langit malam Bangkok dengan rute steril berlisensi.",
+                bgImage: "/images/events/bangkok_marathon.jpg",
+                primaryCtaText: "Daftar Bangkok Midnight",
+                primaryCtaLink: "/events/bangkok-midnight-marathon-2026",
+                secondaryCtaText: "Lihat Detail Rute",
+                secondaryCtaLink: "/events/bangkok-midnight-marathon-2026#section-route",
+                stats: [
+                  { label: "Flag-Off", value: "01:00 ICT" },
+                  { label: "Kategori", value: "42K · 21K · 10K" },
+                  { label: "Total Peserta", value: "15.000 Pelari" },
+                ],
+              },
+              {
+                id: "slide-ironman",
+                tag: "",
+                tagColor: "",
+                title: "IRONMAN 70.3 Triathlon Lombok 2026",
+                subtitle: "1.9K Ocean Swim Samudra Hindia, 90K Coastal Highway Cycling, dan 21.1K Sunset Boulevard Run menuju podium dunia.",
+                bgImage: "/images/events/ironman_triathlon.jpg",
+                primaryCtaText: "Daftar IRONMAN 70.3",
+                primaryCtaLink: "/events/ironman-703-triathlon-2026",
+                secondaryCtaText: "Jadwal & Logistik",
+                secondaryCtaLink: "/events/ironman-703-triathlon-2026#im-schedule",
+                stats: [
+                  { label: "Jarak Total", value: "113.1 KM" },
+                  { label: "Kona Slots", value: "45 Tiket Dunia" },
+                  { label: "Status War", value: "Buka Sekarang" },
+                ],
+              },
+              {
+                id: "slide-tokyo",
+                tag: "ABBOTT WORLD MARATHON MAJORS",
+                tagColor: "bg-slate-900 text-red-400 border border-red-500/40 font-bold",
+                title: "Tokyo International Marathon 2026",
+                subtitle: "Satu dari enam maraton terakbar di dunia. Rute steril menyusuri landmark metropolitan Tokyo dengan sistem undian ballot transparan.",
+                bgImage: "/images/events/tokyo_marathon.jpg",
+                primaryCtaText: "Daftar Sistem Ballot",
+                primaryCtaLink: "/events/tokyo-marathon-2026",
+                secondaryCtaText: "Breakdown Kuota",
+                secondaryCtaLink: "/events/tokyo-marathon-2026#section-categories",
+                stats: [
+                  { label: "Total Kuota", value: "38.000 Pelari" },
+                  { label: "Sertifikasi", value: "AIMS & World Athletics" },
+                  { label: "Race Expo", value: "Tokyo Big Sight" },
+                ],
+              },
+              {
+                id: "slide-berlin",
+                tag: "WORLD RECORD TRACK · 2:01:09 SPEED",
+                tagColor: "bg-sky-950 text-sky-400 border border-sky-500/40 font-bold",
+                title: "BMW Berlin Speed Marathon 2026",
+                subtitle: "Lintasan maraton tercepat di muka bumi dengan elevasi flat 20m yang memecahkan rekor dunia maraton berkali-kali.",
+                bgImage: "/images/events/hero_marathon.jpg",
+                primaryCtaText: "Daftar Lomba Cepat",
+                primaryCtaLink: "/events/berlin-speed-marathon-2026",
+                secondaryCtaText: "Profil Elevasi",
+                secondaryCtaLink: "/events/berlin-speed-marathon-2026#section-elevation",
+                stats: [
+                  { label: "Course Record", value: "2:01:09 World PB" },
+                  { label: "Elevasi", value: "20m Ultra Datar" },
+                  { label: "Finish Gate", value: "Gerbang Brandenburg" },
+                ],
+              },
+            ],
+          },
+        };
+
+        function getSavedConfig() {
+          try {
+            const raw = localStorage.getItem(HOMEPAGE_CONFIG_STORAGE_KEY);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              return {
+                brand: { ...defaultCfg.brand, ...(parsed.brand || {}) },
+                navbar: { ...defaultCfg.navbar, ...(parsed.navbar || {}) },
+                corners: { ...defaultCfg.corners, ...(parsed.corners || {}) },
+                theme: { ...defaultCfg.theme, ...(parsed.theme || {}) },
+                hero: {
+                  ...defaultCfg.hero,
+                  ...(parsed.hero || {}),
+                  slides:
+                    parsed.hero?.slides && parsed.hero.slides.length > 0
+                      ? parsed.hero.slides
+                      : defaultCfg.hero.slides,
+                },
+                features: {
+                  showSportFilter: parsed.features?.showSportFilter !== false,
+                },
+              };
+            }
+          } catch (e) {
+            // fallback
+          }
+          return defaultCfg;
+        }
+
+        // 1. Sinkronisasi Brand Navbar (icon_only, text_only, both)
+        function applyBrandConfig(brand) {
+          const iconWrapper = document.getElementById("nav-brand-icon-wrapper");
+          const textWrapper = document.getElementById("nav-brand-text-wrapper");
+          const titleEl = document.getElementById("nav-brand-title");
+          const tagEl = document.getElementById("nav-brand-tagline");
+
+          const mode = brand.displayMode || "icon_only";
+
+          if (iconWrapper && textWrapper) {
+            if (mode === "icon_only") {
+              iconWrapper.classList.remove("hidden");
+              textWrapper.classList.add("hidden");
+            } else if (mode === "text_only") {
+              iconWrapper.classList.add("hidden");
+              textWrapper.classList.remove("hidden");
+            } else {
+              // "both"
+              iconWrapper.classList.remove("hidden");
+              textWrapper.classList.remove("hidden");
+            }
+          }
+
+          if (titleEl && brand.brandName) {
+            titleEl.innerHTML = brand.brandName.includes("Ivy")
+              ? brand.brandName.replace("Ivy", 'Ivy<span class="brand-accent-highlight theme-accent-text">') + "</span>"
+              : brand.brandName;
+          }
+          if (tagEl && brand.tagline) {
+            tagEl.textContent = brand.tagline;
+          }
+        }
+
+        // Helper fungsi konversi hex dan kalkulasi variasi warna
+        function hexToRgb(hex) {
+          if (!hex) return { r: 10, g: 17, b: 32 };
+          let clean = String(hex).replace("#", "").trim();
+          if (clean.length === 3) {
+            clean = clean.split("").map((c) => c + c).join("");
+          }
+          const num = parseInt(clean, 16);
+          if (isNaN(num)) return { r: 10, g: 17, b: 32 };
+          return {
+            r: (num >> 16) & 255,
+            g: (num >> 8) & 255,
+            b: num & 255,
+          };
+        }
+
+        function adjustHexBrightness(hex, percent) {
+          const { r, g, b } = hexToRgb(hex);
+          const adjust = (val) => Math.min(255, Math.max(0, Math.round(val + (val * percent) / 100)));
+          const nr = adjust(r).toString(16).padStart(2, "0");
+          const ng = adjust(g).toString(16).padStart(2, "0");
+          const nb = adjust(b).toString(16).padStart(2, "0");
+          return `#${nr}${ng}${nb}`;
+        }
+
+        // 2. Sinkronisasi Bentuk, Transparansi & Efek Navbar
+        function applyNavbarConfig(navCfg) {
+          const nav = document.getElementById("main-nav");
+          const specular = document.getElementById("main-nav-specular");
+          const inner = document.getElementById("main-nav-inner");
+          const mobileMenu = document.getElementById("mobile-menu");
+          if (!nav) return;
+
+          const isMobile = window.innerWidth < 1024;
+          const style = navCfg?.style || "full_width";
+          const op = navCfg.opacity !== undefined ? Number(navCfg.opacity) : 0.92;
+          const blurMap = { none: "none", sm: "blur(4px)", md: "blur(12px)", lg: "blur(20px)" };
+          const chosenBlur = blurMap[navCfg.blur || "md"] || "blur(12px)";
+          const showBorder = navCfg.showBorder !== false;
+          const isMenuOpen = mobileMenu && !mobileMenu.classList.contains("hidden");
+
+          const currentTheme = getSavedConfig().theme || defaultCfg.theme;
+          const bgRgb = hexToRgb(currentTheme.bgColor || "#0a1120");
+          const navBg = `rgba(${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b}, ${op})`;
+          const navBgSolid = `rgba(${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b}, 0.98)`;
+
+          // Header navbar selalu fixed di viewport atas
+          nav.style.position = "fixed";
+          nav.style.zIndex = "50";
+
+          if (style === "transparent_gradient") {
+            nav.classList.remove("glass");
+            nav.classList.add("nav-transparent-gradient");
+
+            nav.style.top = "0";
+            nav.style.left = "0";
+            nav.style.right = "0";
+            nav.style.transform = "none";
+            nav.style.width = "100%";
+            nav.style.maxWidth = "none";
+            nav.style.minHeight = "64px";
+            nav.style.borderRadius = "0";
+            nav.style.overflow = "hidden";
+            nav.style.border = "none";
+
+            const updateTransparentScroll = () => {
+              if (window.scrollY > 50) {
+                nav.classList.add("scrolled");
+              } else {
+                nav.classList.remove("scrolled");
+              }
+            };
+
+            window.addEventListener("scroll", updateTransparentScroll, { passive: true });
+            updateTransparentScroll();
+
+            if (specular) specular.classList.add("hidden");
+            if (inner) {
+              inner.style.maxWidth = "1280px";
+              inner.style.padding = isMobile ? "0 16px" : "0 24px";
+              inner.style.height = "64px";
+            }
+
+            if (mobileMenu) {
+              mobileMenu.style.backgroundColor = navBgSolid;
+              mobileMenu.style.borderTop = "1px solid rgba(255, 255, 255, 0.1)";
+              mobileMenu.style.borderBottom = "none";
+            }
+          } else if (style === "liquid_glass") {
+            nav.classList.remove("nav-transparent-gradient");
+            nav.classList.remove("scrolled");
+            nav.classList.add("glass");
+
+            const gBlur = navCfg.glassBlur !== undefined ? Number(navCfg.glassBlur) : 0;
+            const gSat = navCfg.glassSaturate !== undefined ? Number(navCfg.glassSaturate) : 1;
+            const gTint = navCfg.glassTint || "rgba(255, 255, 255, 0.255)";
+            const gRad = navCfg.glassRadius !== undefined ? Number(navCfg.glassRadius) : 48;
+
+            nav.style.setProperty("--glass-blur", `${gBlur}px`);
+            nav.style.setProperty("--glass-saturate", `${gSat}`);
+            nav.style.setProperty("--glass-tint", gTint);
+            nav.style.setProperty("--glass-radius", `${gRad}px`);
+
+            if (isMobile) {
+              nav.style.top = "12px";
+              nav.style.left = "50%";
+              nav.style.right = "auto";
+              nav.style.transform = "translateX(-50%)";
+              nav.style.width = "calc(100vw - 1.5rem)";
+              nav.style.maxWidth = "720px";
+              nav.style.minHeight = "64px";
+              nav.style.borderRadius = isMenuOpen ? "24px" : `${gRad}px`;
+              nav.style.overflow = "hidden";
+              nav.style.boxShadow = "0 12px 32px rgba(0, 0, 0, 0.35)";
+            } else {
+              nav.style.top = "16px";
+              nav.style.left = "50%";
+              nav.style.right = "auto";
+              nav.style.transform = "translateX(-50%)";
+              nav.style.width = "min(720px, calc(100vw - 2rem))";
+              nav.style.maxWidth = "720px";
+              nav.style.minHeight = "72px";
+              nav.style.borderRadius = `${gRad}px`;
+              nav.style.overflow = "hidden";
+              nav.style.boxShadow = "";
+            }
+
+            nav.style.border = "";
+            nav.style.borderBottom = "";
+            nav.style.backgroundColor = "";
+            nav.style.backdropFilter = "";
+
+            if (specular) specular.classList.remove("hidden");
+            if (inner) {
+              inner.style.maxWidth = "720px";
+              inner.style.padding = isMobile ? "0 16px" : "0 20px";
+              inner.style.height = isMobile ? "64px" : "72px";
+            }
+
+            if (mobileMenu) {
+              mobileMenu.style.backgroundColor = navBgSolid;
+              mobileMenu.style.borderTop = "1px solid rgba(255, 255, 255, 0.12)";
+              mobileMenu.style.borderBottom = "none";
+            }
+          } else if (style === "floating_compact") {
+            nav.classList.remove("nav-transparent-gradient");
+            nav.classList.remove("scrolled");
+            nav.classList.remove("glass");
+
+            if (isMobile) {
+              nav.style.top = "12px";
+              nav.style.left = "50%";
+              nav.style.right = "auto";
+              nav.style.transform = "translateX(-50%)";
+              nav.style.width = "calc(100vw - 1.5rem)";
+              nav.style.maxWidth = "1152px";
+              nav.style.minHeight = "64px";
+              nav.style.borderRadius = "16px";
+              nav.style.overflow = "hidden";
+            } else {
+              nav.style.top = "16px";
+              nav.style.left = "50%";
+              nav.style.right = "auto";
+              nav.style.transform = "translateX(-50%)";
+              nav.style.width = "min(1152px, calc(100vw - 2rem))";
+              nav.style.maxWidth = "1152px";
+              nav.style.minHeight = "64px";
+              nav.style.borderRadius = "16px";
+              nav.style.overflow = "hidden";
+            }
+
+            nav.style.backgroundColor = navBg;
+            nav.style.backdropFilter = chosenBlur;
+            nav.style.webkitBackdropFilter = chosenBlur;
+            nav.style.border = showBorder ? "1px solid rgba(255, 255, 255, 0.12)" : "none";
+            nav.style.boxShadow = "0 8px 30px rgba(0, 0, 0, 0.3)";
+
+            if (specular) specular.classList.add("hidden");
+            if (inner) {
+              inner.style.maxWidth = "1152px";
+              inner.style.padding = isMobile ? "0 16px" : "0 16px";
+              inner.style.height = "64px";
+            }
+
+            if (mobileMenu) {
+              mobileMenu.style.backgroundColor = navBgSolid;
+              mobileMenu.style.borderTop = showBorder ? "1px solid rgba(255, 255, 255, 0.12)" : "none";
+              mobileMenu.style.borderBottom = "none";
+            }
+          } else {
+            // full_width
+            nav.classList.remove("nav-transparent-gradient");
+            nav.classList.remove("scrolled");
+            nav.classList.remove("glass");
+
+            nav.style.top = "0";
+            nav.style.left = "0";
+            nav.style.right = "0";
+            nav.style.transform = "none";
+            nav.style.width = "100%";
+            nav.style.maxWidth = "none";
+            nav.style.minHeight = "64px";
+            nav.style.borderRadius = "0";
+            nav.style.overflow = "hidden";
+            nav.style.backgroundColor = navBg;
+            nav.style.backdropFilter = chosenBlur;
+            nav.style.webkitBackdropFilter = chosenBlur;
+            nav.style.border = "none";
+            nav.style.borderBottom = showBorder ? "1px solid rgba(255, 255, 255, 0.1)" : "none";
+            nav.style.boxShadow = "none";
+
+            if (specular) specular.classList.add("hidden");
+            if (inner) {
+              inner.style.maxWidth = "1280px";
+              inner.style.padding = isMobile ? "0 16px" : "0 24px";
+              inner.style.height = "64px";
+            }
+
+            if (mobileMenu) {
+              mobileMenu.style.backgroundColor = navBgSolid;
+              mobileMenu.style.borderTop = showBorder ? "1px solid rgba(255, 255, 255, 0.1)" : "none";
+              mobileMenu.style.borderBottom = "none";
+            }
+          }
+
+          // Kontrol visibilitas Mobile Bottom Navbar vs Top Bar
+          const mobileNavType = navCfg?.mobileNavType || "bottom_nav";
+          const bottomNav = document.getElementById("mobile-bottom-nav");
+          const menuBtn = document.getElementById("mobile-menu-btn");
+
+          if (isMobile) {
+            if (mobileNavType === "bottom_nav") {
+              if (bottomNav) bottomNav.classList.remove("hidden");
+              if (menuBtn) menuBtn.classList.add("hidden");
+              if (mobileMenu) mobileMenu.classList.add("hidden");
+            } else {
+              if (bottomNav) bottomNav.classList.add("hidden");
+              if (menuBtn) menuBtn.classList.remove("hidden");
+            }
+          } else {
+            if (bottomNav) bottomNav.classList.add("hidden");
+            if (menuBtn) menuBtn.classList.add("hidden");
+            if (mobileMenu) mobileMenu.classList.add("hidden");
+          }
+        }
+
+        // 3. Sinkronisasi Gaya Sudut Elemen (Kotak Tegas / Rounded / Pill)
+        function applyCornerConfig(cornerCfg) {
+          const cornerStyle = cornerCfg?.style || "square";
+          document.body.classList.remove("corner-square", "corner-rounded", "corner-pill");
+          document.body.classList.add(`corner-${cornerStyle}`);
+        }
+
+        // 3. Sinkronisasi Tema Global Website
+        function applyThemeConfig(themeCfg) {
+          if (!themeCfg) return;
+          const bg = themeCfg.bgColor || "#0a1120";
+          const surface = themeCfg.surfaceColor || "#101a2e";
+          const text = themeCfg.textColor || "#f8fafc";
+          const accent = themeCfg.accentColor || "#ea580c";
+          const accentHover = adjustHexBrightness(accent, -15);
+          const cardBg = adjustHexBrightness(surface, 12);
+
+          const bgRgb = hexToRgb(bg);
+          const surfaceRgb = hexToRgb(surface);
+          const cardRgb = hexToRgb(cardBg);
+          const accentRgb = hexToRgb(accent);
+
+          const root = document.documentElement;
+          root.style.setProperty("--color-bg-dark", bg);
+          root.style.setProperty("--color-bg-rgb", `${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b}`);
+          root.style.setProperty("--color-surface-dark", surface);
+          root.style.setProperty("--color-surface-rgb", `${surfaceRgb.r}, ${surfaceRgb.g}, ${surfaceRgb.b}`);
+          root.style.setProperty("--color-surface-card", cardBg);
+          root.style.setProperty("--color-surface-card-rgb", `${cardRgb.r}, ${cardRgb.g}, ${cardRgb.b}`);
+          root.style.setProperty("--color-accent", accent);
+          root.style.setProperty("--color-accent-rgb", `${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}`);
+          root.style.setProperty("--color-accent-hover", accentHover);
+          root.style.setProperty("--color-text", text);
+
+          document.body.style.backgroundColor = bg;
+          document.body.style.color = text;
+
+          // Update brand accent highlight
+          document.querySelectorAll(".brand-accent-highlight").forEach((el) => {
+            el.style.color = accent;
+          });
+
+          // Update slide overlay gradients to match theme background color
+          document.querySelectorAll(".slide-overlay-bg").forEach((el) => {
+            const img = el.getAttribute("data-bg-img") || "";
+            el.style.backgroundImage = `linear-gradient(180deg, rgba(${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b}, 0.72) 0%, rgba(${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b}, 0.88) 60%, rgba(${bgRgb.r}, ${bgRgb.g}, ${bgRgb.b}, 0.98) 100%), url('${img}')`;
+          });
+
+          // Refresh navbar color with new theme bg
+          const navCfg = getSavedConfig().navbar;
+          if (navCfg) {
+            applyNavbarConfig(navCfg);
+          }
+        }
+
+        // 3. Hero Slider Logic
+        let currentSlide = 0;
+        let slideTimer = null;
+        let totalSlides = defaultCfg.hero.slides.length;
+
+        function showSlide(index) {
+          const slides = document.querySelectorAll(".hero-slide");
+          const dots = document.querySelectorAll(".slider-dot-btn");
+          const counter = document.getElementById("slider-counter");
+          if (!slides || slides.length === 0) return;
+
+          totalSlides = slides.length;
+          currentSlide = (index + totalSlides) % totalSlides;
+
+          slides.forEach((sl, idx) => {
+            if (idx === currentSlide) {
+              sl.classList.remove("inactive-slide");
+              sl.classList.add("active-slide");
+            } else {
+              sl.classList.remove("active-slide");
+              sl.classList.add("inactive-slide");
+            }
+          });
+
+          dots.forEach((dot, idx) => {
+            if (idx === currentSlide) {
+              dot.classList.remove("w-2", "bg-slate-700");
+              dot.classList.add("w-8");
+              dot.style.backgroundColor = "var(--color-accent)";
+              dot.setAttribute("aria-selected", "true");
+            } else {
+              dot.classList.remove("w-8");
+              dot.classList.add("w-2", "bg-slate-700");
+              dot.style.backgroundColor = "";
+              dot.setAttribute("aria-selected", "false");
+            }
+          });
+
+          if (counter) {
+            const curStr = String(currentSlide + 1).padStart(2, "0");
+            const totStr = String(totalSlides).padStart(2, "0");
+            counter.textContent = `${curStr} / ${totStr}`;
+          }
+        }
+
+        function nextSlide() {
+          showSlide(currentSlide + 1);
+        }
+
+        function prevSlide() {
+          showSlide(currentSlide - 1);
+        }
+
+        function startAutoplay(intervalSeconds) {
+          stopAutoplay();
+          const sec = intervalSeconds && intervalSeconds >= 2 ? intervalSeconds : 5;
+          slideTimer = setInterval(nextSlide, sec * 1000);
+        }
+
+        function stopAutoplay() {
+          if (slideTimer) {
+            clearInterval(slideTimer);
+            slideTimer = null;
+          }
+        }
+
+        // Bind Arrow Navigation
+        const prevBtn = document.getElementById("slider-prev-btn");
+        const nextBtn = document.getElementById("slider-next-btn");
+        if (prevBtn) {
+          prevBtn.addEventListener("click", () => {
+            prevSlide();
+            stopAutoplay();
+          });
+        }
+        if (nextBtn) {
+          nextBtn.addEventListener("click", () => {
+            nextSlide();
+            stopAutoplay();
+          });
+        }
+
+        // Bind Dot Navigation
+        document.querySelectorAll(".slider-dot-btn").forEach((dot) => {
+          dot.addEventListener("click", () => {
+            const target = Number(dot.getAttribute("data-target-slide"));
+            if (!isNaN(target)) {
+              showSlide(target);
+              stopAutoplay();
+            }
+          });
         });
-      }
-      tick();
-      setInterval(tick, 1000);
+
+        // Pause autoplay on mouse hover over slider
+        const sliderSec = document.getElementById("hero-slider-section");
+        if (sliderSec) {
+          sliderSec.addEventListener("mouseenter", stopAutoplay);
+          sliderSec.addEventListener("mouseleave", () => {
+            const cfg = getSavedConfig();
+            if (cfg.hero.autoplay !== false) {
+              startAutoplay(cfg.hero.intervalSeconds);
+            }
+          });
+        }
+
+        // Keyboard navigation (ArrowLeft & ArrowRight)
+        window.addEventListener("keydown", (e) => {
+          if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+          if (e.key === "ArrowLeft") {
+            prevSlide();
+          } else if (e.key === "ArrowRight") {
+            nextSlide();
+          }
+        });
+
+        // Touch swipe navigation for mobile screens
+        if (sliderSec) {
+          let touchStartX = 0;
+          let touchStartY = 0;
+          let touchEndX = 0;
+          let touchEndY = 0;
+
+          sliderSec.addEventListener(
+            "touchstart",
+            (e) => {
+              if (e.touches && e.touches.length === 1) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                touchEndX = touchStartX;
+                touchEndY = touchStartY;
+              }
+            },
+            { passive: true }
+          );
+
+          sliderSec.addEventListener(
+            "touchmove",
+            (e) => {
+              if (e.touches && e.touches.length === 1) {
+                touchEndX = e.touches[0].clientX;
+                touchEndY = e.touches[0].clientY;
+              }
+            },
+            { passive: true }
+          );
+
+          sliderSec.addEventListener(
+            "touchend",
+            () => {
+              const diffX = touchEndX - touchStartX;
+              const diffY = touchEndY - touchStartY;
+              if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY) * 1.3) {
+                if (diffX < 0) {
+                  nextSlide();
+                  stopAutoplay();
+                } else {
+                  prevSlide();
+                  stopAutoplay();
+                }
+              }
+            },
+            { passive: true }
+          );
+        }
+
+        function applyFeaturesConfig(features) {
+          const filterContainer = document.getElementById("homepage-sport-filter-container");
+          if (filterContainer) {
+            if (features && features.showSportFilter === false) {
+              filterContainer.classList.add("hidden");
+            } else {
+              filterContainer.classList.remove("hidden");
+            }
+          }
+        }
+
+        // 2b. Sinkronisasi Visual Hero (Overlay Darkness, Tipografi Keterangan, Posisi Foto & Blur Gradien)
+        function applyHeroConfig(heroCfg) {
+          if (!heroCfg) return;
+          const darkness = heroCfg.overlayDarkness !== undefined ? Number(heroCfg.overlayDarkness) : 0.35;
+          const statsStyle = heroCfg.statsStyle || "transparent";
+          const imagePos = heroCfg.imagePosition || "top";
+          const bottomBlur = heroCfg.bottomBlur !== false;
+
+          const topA = Math.min(0.20, Number((darkness * 0.15).toFixed(2)));
+          const midA = Number((darkness * 0.35).toFixed(2));
+          const botA = Math.min(0.95, Number((darkness * 1.9).toFixed(2)));
+
+          document.querySelectorAll(".slide-overlay-bg").forEach((bgEl) => {
+            const bgImg = bgEl.getAttribute("data-bg-img") || "";
+            const el = bgEl;
+            el.style.backgroundImage = `linear-gradient(180deg, rgba(10, 17, 32, ${topA}) 0%, rgba(10, 17, 32, ${midA}) 35%, rgba(10, 17, 32, ${botA}) 100%), url('${bgImg}')`;
+            el.style.backgroundPosition = imagePos === "top" ? "center top" : "center center";
+          });
+
+          const blurEls = document.querySelectorAll(".hero-bottom-gradient-layer, #hero-bottom-gradient-blur");
+          blurEls.forEach((el) => {
+            if (bottomBlur) {
+              el.classList.remove("hidden", "opacity-0");
+              el.classList.add("opacity-100");
+            } else {
+              el.classList.remove("opacity-100");
+              el.classList.add("opacity-0", "hidden");
+            }
+          });
+
+          document.querySelectorAll(".slide-stats").forEach((statsEl) => {
+            if (statsStyle === "transparent") {
+              statsEl.classList.remove("stats-boxed");
+              statsEl.classList.add("stats-transparent");
+            } else {
+              statsEl.classList.remove("stats-transparent");
+              statsEl.classList.add("stats-boxed");
+            }
+          });
+
+          const showHeroTags = heroCfg.showTags === true;
+          if (heroCfg.slides && Array.isArray(heroCfg.slides)) {
+            heroCfg.slides.forEach((sl, idx) => {
+              const slideEl = document.querySelector(`.hero-slide[data-slide-index="${idx}"]`);
+              if (slideEl) {
+                const badgeEl = slideEl.querySelector(".slide-badge");
+                if (badgeEl) {
+                  if (!showHeroTags || !sl.tag || !sl.tag.trim()) {
+                    badgeEl.classList.add("hidden");
+                  } else {
+                    badgeEl.classList.remove("hidden");
+                    const spanEl = badgeEl.querySelector("span");
+                    if (spanEl) {
+                      spanEl.textContent = sl.tag;
+                      if (sl.tagColor) spanEl.className = `px-2.5 py-0.5 rounded text-[11px] ${sl.tagColor}`;
+                    }
+                  }
+                }
+
+                const subEl = slideEl.querySelector(".slide-subtitle");
+                if (subEl) {
+                  if (sl.showSubtitle === false) {
+                    subEl.classList.add("hidden");
+                  } else {
+                    subEl.classList.remove("hidden");
+                  }
+                }
+              }
+            });
+          }
+        }
+
+        // Inisialisasi Tampilan Berdasarkan Konfigurasi
+        function initFromConfig() {
+          const cfg = getSavedConfig();
+          applyBrandConfig(cfg.brand);
+          applyNavbarConfig(cfg.navbar);
+          applyCornerConfig(cfg.corners);
+          applyThemeConfig(cfg.theme);
+          applyFeaturesConfig(cfg.features);
+          applyHeroConfig(cfg.hero);
+
+          if (cfg.hero.mode === "single") {
+            // Tampilkan slide pertama saja, sembunyikan navigasi
+            showSlide(0);
+            stopAutoplay();
+            if (prevBtn) prevBtn.classList.add("hidden");
+            if (nextBtn) nextBtn.classList.add("hidden");
+            const dotsEl = document.getElementById("slider-dots");
+            if (dotsEl) dotsEl.classList.add("hidden");
+            const counterEl = document.getElementById("slider-counter");
+            if (counterEl) counterEl.classList.add("hidden");
+          } else {
+            if (prevBtn) prevBtn.classList.remove("hidden");
+            if (nextBtn) nextBtn.classList.remove("hidden");
+            const dotsEl = document.getElementById("slider-dots");
+            if (dotsEl) dotsEl.classList.remove("hidden");
+            const counterEl = document.getElementById("slider-counter");
+            if (counterEl) counterEl.classList.remove("hidden");
+
+            showSlide(0);
+            if (cfg.hero.autoplay !== false) {
+              startAutoplay(cfg.hero.intervalSeconds);
+            }
+          }
+        }
+
+        // Dengarkan Perubahan dari Admin Customizer (Live Event)
+        window.addEventListener("ivy:homepage_config_changed", (ev) => {
+          if (ev.detail) {
+            applyBrandConfig(ev.detail.brand || defaultCfg.brand);
+            applyNavbarConfig(ev.detail.navbar || defaultCfg.navbar);
+            applyCornerConfig(ev.detail.corners || defaultCfg.corners);
+            applyThemeConfig(ev.detail.theme || defaultCfg.theme);
+            applyFeaturesConfig(ev.detail.features);
+            applyHeroConfig(ev.detail.hero);
+            if (ev.detail.hero) {
+              if (ev.detail.hero.mode === "single") {
+                stopAutoplay();
+                showSlide(0);
+              } else if (ev.detail.hero.autoplay !== false) {
+                startAutoplay(ev.detail.hero.intervalSeconds);
+              } else {
+                stopAutoplay();
+              }
+            }
+          }
+        });
+
+        // Jalankan inisialisasi awal
+        initFromConfig();
+
+        // Sinkronisasi konfigurasi dari server agar perubahan admin desktop otomatis tampil di mobile
+        fetch("/platform-config.json", { cache: "no-store" })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((remoteCfg) => {
+            if (remoteCfg && remoteCfg.navbar) {
+              const current = getSavedConfig();
+              const merged = {
+                brand: { ...current.brand, ...(remoteCfg.brand || {}) },
+                navbar: { ...current.navbar, ...(remoteCfg.navbar || {}) },
+                corners: { ...current.corners, ...(remoteCfg.corners || {}) },
+                theme: { ...current.theme, ...(remoteCfg.theme || {}) },
+                hero: { ...current.hero, ...(remoteCfg.hero || {}) },
+              };
+              localStorage.setItem(HOMEPAGE_CONFIG_STORAGE_KEY, JSON.stringify(merged));
+              initFromConfig();
+            }
+          })
+          .catch(() => {});
+
+        // 4. Mobile Menu Toggle & Live Sync
+        function updateNavRadiusForMenu(isOpen) {
+          const nav = document.getElementById("main-nav");
+          if (!nav) return;
+          const cfg = getSavedConfig();
+          const style = cfg.navbar?.style || "full_width";
+          const isMobile = window.innerWidth < 1024;
+          if (style === "liquid_glass") {
+            const gRad = cfg.navbar?.glassRadius !== undefined ? Number(cfg.navbar.glassRadius) : 48;
+            nav.style.borderRadius = (isOpen && isMobile) ? "24px" : `${gRad}px`;
+          } else if (style === "floating_compact") {
+            nav.style.borderRadius = "16px";
+          } else {
+            nav.style.borderRadius = "0";
+          }
+        }
+
+        const menuBtn = document.getElementById("mobile-menu-btn");
+        const mobileMenu = document.getElementById("mobile-menu");
+        const iconOpen = document.getElementById("menu-icon-open");
+        const iconClose = document.getElementById("menu-icon-close");
+
+        if (menuBtn && mobileMenu) {
+          menuBtn.addEventListener("click", () => {
+            const isOpen = !mobileMenu.classList.contains("hidden");
+            if (isOpen) {
+              mobileMenu.classList.add("hidden");
+              menuBtn.setAttribute("aria-expanded", "false");
+              iconOpen?.classList.remove("hidden");
+              iconClose?.classList.add("hidden");
+              updateNavRadiusForMenu(false);
+            } else {
+              mobileMenu.classList.remove("hidden");
+              menuBtn.setAttribute("aria-expanded", "true");
+              iconOpen?.classList.add("hidden");
+              iconClose?.classList.remove("hidden");
+              updateNavRadiusForMenu(true);
+            }
+          });
+
+          document.querySelectorAll(".mobile-nav-link").forEach((link) => {
+            link.addEventListener("click", () => {
+              mobileMenu.classList.add("hidden");
+              menuBtn.setAttribute("aria-expanded", "false");
+              iconOpen?.classList.remove("hidden");
+              iconClose?.classList.add("hidden");
+              updateNavRadiusForMenu(false);
+            });
+          });
+
+          document.addEventListener("click", (e) => {
+            if (!mobileMenu.classList.contains("hidden")) {
+              const nav = document.getElementById("main-nav");
+              if (nav && !nav.contains(e.target)) {
+                mobileMenu.classList.add("hidden");
+                menuBtn.setAttribute("aria-expanded", "false");
+                iconOpen?.classList.remove("hidden");
+                iconClose?.classList.add("hidden");
+                updateNavRadiusForMenu(false);
+              }
+            }
+          });
+        }
+
+        // Sinkronisasi live saat window resize atau perubahan config dari tab lain
+        window.addEventListener("resize", () => {
+          const cfg = getSavedConfig();
+          applyNavbarConfig(cfg.navbar);
+        });
+
+        window.addEventListener("storage", (e) => {
+          if (e.key === HOMEPAGE_CONFIG_STORAGE_KEY) {
+            initFromConfig();
+          }
+        });
+
+        // 5. Interaksi Drag & Scroll Slider Carousel (Desktop & Mobile)
+        const eventTrack = document.getElementById("events-slider-track");
+        const catTrack = document.getElementById("categories-slider-track");
+        const eventDotsContainer = document.getElementById("events-slider-dots");
+        const catDotsContainer = document.getElementById("categories-slider-dots");
+
+        function scrollCardToCenter(track, card) {
+          if (!track || !card) return;
+          const trackCenter = track.clientWidth / 2;
+          const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+          const targetScrollLeft = cardCenter - trackCenter;
+          track.scrollTo({
+            left: Math.max(0, targetScrollLeft),
+            behavior: "smooth",
+          });
+        }
+
+        function enableDragToScroll(slider) {
+          if (!slider) return;
+          let isDown = false;
+          let startX = 0;
+          let scrollLeft = 0;
+          let hasDragged = false;
+
+          slider.addEventListener("mousedown", (e) => {
+            isDown = true;
+            hasDragged = false;
+            slider.classList.add("active-drag");
+            startX = e.pageX - slider.offsetLeft;
+            scrollLeft = slider.scrollLeft;
+          });
+
+          slider.addEventListener("mouseleave", () => {
+            isDown = false;
+            slider.classList.remove("active-drag");
+          });
+
+          slider.addEventListener("mouseup", () => {
+            isDown = false;
+            slider.classList.remove("active-drag");
+          });
+
+          slider.addEventListener("mousemove", (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - slider.offsetLeft;
+            const walk = (x - startX) * 1.5;
+            if (Math.abs(walk) > 5) {
+              hasDragged = true;
+            }
+            slider.scrollLeft = scrollLeft - walk;
+          });
+
+          // Cegah aksi klik jika pengguna sedang menggeser mouse
+          slider.addEventListener(
+            "click",
+            (e) => {
+              if (hasDragged) {
+                e.preventDefault();
+                e.stopPropagation();
+                hasDragged = false;
+              }
+            },
+            true
+          );
+        }
+
+        enableDragToScroll(eventTrack);
+        enableDragToScroll(catTrack);
+
+        // 6. Dot Pagination Navigasi Event Pilihan (Model Indonesia Marathon)
+        const eventCards = eventTrack ? Array.from(eventTrack.querySelectorAll(".event-slide-card")) : [];
+
+        function updateEventDots() {
+          if (!eventTrack || !eventDotsContainer) return;
+          const dots = Array.from(eventDotsContainer.querySelectorAll(".event-dot-btn"));
+          if (!eventCards.length || !dots.length) return;
+
+          const trackCenter = eventTrack.scrollLeft + eventTrack.clientWidth / 2;
+          let closestIndex = 0;
+          let minDiff = Infinity;
+
+          eventCards.forEach((card, idx) => {
+            const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+            const diff = Math.abs(trackCenter - cardCenter);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closestIndex = idx;
+            }
+          });
+
+          dots.forEach((dot, idx) => {
+            const pill = dot.querySelector(".carousel-dot-pill");
+            const isActive = idx === closestIndex;
+            dot.setAttribute("aria-current", isActive ? "true" : "false");
+            if (pill) {
+              if (isActive) {
+                pill.classList.remove("w-1.5", "bg-white/30", "group-hover:bg-white/60");
+                pill.classList.add("w-6", "theme-accent-bg");
+                pill.style.backgroundColor = "var(--color-accent)";
+              } else {
+                pill.classList.remove("w-6", "theme-accent-bg");
+                pill.classList.add("w-1.5", "bg-white/30", "group-hover:bg-white/60");
+                pill.style.backgroundColor = "";
+              }
+            }
+          });
+        }
+
+        if (eventDotsContainer && eventTrack) {
+          const dots = eventDotsContainer.querySelectorAll(".event-dot-btn");
+          dots.forEach((dot) => {
+            dot.addEventListener("click", () => {
+              const idx = parseInt(dot.getAttribute("data-slide-index") || "0", 10);
+              if (eventCards[idx]) {
+                scrollCardToCenter(eventTrack, eventCards[idx]);
+              }
+            });
+          });
+
+          let eventTicking = false;
+          eventTrack.addEventListener(
+            "scroll",
+            () => {
+              if (!eventTicking) {
+                window.requestAnimationFrame(() => {
+                  updateEventDots();
+                  eventTicking = false;
+                });
+                eventTicking = true;
+              }
+            },
+            { passive: true }
+          );
+
+          window.addEventListener("resize", updateEventDots);
+        }
+
+        // 7. Dot Pagination Navigasi Kategori Lomba & Filter Cabang Olahraga
+        function getVisibleCategoryCards() {
+          if (!catTrack) return [];
+          return Array.from(catTrack.querySelectorAll(".category-card:not(.hidden)"));
+        }
+
+        function renderCategoryDots() {
+          if (!catTrack || !catDotsContainer) return;
+          const visibleCards = getVisibleCategoryCards();
+          catDotsContainer.innerHTML = "";
+
+          visibleCards.forEach((card, idx) => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "category-dot-btn flex h-8 w-6 sm:w-8 items-center justify-center cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 rounded-full";
+            btn.setAttribute("aria-label", `Slide ${idx + 1}`);
+            btn.setAttribute("aria-current", idx === 0 ? "true" : "false");
+            btn.dataset.slideIndex = String(idx);
+
+            const pill = document.createElement("span");
+            pill.className = `carousel-dot-pill h-1.5 block rounded-full transition-all duration-300 ${
+              idx === 0 ? "w-6 theme-accent-bg" : "w-1.5 bg-white/30 group-hover:bg-white/60"
+            }`;
+            if (idx === 0) {
+              pill.style.backgroundColor = "var(--color-accent)";
+            }
+
+            btn.appendChild(pill);
+            btn.addEventListener("click", () => {
+              scrollCardToCenter(catTrack, card);
+            });
+
+            catDotsContainer.appendChild(btn);
+          });
+
+          updateCategoryDots();
+        }
+
+        function updateCategoryDots() {
+          if (!catTrack || !catDotsContainer) return;
+          const visibleCards = getVisibleCategoryCards();
+          const dots = Array.from(catDotsContainer.querySelectorAll(".category-dot-btn"));
+          if (!visibleCards.length || !dots.length) return;
+
+          const trackCenter = catTrack.scrollLeft + catTrack.clientWidth / 2;
+          let closestIndex = 0;
+          let minDiff = Infinity;
+
+          visibleCards.forEach((card, idx) => {
+            const cardCenter = card.offsetLeft + card.offsetWidth / 2;
+            const diff = Math.abs(trackCenter - cardCenter);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closestIndex = idx;
+            }
+          });
+
+          dots.forEach((dot, idx) => {
+            const pill = dot.querySelector(".carousel-dot-pill");
+            const isActive = idx === closestIndex;
+            dot.setAttribute("aria-current", isActive ? "true" : "false");
+            if (pill) {
+              if (isActive) {
+                pill.classList.remove("w-1.5", "bg-white/30", "group-hover:bg-white/60");
+                pill.classList.add("w-6", "theme-accent-bg");
+                pill.style.backgroundColor = "var(--color-accent)";
+              } else {
+                pill.classList.remove("w-6", "theme-accent-bg");
+                pill.classList.add("w-1.5", "bg-white/30", "group-hover:bg-white/60");
+                pill.style.backgroundColor = "";
+              }
+            }
+          });
+        }
+
+        if (catDotsContainer && catTrack) {
+          const initialDots = catDotsContainer.querySelectorAll(".category-dot-btn");
+          const initialCards = getVisibleCategoryCards();
+          initialDots.forEach((dot, idx) => {
+            dot.addEventListener("click", () => {
+              if (initialCards[idx]) {
+                scrollCardToCenter(catTrack, initialCards[idx]);
+              }
+            });
+          });
+
+          let catTicking = false;
+          catTrack.addEventListener(
+            "scroll",
+            () => {
+              if (!catTicking) {
+                window.requestAnimationFrame(() => {
+                  updateCategoryDots();
+                  catTicking = false;
+                });
+                catTicking = true;
+              }
+            },
+            { passive: true }
+          );
+
+          window.addEventListener("resize", updateCategoryDots);
+        }
+
+        // Filter Cabang Olahraga Interaktif
+        const filterButtons = document.querySelectorAll(".sport-filter-btn");
+        const cards = document.querySelectorAll(".category-card");
+
+        filterButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            const selectedSport = button.getAttribute("data-sport");
+
+            filterButtons.forEach((btn) => {
+              btn.classList.remove("active", "theme-accent-bg", "theme-accent-border", "text-white");
+              btn.classList.add("bg-slate-800/80", "border-slate-700", "text-slate-300");
+              btn.style.backgroundColor = "";
+              btn.style.borderColor = "";
+            });
+            button.classList.add("active", "theme-accent-bg", "theme-accent-border", "text-white");
+            button.classList.remove("bg-slate-800/80", "border-slate-700", "text-slate-300");
+            button.style.backgroundColor = "var(--color-accent)";
+            button.style.borderColor = "var(--color-accent)";
+
+            cards.forEach((card) => {
+              const cardSport = card.getAttribute("data-sport");
+              if (selectedSport === "all" || cardSport === selectedSport) {
+                card.classList.remove("hidden");
+              } else {
+                card.classList.add("hidden");
+              }
+            });
+
+            // Kembalikan slider ke posisi awal saat filter berganti dan update dots
+            if (catTrack) {
+              catTrack.scrollTo({ left: 0, behavior: "smooth" });
+              renderCategoryDots();
+            }
+          });
+        });
+      })();
     </script>
   </body>
 </html>

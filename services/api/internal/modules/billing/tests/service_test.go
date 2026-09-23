@@ -141,6 +141,32 @@ func (r *fakeRepo) MarkPlatformInvoicePaid(ctx context.Context, id uuid.UUID) (d
 	inv.Status = "PAID"
 	return inv, nil
 }
+func (r *fakeRepo) CreatePayoutAccount(ctx context.Context, arg db.CreatePayoutAccountParams) (db.OrgPayoutAccount, error) {
+	return db.OrgPayoutAccount{
+		ID: arg.OrganizationID, OrganizationID: arg.OrganizationID,
+		BankName: arg.BankName, BankCode: arg.BankCode,
+		AccountNumber: arg.AccountNumber, AccountName: arg.AccountName,
+		IsVerified: arg.IsVerified,
+	}, nil
+}
+func (r *fakeRepo) ListPayoutAccountsByOrg(ctx context.Context, orgID uuid.UUID) ([]db.OrgPayoutAccount, error) {
+	return nil, nil
+}
+func (r *fakeRepo) DeletePayoutAccount(ctx context.Context, arg db.DeletePayoutAccountParams) error {
+	return nil
+}
+func (r *fakeRepo) CreatePayoutRequest(ctx context.Context, arg db.CreatePayoutRequestParams) (db.PayoutRequest, error) {
+	return db.PayoutRequest{
+		ID: uuid.New(), OrganizationID: arg.OrganizationID, Amount: arg.Amount,
+		Currency: arg.Currency, Status: arg.Status, Notes: arg.Notes, RequestedBy: arg.RequestedBy,
+	}, nil
+}
+func (r *fakeRepo) ListPayoutRequestsByOrg(ctx context.Context, orgID uuid.UUID) ([]db.PayoutRequest, error) {
+	return nil, nil
+}
+func (r *fakeRepo) GetOrgRefundSummary(ctx context.Context, orgID uuid.UUID) (int64, error) {
+	return 0, nil
+}
 
 func newSvc(r *fakeRepo) *billing.Service {
 	return billing.NewService(r, nil, slog.New(slog.NewTextHandler(nil, &slog.HandlerOptions{})))

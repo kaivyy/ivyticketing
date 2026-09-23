@@ -3,15 +3,195 @@ export const prerender = false;
 import OrganizerLayout from "../../../layouts/OrganizerLayout.astro";
 const { orgId } = Astro.params;
 ---
-<OrganizerLayout title="Anggota — ivyticketing">
-  <div class="space-y-4">
-    <h1 class="text-2xl font-bold text-slate-900">Anggota</h1>
-    <div class="rounded-lg border border-slate-200 bg-white p-8 text-center">
-      <p class="font-medium text-slate-700 mb-1">Segera tersedia</p>
-      <p class="text-sm text-slate-500">Fitur manajemen anggota sedang dalam pengembangan.</p>
+
+<OrganizerLayout title="Anggota Tim : ivyticketing" orgId={orgId}>
+  <div id="members-root" data-org-id={orgId} class="space-y-6">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
+      <div>
+        <h1 class="font-display text-2xl font-bold uppercase tracking-tight text-slate-900">
+          Anggota Tim & Manajemen Akses
+        </h1>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Kelola tim operasional, penanggung jawab race pack, dan administrator event organisasi Anda.
+        </p>
+      </div>
+      <button
+        id="btn-open-invite"
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 transition-colors"
+      >
+        + Tambah Anggota
+      </button>
     </div>
+
+    <!-- Modal Tambah Anggota -->
+    <div id="invite-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+      <div class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+          <h2 class="font-display text-lg font-bold uppercase text-slate-900">Tambah Anggota Tim</h2>
+          <button id="btn-close-invite" type="button" class="text-slate-400 hover:text-slate-700 text-lg">&times;</button>
+        </div>
+
+        <form id="invite-form" class="mt-4 space-y-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="member-email">
+              Alamat Email Pengguna <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="member-email"
+              name="email"
+              type="email"
+              required
+              placeholder="rekan@email.com"
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:border-orange-500 focus:outline-none"
+            />
+            <p class="text-[11px] text-slate-400 mt-1">Pengguna harus sudah terdaftar di platform IvyTicketing.</p>
+          </div>
+
+          <p id="invite-error" class="hidden rounded bg-red-50 p-2.5 text-xs font-medium text-red-700 border border-red-200"></p>
+
+          <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+            <button
+              id="btn-cancel-invite"
+              type="button"
+              class="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Batal
+            </button>
+            <button
+              id="btn-submit-invite"
+              type="submit"
+              class="rounded-lg bg-orange-600 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-orange-500"
+            >
+              Tambahkan ke Tim
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Container Daftar Anggota -->
+    <div id="members-list" class="space-y-3">
+      <p class="text-slate-500">Memuat data anggota tim…</p>
+    </div>
+
     <p class="text-xs text-slate-400">
       <a href={`/org/${orgId}/dashboard`} class="underline hover:text-slate-600">Kembali ke Dashboard</a>
     </p>
   </div>
+
+  <script>
+    import { authedFetch } from "../../../lib/api";
+    import { esc } from "../../../lib/safe";
+
+    const root = document.getElementById("members-root");
+    const orgId = root?.dataset.orgId || window.location.pathname.split("/")[2] || "";
+
+    const list = document.getElementById("members-list");
+    const modal = document.getElementById("invite-modal");
+    const form = document.getElementById("invite-form");
+    const errEl = document.getElementById("invite-error");
+    const submitBtn = document.getElementById("btn-submit-invite");
+
+    // Modal controls
+    document.getElementById("btn-open-invite")?.addEventListener("click", () => {
+      form.reset();
+      errEl.classList.add("hidden");
+      modal.classList.remove("hidden");
+    });
+    document.getElementById("btn-close-invite")?.addEventListener("click", () => modal.classList.add("hidden"));
+    document.getElementById("btn-cancel-invite")?.addEventListener("click", () => modal.classList.add("hidden"));
+
+    async function loadMembers() {
+      try {
+        const members = await authedFetch(`/organizations/${orgId}/members`);
+
+        if (!members || members.length === 0) {
+          list.innerHTML = `
+            <div class="rounded-xl border border-slate-200 bg-white p-8 text-center">
+              <p class="font-semibold text-slate-800">Belum ada anggota tim lain</p>
+              <p class="text-xs text-slate-500 mt-1">Undang rekan tim untuk membantu mengelola pendaftaran dan event.</p>
+            </div>`;
+          return;
+        }
+
+        list.innerHTML = `
+          <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-bold tracking-wider">
+                <tr>
+                  <th class="px-5 py-3">Nama Anggota</th>
+                  <th class="px-5 py-3">Email</th>
+                  <th class="px-5 py-3 text-right">Tindakan</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                ${members
+                  .map(
+                    (m) => `
+                    <tr class="hover:bg-slate-50/50">
+                      <td class="px-5 py-3.5 font-semibold text-slate-900">${esc(m.fullName || "Pengguna")}</td>
+                      <td class="px-5 py-3.5 font-mono text-slate-600">${esc(m.email)}</td>
+                      <td class="px-5 py-3.5 text-right">
+                        <button
+                          class="btn-remove-member text-xs font-semibold text-red-600 hover:text-red-800"
+                          data-member-id="${esc(m.id)}"
+                          data-email="${esc(m.email)}"
+                        >
+                          Hapus Akses
+                        </button>
+                      </td>
+                    </tr>`
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>`;
+
+        list.querySelectorAll(".btn-remove-member").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const memberId = btn.getAttribute("data-member-id");
+            const email = btn.getAttribute("data-email");
+            if (!confirm(`Hapus akses tim untuk ${email}?`)) return;
+            try {
+              await authedFetch(`/organizations/${orgId}/members/${memberId}`, { method: "DELETE" });
+              loadMembers();
+            } catch (err) {
+              alert(err.message || "Gagal menghapus anggota.");
+            }
+          });
+        });
+      } catch (err) {
+        list.innerHTML = `<p class="text-red-600 text-sm">Gagal memuat anggota: ${esc(err.message)}</p>`;
+      }
+    }
+
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errEl.classList.add("hidden");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Menambahkan…";
+
+      const fd = new FormData(form);
+      const email = String(fd.get("email") ?? "").trim();
+
+      try {
+        await authedFetch(`/organizations/${orgId}/members`, {
+          method: "POST",
+          body: { email },
+        });
+        modal.classList.add("hidden");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Tambahkan ke Tim";
+        loadMembers();
+      } catch (err) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Tambahkan ke Tim";
+        errEl.textContent = err.message || "Pengguna dengan email tersebut tidak ditemukan atau sudah menjadi anggota.";
+        errEl.classList.remove("hidden");
+      }
+    });
+
+    loadMembers();
+  </script>
 </OrganizerLayout>

@@ -12,9 +12,13 @@ type CreateDrawRequest struct {
 
 type BallotDrawDTO struct {
 	ID                  string     `json:"id"`
+	OrganizationID      string     `json:"organizationId,omitempty"`
+	EventID             string     `json:"eventId,omitempty"`
+	CategoryID          string     `json:"categoryId,omitempty"`
 	Status              string     `json:"status"`
 	Quota               int32      `json:"quota"`
 	WaitlistSize        int32      `json:"waitlistSize"`
+	PaymentWindowHours  int32      `json:"paymentWindowHours"`
 	ApplicationOpensAt  time.Time  `json:"applicationOpensAt"`
 	ApplicationClosesAt time.Time  `json:"applicationClosesAt"`
 	DrawAt              *time.Time `json:"drawAt,omitempty"`

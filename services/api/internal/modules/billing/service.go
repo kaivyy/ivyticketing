@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
 	"github.com/varin/ivyticketing/services/api/internal/platform/audit"
@@ -420,5 +421,193 @@ func toInvoiceResponse(inv db.PlatformInvoice) InvoiceResponse {
 		IssuedAt:           tsPtr(inv.IssuedAt),
 		PaidAt:             tsPtr(inv.PaidAt),
 		CreatedAt:          tsStr(inv.CreatedAt),
+	}
+}
+
+// --- payouts ---
+
+func (s *Service) CreatePayoutAccount(ctx context.Context, orgID uuid.UUID, req CreatePayoutAccountRequest) (PayoutAccountResponse, error) {
+	if req.BankName == "" || req.AccountNumber == "" || req.AccountName == "" {
+		return PayoutAccountResponse{}, errors.New("bank name, account number, and account name are required")
+	}
+	bankCode := req.BankCode
+	if bankCode == "" {
+		bankCode = req.BankName
+	}
+	acct, err := s.repo.CreatePayoutAccount(ctx, db.CreatePayoutAccountParams{
+		OrganizationID: orgID,
+		BankName:       req.BankName,
+		BankCode:       bankCode,
+		AccountNumber:  req.AccountNumber,
+		AccountName:    req.AccountName,
+		IsVerified:     true,
+	})
+	if err != nil {
+		return PayoutAccountResponse{}, err
+	}
+	return toPayoutAccountResponse(acct), nil
+}
+
+func (s *Service) ListPayoutAccounts(ctx context.Context, orgID uuid.UUID) ([]PayoutAccountResponse, error) {
+	rows, err := s.repo.ListPayoutAccountsByOrg(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]PayoutAccountResponse, 0, len(rows))
+	for _, a := range rows {
+		out = append(out, toPayoutAccountResponse(a))
+	}
+	return out, nil
+}
+
+func (s *Service) DeletePayoutAccount(ctx context.Context, orgID, accountID uuid.UUID) error {
+	return s.repo.DeletePayoutAccount(ctx, db.DeletePayoutAccountParams{
+		ID:             accountID,
+		OrganizationID: orgID,
+	})
+}
+
+func (s *Service) GetBalance(ctx context.Context, orgID uuid.UUID) (OrgBalanceResponse, error) {
+	feeSum, err := s.repo.PlatformFeeSummary(ctx, orgID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return OrgBalanceResponse{}, err
+	}
+	refundSum, err := s.repo.GetOrgRefundSummary(ctx, orgID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return OrgBalanceResponse{}, err
+	}
+	payouts, err := s.repo.ListPayoutRequestsByOrg(ctx, orgID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return OrgBalanceResponse{}, err
+	}
+
+	var totalPaidPayouts int64
+	for _, p := range payouts {
+		if p.Status == "COMPLETED" || p.Status == "PROCESSING" || p.Status == "PENDING" {
+			totalPaidPayouts += p.Amount
+		}
+	}
+
+	available := feeSum.GrossOrders - feeSum.TotalFees - refundSum - totalPaidPayouts
+	if available < 0 {
+		available = 0
+	}
+
+	return OrgBalanceResponse{
+		GrossOrders:      feeSum.GrossOrders,
+		TotalFees:        feeSum.TotalFees,
+		TotalRefunded:    refundSum,
+		TotalPaidPayouts: totalPaidPayouts,
+		AvailableBalance: available,
+		Currency:         "IDR",
+	}, nil
+}
+
+func (s *Service) CreatePayoutRequest(ctx context.Context, orgID, actorID uuid.UUID, req CreatePayoutRequestInput) (PayoutRequestResponse, error) {
+	if req.Amount <= 0 {
+		return PayoutRequestResponse{}, errors.New("payout amount must be greater than 0")
+	}
+	bal, err := s.GetBalance(ctx, orgID)
+	if err != nil {
+		return PayoutRequestResponse{}, err
+	}
+	if req.Amount > bal.AvailableBalance {
+		return PayoutRequestResponse{}, errors.New("insufficient available balance for requested payout")
+	}
+
+	var eventID *uuid.UUID
+	if req.EventID != nil && *req.EventID != "" {
+		if id, err := uuid.Parse(*req.EventID); err == nil {
+			eventID = &id
+		}
+	}
+	var acctID *uuid.UUID
+	if req.PayoutAccountID != nil && *req.PayoutAccountID != "" {
+		if id, err := uuid.Parse(*req.PayoutAccountID); err == nil {
+			acctID = &id
+		}
+	}
+
+	notes := pgtype.Text{Valid: false}
+	if req.Notes != "" {
+		notes = pgtype.Text{String: req.Notes, Valid: true}
+	}
+
+	created, err := s.repo.CreatePayoutRequest(ctx, db.CreatePayoutRequestParams{
+		OrganizationID:  orgID,
+		EventID:         eventID,
+		PayoutAccountID: acctID,
+		Amount:          req.Amount,
+		Currency:        "IDR",
+		Status:          "PENDING",
+		Notes:           notes,
+		RequestedBy:     actorID,
+	})
+	if err != nil {
+		return PayoutRequestResponse{}, err
+	}
+	return toPayoutRequestResponse(created), nil
+}
+
+func (s *Service) ListPayoutRequests(ctx context.Context, orgID uuid.UUID) ([]PayoutRequestResponse, error) {
+	rows, err := s.repo.ListPayoutRequestsByOrg(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]PayoutRequestResponse, 0, len(rows))
+	for _, p := range rows {
+		out = append(out, toPayoutRequestResponse(p))
+	}
+	return out, nil
+}
+
+func toPayoutAccountResponse(a db.OrgPayoutAccount) PayoutAccountResponse {
+	return PayoutAccountResponse{
+		ID:             a.ID.String(),
+		OrganizationID: a.OrganizationID.String(),
+		BankName:       a.BankName,
+		BankCode:       a.BankCode,
+		AccountNumber:  a.AccountNumber,
+		AccountName:    a.AccountName,
+		IsVerified:     a.IsVerified,
+		CreatedAt:      tsStr(a.CreatedAt),
+	}
+}
+
+func toPayoutRequestResponse(p db.PayoutRequest) PayoutRequestResponse {
+	var eventIDPtr, acctIDPtr, procAt *string
+	if p.EventID != nil {
+		s := p.EventID.String()
+		eventIDPtr = &s
+	}
+	if p.PayoutAccountID != nil {
+		s := p.PayoutAccountID.String()
+		acctIDPtr = &s
+	}
+	if p.ProcessedAt.Valid {
+		s := tsStr(p.ProcessedAt)
+		procAt = &s
+	}
+	notesStr := ""
+	if p.Notes.Valid {
+		notesStr = p.Notes.String
+	}
+	rejStr := ""
+	if p.RejectionReason.Valid {
+		rejStr = p.RejectionReason.String
+	}
+	return PayoutRequestResponse{
+		ID:              p.ID.String(),
+		OrganizationID:  p.OrganizationID.String(),
+		EventID:         eventIDPtr,
+		PayoutAccountID: acctIDPtr,
+		Amount:          p.Amount,
+		Currency:        p.Currency,
+		Status:          p.Status,
+		Notes:           notesStr,
+		RejectionReason: rejStr,
+		RequestedBy:     p.RequestedBy.String(),
+		ProcessedAt:     procAt,
+		CreatedAt:       tsStr(p.CreatedAt),
 	}
 }

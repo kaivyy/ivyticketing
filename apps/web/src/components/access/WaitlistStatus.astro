@@ -12,7 +12,7 @@ const { eventId, categoryId, token } = Astro.props
 </div>
 
 <script define:vars={{ eventId, categoryId, token }}>
-  const API_URL = (typeof import !== "undefined" && import.meta?.env?.PUBLIC_API_URL) ?? "http://localhost:8080"
+  const API_URL = typeof window !== "undefined" ? "" : ((typeof import !== "undefined" && import.meta?.env?.PUBLIC_API_URL) ?? "http://127.0.0.1:8081");
 
   async function loadPosition() {
     const el = document.getElementById("waitlist-status")
@@ -72,7 +72,7 @@ const { eventId, categoryId, token } = Astro.props
         el.replaceChildren(wrap)
       }
     } catch {
-      // silently ignore network errors — stale UI is acceptable
+      // silently ignore network errors - stale UI is acceptable
     }
   }
 

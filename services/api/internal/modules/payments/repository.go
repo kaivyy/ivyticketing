@@ -39,10 +39,17 @@ type Repository interface {
 	ClaimWebhookDedupe(ctx context.Context, id uuid.UUID, dedupeKey string) error
 	MarkWebhookProcessed(ctx context.Context, arg db.MarkWebhookProcessedParams) error
 
-	// Order / reservation (for atomic transitions in the same tx)
+	// Order / reservation / ballot (for atomic transitions in the same tx)
 	GetOrderByIDForUpdate(ctx context.Context, id uuid.UUID) (db.Order, error)
 	UpdateOrderStatus(ctx context.Context, arg db.UpdateOrderStatusParams) (db.Order, error)
 	CompleteReservationsForOrder(ctx context.Context, orderID uuid.UUID) error
+	ConvertBallotWinnerForOrder(ctx context.Context, arg db.ConvertBallotWinnerForOrderParams) error
+
+	// Event & Payment Channels
+	GetEventByID(ctx context.Context, id uuid.UUID) (db.Event, error)
+	ListPaymentChannelsByEvent(ctx context.Context, eventID uuid.UUID) ([]db.EventPaymentChannel, error)
+	UpsertEventPaymentChannel(ctx context.Context, arg db.UpsertEventPaymentChannelParams) (db.EventPaymentChannel, error)
+	IsPaymentChannelEnabled(ctx context.Context, arg db.IsPaymentChannelEnabledParams) (bool, error)
 }
 
 type sqlcRepo struct {
@@ -143,6 +150,26 @@ func (r *sqlcRepo) CompleteReservationsForOrder(ctx context.Context, orderID uui
 		OrderID: orderID,
 		Status:  ReservationCompleted,
 	})
+}
+
+func (r *sqlcRepo) ConvertBallotWinnerForOrder(ctx context.Context, arg db.ConvertBallotWinnerForOrderParams) error {
+	return r.q.ConvertBallotWinnerForOrder(ctx, arg)
+}
+
+func (r *sqlcRepo) GetEventByID(ctx context.Context, id uuid.UUID) (db.Event, error) {
+	return r.q.GetEventByID(ctx, id)
+}
+
+func (r *sqlcRepo) ListPaymentChannelsByEvent(ctx context.Context, eventID uuid.UUID) ([]db.EventPaymentChannel, error) {
+	return r.q.ListPaymentChannelsByEvent(ctx, eventID)
+}
+
+func (r *sqlcRepo) UpsertEventPaymentChannel(ctx context.Context, arg db.UpsertEventPaymentChannelParams) (db.EventPaymentChannel, error) {
+	return r.q.UpsertEventPaymentChannel(ctx, arg)
+}
+
+func (r *sqlcRepo) IsPaymentChannelEnabled(ctx context.Context, arg db.IsPaymentChannelEnabledParams) (bool, error) {
+	return r.q.IsPaymentChannelEnabled(ctx, arg)
 }
 
 // nullText returns a pgtype.Text that is NULL when s is empty.

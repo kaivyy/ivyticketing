@@ -1,7 +1,29 @@
 -- name: CreateOrder :one
 INSERT INTO orders (organization_id, event_id, category_id, participant_id,
-    order_number, status, subtotal, fee, discount, total, expired_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    order_number, status, subtotal, fee, discount, total, expired_at, form_answers)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING *;
+
+-- name: CreateGuestOrder :one
+INSERT INTO orders (
+    organization_id, event_id, category_id, participant_id,
+    order_number, status, subtotal, fee, discount, total, expired_at,
+    guest_email, guest_name, guest_phone,
+    terms_accepted_at, terms_version, waiver_accepted_at, waiver_version,
+    form_answers
+) VALUES (
+    $1, $2, $3, $4,
+    $5, $6, $7, $8, $9, $10, $11,
+    $12, $13, $14,
+    $15, $16, $17, $18,
+    $19
+)
+RETURNING *;
+
+-- name: LinkOrderToParticipant :one
+UPDATE orders
+SET participant_id = $2, updated_at = now()
+WHERE id = $1 AND participant_id IS NULL
 RETURNING *;
 
 -- name: GetOrderByID :one
@@ -21,9 +43,24 @@ UPDATE orders SET status = $2, updated_at = now()
 WHERE id = $1 AND status = $3
 RETURNING *;
 
+-- name: RecordOrderRefund :one
+UPDATE orders SET
+    status = 'REFUNDED',
+    refunded_amount = $2,
+    refund_reason = $3,
+    refunded_at = now(),
+    updated_at = now()
+WHERE id = $1
+RETURNING *;
+
 -- name: CountActiveOrdersForUserCategory :one
 SELECT count(*) FROM orders
 WHERE category_id = $1 AND participant_id = $2
+  AND status IN ('PENDING_PAYMENT','PAID');
+
+-- name: CountActiveOrdersForGuestCategory :one
+SELECT count(*) FROM orders
+WHERE category_id = $1 AND guest_email = $2
   AND status IN ('PENDING_PAYMENT','PAID');
 
 -- name: CountPaidByCategory :one

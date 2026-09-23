@@ -1,18 +1,79 @@
 ---
 import Turnstile from "../security/Turnstile.astro";
-const { eventId } = Astro.props;
+const { eventId, categoryId = "", orgSlug = "", eventSlug = "" } = Astro.props;
 ---
 <Turnstile />
-<div id="waiting-room" data-event-id={eventId} class="rounded-lg border border-slate-200 bg-white p-6 text-center">
-  <p class="text-slate-500">Menyiapkan antrean…</p>
+<div
+  id="waiting-room"
+  data-event-id={eventId}
+  data-category-id={categoryId}
+  data-org-slug={orgSlug}
+  data-event-slug={eventSlug}
+  class="rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:p-6 md:p-8 text-white shadow-2xl relative overflow-hidden"
+>
+  <!-- Background glow effect -->
+  <div class="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full bg-orange-500/10 blur-3xl"></div>
+  <div class="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl"></div>
+
+  <!-- Header -->
+  <div class="relative z-10 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-5">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center gap-1.5 rounded-md bg-orange-500/10 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-orange-400 border border-orange-500/20">
+        War Tiket Antrean
+      </span>
+      <span class="text-xs text-slate-400">FIFO Virtual Room</span>
+    </div>
+    <div id="live-indicator" class="flex items-center gap-2 text-xs font-medium text-emerald-400">
+      <span class="relative flex h-2.5 w-2.5">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+      </span>
+      <span>Sinkronisasi Aktif</span>
+    </div>
+  </div>
+
+  <!-- Main dynamic content area -->
+  <div id="queue-body" class="relative z-10 py-8 text-center space-y-6">
+    <div class="inline-flex items-center justify-center h-16 w-16 rounded-full bg-slate-900 border border-slate-800 animate-pulse text-2xl">
+      ⏱️
+    </div>
+    <div>
+      <h2 class="text-xl font-bold text-white">Menghubungkan ke Antrean...</h2>
+      <p class="text-sm text-slate-400 mt-1">Memverifikasi integritas sesi dan nomor urut Anda.</p>
+    </div>
+  </div>
+
+  <!-- Footer reassurance -->
+  <div class="relative z-10 border-t border-slate-800 pt-5 text-left text-xs text-slate-400 space-y-2">
+    <div class="flex items-start gap-2">
+      <svg class="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+      <span>Posisi Anda tersimpan aman di server IvyTicketing. Jangan muat ulang (refresh) browser agar urutan Anda tidak berpindah.</span>
+    </div>
+    <div class="flex items-start gap-2">
+      <svg class="h-4 w-4 text-orange-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span>Saat giliran tiba, Anda akan diberikan waktu 10 menit untuk melengkapi data atlet dan menyelesaikan pesanan.</span>
+    </div>
+  </div>
 </div>
+
 <script>
   import { joinQueue, getQueueStatus } from "../../lib/queue";
-  const root = document.getElementById("waiting-room")!;
-  const eventId = root.dataset.eventId!;
-  let timer: ReturnType<typeof setInterval> | undefined;
 
-  // ── countdown helper (mirrors CountdownTimer.astro logic) ────────────────
+  const root = document.getElementById("waiting-room")!;
+  const queueBody = document.getElementById("queue-body")!;
+  const eventId = root.dataset.eventId!;
+  const categoryId = root.dataset.categoryId || "";
+  const orgSlug = root.dataset.orgSlug || "";
+  const eventSlug = root.dataset.eventSlug || "";
+
+  let timer: ReturnType<typeof setInterval> | undefined;
+  let initialPosition: number | null = null;
+
+  // Countdown helper
   function startCountdown(el: HTMLElement, targetIso: string) {
     const targetMs = new Date(targetIso).getTime();
     if (isNaN(targetMs)) return;
@@ -27,7 +88,6 @@ const { eventId } = Astro.props;
       if (diff <= 0) {
         clearInterval(cdTimer);
         el.textContent = "Waktu habis";
-        // disable checkout link if present
         const link = root.querySelector<HTMLAnchorElement>("a[data-checkout]");
         if (link) {
           link.classList.add("pointer-events-none", "opacity-50");
@@ -42,7 +102,6 @@ const { eventId } = Astro.props;
     window.addEventListener("pagehide", () => clearInterval(cdTimer), { once: true });
   }
 
-  // ── render ────────────────────────────────────────────────────────────────
   function render(s: {
     status: string;
     position: number;
@@ -52,85 +111,232 @@ const { eventId } = Astro.props;
     checkoutExpiresAt?: string;
   }) {
     if (s.systemState === "PAUSED") {
-      root.innerHTML = `<p class="text-amber-600 font-medium">Antrean dijeda sementara. Posisimu tetap aman.</p>`;
+      queueBody.innerHTML = `
+        <div class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-center space-y-3">
+          <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 text-xl font-bold">
+            ⏸️
+          </div>
+          <h3 class="text-lg font-bold text-amber-400">Antrean Dijeda Sementara</h3>
+          <p class="text-sm text-slate-300">Race director sedang mengatur aliran kuota peserta. Posisi antrean Anda tetap aman dan terkunci.</p>
+        </div>`;
       return;
     }
 
     if (s.status === "ALLOWED" && s.admissionToken) {
       sessionStorage.setItem("ivy_admission_" + eventId, s.admissionToken);
       if (timer) clearInterval(timer);
-      const expiryHtml = s.checkoutExpiresAt
-        ? `<p class="text-slate-500 text-sm mb-1">Selesaikan checkout sebelum: <span id="cd-timer" class="font-mono font-medium text-slate-800">--:--</span></p>`
-        : "";
-      root.innerHTML = `
-        <p class="text-green-600 font-semibold mb-2">Giliranmu! Selesaikan checkout sebelum waktu habis.</p>
-        ${expiryHtml}
-        <a data-checkout href="/events/${eventId}/checkout?admission=${s.admissionToken}"
-          class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-white text-sm font-medium hover:bg-slate-700">
-          Lanjut Checkout →
-        </a>`;
+
+      // Trigger haptic alert on mobile devices
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate?.([200, 100, 200, 100, 300]);
+      }
+
+      // Build checkout url preserving category and slug params
+      const checkoutParams = new URLSearchParams();
+      if (categoryId) checkoutParams.set("categoryId", categoryId);
+      if (s.admissionToken) checkoutParams.set("admission", s.admissionToken);
+      if (orgSlug) checkoutParams.set("orgSlug", orgSlug);
+      if (eventSlug) checkoutParams.set("eventSlug", eventSlug);
+
+      const checkoutUrl = `/events/${eventId}/checkout?${checkoutParams.toString()}`;
+
+      queueBody.innerHTML = `
+        <div class="rounded-2xl border-2 border-emerald-500 bg-emerald-950/40 p-4 sm:p-6 md:p-8 text-center space-y-4 sm:space-y-5 animate-in fade-in">
+          <div class="inline-flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 text-2xl sm:text-3xl font-black">
+            ✓
+          </div>
+          <div>
+            <span class="inline-block rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300 border border-emerald-500/30 mb-2">
+              Akses Diberikan
+            </span>
+            <h2 class="text-xl sm:text-2xl md:text-3xl font-black uppercase text-white tracking-tight">
+              Giliran Anda Telah Tiba!
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-300 mt-2 max-w-md mx-auto leading-relaxed">
+              Silakan segera menuju form pengisian data atlet dan konfirmasi pembayaran sebelum batas waktu berakhir.
+            </p>
+          </div>
+
+          ${s.checkoutExpiresAt ? `
+            <div class="inline-flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-800 px-4 sm:px-5 py-2 sm:py-2.5">
+              <span class="text-xs uppercase tracking-wider text-slate-400">Batas Waktu Checkout:</span>
+              <span id="cd-timer" class="font-mono text-base sm:text-lg font-bold text-orange-400">--:--</span>
+            </div>
+          ` : ""}
+
+          <div>
+            <a data-checkout href="${checkoutUrl}"
+              class="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-orange-500 hover:bg-orange-400 px-6 sm:px-8 py-3.5 sm:py-4 text-sm sm:text-base font-bold uppercase tracking-wider text-slate-950 transition-all shadow-lg hover:shadow-orange-500/25 min-h-[48px]">
+              <span>Lanjut ke Pengisian Data Atlet</span>
+              <span class="text-lg">→</span>
+            </a>
+          </div>
+        </div>`;
+
       if (s.checkoutExpiresAt) {
-        const cdEl = root.querySelector<HTMLElement>("#cd-timer");
+        const cdEl = queueBody.querySelector<HTMLElement>("#cd-timer");
         if (cdEl) startCountdown(cdEl, s.checkoutExpiresAt);
       }
       return;
     }
 
     if (s.status === "EXPIRED") {
-      root.innerHTML = `
-        <p class="text-red-600 mb-3">Waktu checkout habis. Kamu dikembalikan ke antrean.</p>
-        <button id="rejoin-btn"
-          class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-white text-sm font-medium hover:bg-slate-700">
-          Masuk Antrean Lagi
-        </button>
-        <p id="rejoin-err" class="mt-2 text-xs text-red-500"></p>`;
+      queueBody.innerHTML = `
+        <div class="rounded-xl border border-red-500/30 bg-red-500/10 p-4 sm:p-6 text-center space-y-4">
+          <div class="inline-flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-red-500/20 text-red-400 text-xl sm:text-2xl font-bold">
+            !
+          </div>
+          <h3 class="text-base sm:text-lg font-bold text-red-400">Waktu Checkout Telah Habis</h3>
+          <p class="text-xs sm:text-sm text-slate-300">Batas waktu pendaftaran Anda telah berakhir dan slot telah dialihkan ke antrean berikutnya.</p>
+          <button id="rejoin-btn"
+            class="inline-flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 px-6 py-3 text-white text-sm font-bold tracking-wide transition-colors w-full sm:w-auto min-h-[44px]">
+            Masuk Kembali ke Antrean
+          </button>
+          <p id="rejoin-err" class="mt-2 text-xs text-red-400"></p>
+        </div>`;
+
       document.getElementById("rejoin-btn")?.addEventListener("click", async () => {
         const btn = document.getElementById("rejoin-btn") as HTMLButtonElement | null;
         const errEl = document.getElementById("rejoin-err");
-        if (btn) { btn.disabled = true; btn.textContent = "Bergabung…"; }
+        if (btn) { btn.disabled = true; btn.textContent = "Menghubungkan..."; }
         try {
           await joinQueue(eventId);
-          // resume polling
           await poll();
           timer = setInterval(poll, 4000);
         } catch {
           if (errEl) errEl.textContent = "Gagal bergabung kembali ke antrean. Silakan coba lagi.";
-          if (btn) { btn.disabled = false; btn.textContent = "Masuk Antrean Lagi"; }
+          if (btn) { btn.disabled = false; btn.textContent = "Masuk Kembali ke Antrean"; }
         }
       });
       return;
     }
 
     if (s.status === "COMPLETED") {
-      root.innerHTML = `<p class="text-green-600">Checkout selesai. Terima kasih!</p>`;
+      queueBody.innerHTML = `
+        <div class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-center space-y-3">
+          <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 text-2xl font-bold">
+            ✓
+          </div>
+          <h3 class="text-lg font-bold text-emerald-400">Checkout Selesai</h3>
+          <p class="text-sm text-slate-300">Pendaftaran Anda telah berhasil diproses.</p>
+          <a href="/participant/orders" class="inline-block rounded-xl bg-slate-900 border border-slate-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+            Lihat Tiket Saya
+          </a>
+        </div>`;
       if (timer) clearInterval(timer);
       return;
     }
 
+    // Active in-queue view
     const pos = s.position + 1;
-    const mins = s.estimatedWaitSeconds > 0 ? Math.max(1, Math.ceil(s.estimatedWaitSeconds / 60)) : "?";
-    root.innerHTML = `
-      <p class="text-2xl font-bold mb-1">#${pos}</p>
-      <p class="text-slate-600 text-sm mb-3">Posisi antreanmu • Perkiraan tunggu ~${mins} menit</p>
-      <p class="text-xs text-slate-400">Jangan tutup halaman ini. Posisimu tersimpan.</p>`;
+    if (initialPosition === null || pos > initialPosition) {
+      initialPosition = pos;
+    }
+    const mins = s.estimatedWaitSeconds > 0 ? Math.max(1, Math.ceil(s.estimatedWaitSeconds / 60)) : 1;
+
+    // Calculate progress percentage
+    let progressPct = 50;
+    if (initialPosition && initialPosition > 0) {
+      progressPct = Math.min(95, Math.max(10, Math.round(((initialPosition - s.position) / initialPosition) * 100)));
+    }
+
+    queueBody.innerHTML = `
+      <div class="space-y-6">
+        <!-- Giant Position Display -->
+        <div class="py-2">
+          <div class="text-xs font-bold uppercase tracking-widest text-orange-400 mb-1">Posisi Antrean Anda</div>
+          <div class="font-display text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight">
+            #${pos.toLocaleString("id-ID")}
+          </div>
+          <div class="text-xs text-slate-400 mt-2">
+            Posisimu akan terus diperbarui secara otomatis
+          </div>
+        </div>
+
+        <!-- Visual Progress Gauge Track -->
+        <div class="space-y-2 max-w-md mx-auto">
+          <div class="flex justify-between text-xs text-slate-400 font-medium">
+            <span>Mulai</span>
+            <span class="text-emerald-400 font-semibold">${progressPct}% Menuju Giliran</span>
+            <span>Checkout</span>
+          </div>
+          <div class="h-3 w-full rounded-full bg-slate-900 border border-slate-800 overflow-hidden p-0.5">
+            <div class="h-full rounded-full bg-gradient-to-r from-orange-500 to-emerald-400 transition-all duration-700" style="width: ${progressPct}%"></div>
+          </div>
+        </div>
+
+        <!-- Metric Cards Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-lg mx-auto text-left">
+          <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <div class="text-[11px] font-semibold uppercase text-slate-400">Estimasi Tunggu</div>
+            <div class="font-mono text-lg font-bold text-white mt-0.5">~${mins} Menit</div>
+            <div class="text-[10px] text-slate-500 mt-1">Dihitung dari kecepatan transaksi</div>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <div class="text-[11px] font-semibold uppercase text-slate-400">Aliran Sistem</div>
+            <div class="font-mono text-lg font-bold text-emerald-400 mt-0.5">Lancar</div>
+            <div class="text-[10px] text-slate-500 mt-1">Server memproses kuota berkala</div>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <div class="text-[11px] font-semibold uppercase text-slate-400">Durasi Checkout</div>
+            <div class="font-mono text-lg font-bold text-orange-400 mt-0.5">10 Menit</div>
+            <div class="text-[10px] text-slate-500 mt-1">Diberikan saat giliran tiba</div>
+          </div>
+        </div>
+      </div>`;
   }
 
+  let failureCount = 0;
   async function poll() {
     try {
-      render(await getQueueStatus(eventId));
+      const st = await getQueueStatus(eventId);
+      failureCount = 0;
+      render(st);
     } catch {
-      root.querySelector("p:last-child")?.insertAdjacentHTML("afterend",
-        `<p class="text-xs text-slate-400 mt-1">Menghubungkan ulang…</p>`);
+      failureCount++;
+      if (failureCount >= 2) {
+        // No active queue or event allows direct entry -> redirect immediately to checkout!
+        const searchParams = new URLSearchParams(window.location.search);
+        const catId = searchParams.get("categoryId") || "";
+        const redirectUrl = `/events/${eventId}/checkout${catId ? `?categoryId=${encodeURIComponent(catId)}` : ""}`;
+        queueBody.innerHTML = `
+          <div class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-center space-y-4">
+            <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 text-2xl font-bold">
+              ✓
+            </div>
+            <h3 class="text-lg font-bold text-white uppercase">Kapasitas Tersedia Tanpa Antrean</h3>
+            <p class="text-xs text-slate-300">Jalur registrasi terbuka langsung tanpa antrean. Mengalihkan Anda ke pemilihan tiket...</p>
+            <a href="${redirectUrl}" class="inline-flex items-center justify-center rounded-xl bg-orange-500 hover:bg-orange-400 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-950">
+              Pilih Tiket Sekarang &rarr;
+            </a>
+          </div>
+        `;
+        if (timer) clearInterval(timer);
+        setTimeout(() => {
+          window.location.href = redirectUrl;
+        }, 1200);
+        return;
+      }
+      const existing = queueBody.querySelector("#reconnect-msg");
+      if (!existing) {
+        queueBody.insertAdjacentHTML(
+          "beforeend",
+          `<p id="reconnect-msg" class="text-xs text-slate-400 mt-2">Memeriksa ketersediaan antrean...</p>`
+        );
+      }
     }
   }
 
   async function start() {
-    try { await joinQueue(eventId); } catch { /* already queued */ }
+    try {
+      await joinQueue(eventId);
+    } catch {
+      // already queued or queue inactive
+    }
     await poll();
     timer = setInterval(poll, 4000);
   }
 
-  // Mobile sleep / tab-hide safe: re-poll immediately on visibility
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) poll();
   });

@@ -1,0 +1,494 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+
+<OrganizerLayout title="Kategori Tiket : ivyticketing" orgId={orgId}>
+  <div id="categories-root" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
+      <div>
+        <a href={`/org/${orgId}/events/${eventId}`} class="text-xs font-semibold text-slate-500 hover:text-slate-800">
+          &larr; Kembali ke Ringkasan Event
+        </a>
+        <h1 class="font-display text-2xl font-bold uppercase tracking-tight text-slate-900 mt-1">
+          Manajemen Kategori Tiket & Kuota
+        </h1>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Atur kelas lomba (Marathon, Half, 10K, Triathlon), kapasitas slot, dan metode registrasi (War vs Ballot vs Reguler).
+        </p>
+      </div>
+      <button
+        id="btn-open-create"
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-lg bg-orange-600 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 transition-colors"
+      >
+        + Tambah Kategori
+      </button>
+    </div>
+
+    <!-- Modal Form Tambah Kategori -->
+    <div id="category-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+      <div class="w-full max-w-xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+          <h2 id="modal-title" class="font-display text-lg font-bold uppercase text-slate-900">Tambah Kategori Lomba</h2>
+          <button id="btn-close-modal" type="button" class="text-slate-400 hover:text-slate-700 text-lg">&times;</button>
+        </div>
+
+        <form id="category-form" class="mt-4 space-y-4">
+          <input type="hidden" id="edit-cat-id" name="editCatId" value="" />
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="cat-name">
+              Nama Kategori <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="cat-name"
+              name="name"
+              required
+              placeholder="Contoh: Full Marathon 42.2K atau Olympic Triathlon"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="cat-price">
+                Biaya Tiket (IDR) <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="cat-price"
+                name="price"
+                type="number"
+                min="0"
+                step="10000"
+                required
+                placeholder="750000"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="cat-capacity">
+                Total Kuota Slot <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="cat-capacity"
+                name="capacity"
+                type="number"
+                min="1"
+                required
+                placeholder="2500"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="cat-bib">
+                Awalan Nomor BIB
+              </label>
+              <input
+                id="cat-bib"
+                name="bibPrefix"
+                placeholder="FM, HM, 10K"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none uppercase"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="cat-min-age">
+                Usia Minimal
+              </label>
+              <input
+                id="cat-min-age"
+                name="minAge"
+                type="number"
+                min="0"
+                value="17"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="cat-max-order">
+                Maks Tiket / User
+              </label>
+              <input
+                id="cat-max-order"
+                name="maxOrderPerUser"
+                type="number"
+                min="1"
+                value="1"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <!-- Mode Pendaftaran -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="cat-mode">
+              Mekanisme / Mode Pendaftaran <span class="text-red-500">*</span>
+            </label>
+            <select
+              id="cat-mode"
+              name="registrationMode"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none bg-white"
+            >
+              <option value="NORMAL">Normal: Pendaftaran Langsung (First-Come First-Served)</option>
+              <option value="WAR_QUEUE">War Ticket (FIFO): Antre Pertama / Siapa Paling Cepat</option>
+              <option value="RANDOMIZED_QUEUE">Randomized Queue: Urutan Diacak Kriptografis (Fair Shuffle)</option>
+              <option value="HYBRID_QUEUE">Hybrid Queue: Diacak Sebelum Buka + FIFO Setelah Buka</option>
+              <option value="BALLOT">Ballot Lottery: Undian Slot Resmi Kuota Terbatas</option>
+              <option value="INVITATION_ONLY">Invitation Only: Wajib Kode Akses Khusus</option>
+              <option value="PRIORITY_ACCESS">Priority Access: Jendela Akses Khusus Alumni / Komunitas</option>
+              <option value="WAITLIST_ONLY">Waitlist Only: Daftar Tunggu Cadangan</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="cat-opens">
+                Waktu Buka Pendaftaran <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="cat-opens"
+                name="registrationOpensAt"
+                type="datetime-local"
+                required
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="cat-closes">
+                Waktu Tutup Pendaftaran <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="cat-closes"
+                name="registrationClosesAt"
+                type="datetime-local"
+                required
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <p id="modal-error" class="hidden rounded bg-red-50 p-2.5 text-xs font-medium text-red-700 border border-red-200"></p>
+
+          <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+            <button
+              id="btn-cancel"
+              type="button"
+              class="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Batal
+            </button>
+            <button
+              id="btn-save-cat"
+              type="submit"
+              class="rounded-lg bg-orange-600 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-orange-500"
+            >
+              Simpan Kategori
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Daftar Kategori -->
+    <div id="categories-container" class="space-y-4">
+      <p class="text-slate-500">Memuat daftar kategori…</p>
+    </div>
+  </div>
+
+  <script>
+    import { authedFetch } from "../../../../../lib/api";
+    import { esc } from "../../../../../lib/safe";
+    import { getMarathonEventById } from "../../../../../lib/events-store";
+
+    const root = document.getElementById("categories-root");
+    const orgId = root?.dataset.orgId || window.location.pathname.split("/")[2] || "";
+    const eventId = root?.dataset.eventId || window.location.pathname.split("/")[4] || "";
+
+    const container = document.getElementById("categories-container");
+    const modal = document.getElementById("category-modal");
+    const form = document.getElementById("category-form");
+    const errEl = document.getElementById("modal-error");
+    const saveBtn = document.getElementById("btn-save-cat");
+
+    let currentCategories: any[] = [];
+
+    // Modal controls
+    document.getElementById("btn-open-create")?.addEventListener("click", () => {
+      form.reset();
+      (document.getElementById("edit-cat-id") as HTMLInputElement).value = "";
+      const titleEl = document.getElementById("modal-title");
+      if (titleEl) titleEl.textContent = "Tambah Kategori Lomba";
+      saveBtn.textContent = "Simpan Kategori";
+      errEl.classList.add("hidden");
+      modal.classList.remove("hidden");
+    });
+    document.getElementById("btn-close-modal")?.addEventListener("click", () => modal.classList.add("hidden"));
+    document.getElementById("btn-cancel")?.addEventListener("click", () => modal.classList.add("hidden"));
+
+    const fmtMoney = (n) => "Rp " + (n ?? 0).toLocaleString("id-ID");
+    const fmtDate = (iso) =>
+      iso
+        ? new Date(iso).toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "-";
+
+    const modeBadges = {
+      NORMAL: "bg-slate-100 text-slate-700 border-slate-300",
+      WAR_QUEUE: "bg-amber-100 text-amber-800 border-amber-300",
+      RANDOMIZED_QUEUE: "bg-emerald-100 text-emerald-800 border-emerald-300",
+      HYBRID_QUEUE: "bg-cyan-100 text-cyan-800 border-cyan-300",
+      BALLOT: "bg-blue-100 text-blue-800 border-blue-300",
+      INVITATION_ONLY: "bg-purple-100 text-purple-800 border-purple-300",
+      PRIORITY_ACCESS: "bg-indigo-100 text-indigo-800 border-indigo-300",
+      WAITLIST_ONLY: "bg-yellow-100 text-yellow-800 border-yellow-300",
+    };
+
+    async function loadCategories() {
+      try {
+        let categories = [];
+        try {
+          categories = await authedFetch(`/organizations/${orgId}/events/${eventId}/categories`);
+        } catch (fetchErr) {
+          console.warn("Backend categories fetch:", fetchErr);
+        }
+
+        if (!categories || categories.length === 0) {
+          const localEvent = getMarathonEventById(eventId);
+          if (localEvent?.categories && localEvent.categories.length > 0) {
+            categories = localEvent.categories.map((c) => ({
+              id: c.id,
+              name: c.name,
+              price: c.price,
+              capacity: c.quota,
+              bibPrefix: c.code,
+              distanceKm: c.distanceKm,
+              cutoffTime: c.cutoffTime,
+              registrationMode: c.mode,
+              registrationOpensAt: c.opensAt,
+              registrationClosesAt: c.closesAt,
+              maxOrderPerUser: 4,
+            }));
+          }
+        }
+
+        currentCategories = categories || [];
+
+        if (!categories || categories.length === 0) {
+          container.innerHTML = `
+            <div class="rounded-xl border border-slate-200 bg-white p-8 text-center">
+              <p class="font-semibold text-slate-800">Belum ada kategori tiket</p>
+              <p class="text-xs text-slate-500 mt-1 mb-4">Tambahkan kategori pertama Anda untuk memulai penjualan tiket event.</p>
+              <button
+                type="button"
+                onclick="document.getElementById('btn-open-create').click()"
+                class="rounded-lg bg-orange-600 px-4 py-2 text-xs font-bold uppercase text-white hover:bg-orange-500 cursor-pointer"
+              >
+                + Tambah Kategori
+              </button>
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            ${categories
+              .map((c) => {
+                const mode = c.registrationMode ?? "NORMAL";
+                const badgeStyle = modeBadges[mode] ?? modeBadges.NORMAL;
+                const distanceStr = c.distanceKm ? `${c.distanceKm} KM` : null;
+                const cotStr = c.cutoffTime || null;
+                return `
+                  <div class="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+                    <div>
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="font-mono text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">${esc(c.bibPrefix || "BIB")}</span>
+                        <span class="rounded border px-2 py-0.5 text-[10px] font-bold uppercase ${badgeStyle}">
+                          ${esc(mode)}
+                        </span>
+                      </div>
+                      <h3 class="font-display text-xl font-bold uppercase text-slate-900 mt-2">
+                        ${esc(c.name)}
+                      </h3>
+                      <div class="mt-3 space-y-1.5 text-xs text-slate-600 border-t border-slate-100 pt-3">
+                        ${distanceStr ? `
+                        <div class="flex justify-between">
+                          <span class="text-slate-400">Jarak Lomba:</span>
+                          <span class="font-semibold text-slate-800">${esc(distanceStr)}</span>
+                        </div>` : ""}
+                        ${cotStr ? `
+                        <div class="flex justify-between">
+                          <span class="text-slate-400">Cutoff Time (COT):</span>
+                          <span class="font-mono font-semibold text-slate-800">${esc(cotStr)}</span>
+                        </div>` : ""}
+                        <div class="flex justify-between">
+                          <span class="text-slate-400">Harga Tiket:</span>
+                          <span class="font-bold text-slate-900">${fmtMoney(c.price)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-slate-400">Kapasitas Slot:</span>
+                          <span class="font-semibold text-slate-800">${(c.capacity || 0).toLocaleString("id-ID")} Slot</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-slate-400">Buka Registrasi:</span>
+                          <span class="text-slate-700">${fmtDate(c.registrationOpensAt)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                          <span class="text-slate-400">Tutup Registrasi:</span>
+                          <span class="text-slate-700">${fmtDate(c.registrationClosesAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
+                      <span class="text-slate-400">Maks ${c.maxOrderPerUser || 1} tiket/transaksi</span>
+                      <div class="flex items-center gap-3">
+                        <button
+                          type="button"
+                          class="btn-edit-cat text-orange-600 hover:text-orange-800 font-semibold cursor-pointer"
+                          data-cat-id="${esc(c.id)}"
+                        >
+                          Edit / Ubah Kuota
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-delete-cat text-red-600 hover:text-red-800 font-semibold cursor-pointer"
+                          data-cat-id="${esc(c.id)}"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    </div>
+                  </div>`;
+              })
+              .join("")}
+          </div>`;
+
+        // Action edit kategori & kuota
+        container.querySelectorAll(".btn-edit-cat").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const catId = btn.getAttribute("data-cat-id");
+            const cat = currentCategories.find((x) => x.id === catId);
+            if (!cat) return;
+
+            (document.getElementById("edit-cat-id") as HTMLInputElement).value = cat.id;
+            (document.getElementById("cat-name") as HTMLInputElement).value = cat.name || "";
+            (document.getElementById("cat-price") as HTMLInputElement).value = String(cat.price ?? 0);
+            (document.getElementById("cat-capacity") as HTMLInputElement).value = String(cat.capacity ?? 0);
+            (document.getElementById("cat-bib") as HTMLInputElement).value = cat.bibPrefix || "";
+            (document.getElementById("cat-min-age") as HTMLInputElement).value = String(cat.minAge ?? 17);
+            (document.getElementById("cat-max-order") as HTMLInputElement).value = String(cat.maxOrderPerUser ?? 1);
+            (document.getElementById("cat-mode") as HTMLSelectElement).value = cat.registrationMode || "NORMAL";
+
+            if (cat.registrationOpensAt) {
+              const d = new Date(cat.registrationOpensAt);
+              d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+              (document.getElementById("cat-opens") as HTMLInputElement).value = d.toISOString().slice(0, 16);
+            }
+            if (cat.registrationClosesAt) {
+              const d = new Date(cat.registrationClosesAt);
+              d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+              (document.getElementById("cat-closes") as HTMLInputElement).value = d.toISOString().slice(0, 16);
+            }
+
+            const titleEl = document.getElementById("modal-title");
+            if (titleEl) titleEl.textContent = `Edit Kategori & Kuota : ${cat.name}`;
+            saveBtn.textContent = "Simpan Perubahan";
+            errEl.classList.add("hidden");
+            modal.classList.remove("hidden");
+          });
+        });
+
+        // Action hapus kategori
+        container.querySelectorAll(".btn-delete-cat").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const catId = btn.getAttribute("data-cat-id");
+            if (!confirm("Hapus kategori ini? Data inventaris yang terikat akan dinonaktifkan.")) return;
+            try {
+              await authedFetch(`/organizations/${orgId}/events/${eventId}/categories/${catId}`, {
+                method: "DELETE",
+              });
+              loadCategories();
+            } catch (err: any) {
+              alert(err.message || "Gagal menghapus kategori.");
+            }
+          });
+        });
+      } catch (err: any) {
+        container.innerHTML = `<p class="text-red-600 text-sm">Gagal memuat kategori: ${esc(err.message)}</p>`;
+      }
+    }
+
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errEl.classList.add("hidden");
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Menyimpan...";
+
+      const fd = new FormData(form);
+      const editCatId = String(fd.get("editCatId") ?? "").trim();
+      const isEdit = Boolean(editCatId);
+      const minAgeVal = fd.get("minAge");
+      const mode = String(fd.get("registrationMode") ?? "NORMAL");
+
+      const payload = {
+        name: String(fd.get("name") ?? "").trim(),
+        price: Number(fd.get("price") ?? 0),
+        capacity: Number(fd.get("capacity") ?? 0),
+        bibPrefix: String(fd.get("bibPrefix") ?? "").trim().toUpperCase(),
+        minAge: minAgeVal ? Number(minAgeVal) : 17,
+        maxOrderPerUser: Number(fd.get("maxOrderPerUser") ?? 1),
+        registrationOpensAt: new Date(String(fd.get("registrationOpensAt"))).toISOString(),
+        registrationClosesAt: new Date(String(fd.get("registrationClosesAt"))).toISOString(),
+      };
+
+      try {
+        let resultCat: any = null;
+        if (isEdit) {
+          resultCat = await authedFetch<any>(`/organizations/${orgId}/events/${eventId}/categories/${editCatId}`, {
+            method: "PUT",
+            body: payload,
+          });
+        } else {
+          resultCat = await authedFetch<any>(`/organizations/${orgId}/events/${eventId}/categories`, {
+            method: "POST",
+            body: payload,
+          });
+        }
+
+        const targetCatId = isEdit ? editCatId : resultCat?.id;
+        // Set registration mode jika bukan normal
+        if (mode && targetCatId) {
+          await authedFetch(`/organizations/${orgId}/events/${eventId}/registration/category`, {
+            method: "PUT",
+            body: {
+              categoryId: targetCatId,
+              registrationMode: mode,
+            },
+          }).catch(() => {});
+        }
+
+        modal.classList.add("hidden");
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEdit ? "Simpan Perubahan" : "Simpan Kategori";
+        loadCategories();
+      } catch (err: any) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = isEdit ? "Simpan Perubahan" : "Simpan Kategori";
+        errEl.textContent = err.message || "Gagal menyimpan kategori tiket.";
+        errEl.classList.remove("hidden");
+      }
+    });
+
+    loadCategories();
+  </script>
+</OrganizerLayout>

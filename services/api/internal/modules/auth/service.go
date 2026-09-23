@@ -156,10 +156,12 @@ func (s *Service) Me(ctx context.Context, userID uuid.UUID) (MeResponse, error) 
 			perms = []string{}
 		}
 		memberships = append(memberships, MembershipResponse{
-			OrganizationID: org.ID,
-			MemberID:       member.ID,
-			RoleSlugs:      slugs,
-			Permissions:    perms,
+			OrganizationID:   org.ID,
+			OrganizationSlug: org.Slug,
+			OrganizationName: org.Name,
+			MemberID:         member.ID,
+			RoleSlugs:        slugs,
+			Permissions:      perms,
 		})
 	}
 	return MeResponse{User: toUserResponse(u), Memberships: memberships}, nil
@@ -185,7 +187,7 @@ func (s *Service) issueTokens(ctx context.Context, u db.User) (access, raw strin
 }
 
 func toUserResponse(u db.User) UserResponse {
-	return UserResponse{ID: u.ID, Email: u.Email, FullName: u.FullName, Phone: u.Phone.String}
+	return UserResponse{ID: u.ID, Email: u.Email, FullName: u.FullName, Phone: u.Phone.String, IsPlatformAdmin: u.IsPlatformAdmin}
 }
 
 func nullablePgText(s string) pgtype.Text {

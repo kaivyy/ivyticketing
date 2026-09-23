@@ -5,7 +5,7 @@ import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
 const { eventId } = Astro.params;
 const categoryId = Astro.url.searchParams.get("categoryId") ?? "";
 ---
-<ParticipantLayout title="Waitlist — ivyticketing">
+<ParticipantLayout title="Waitlist - ivyticketing">
   <div class="max-w-md mx-auto mt-12 px-4">
     <h1 class="text-xl font-bold mb-2 text-center">Waitlist Kategori</h1>
     <p class="text-slate-500 text-sm text-center mb-8">
@@ -130,7 +130,7 @@ const categoryId = Astro.url.searchParams.get("categoryId") ?? "";
                   pollInterval = null;
                 }
               } catch {
-                // silently ignore poll errors — stale UI is acceptable
+                // silently ignore poll errors - stale UI is acceptable
               }
             }, 30_000);
           }

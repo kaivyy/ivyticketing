@@ -17,4 +17,6 @@ var (
 	ErrInvalidSignature  = apperr.New(http.StatusUnauthorized, "INVALID_SIGNATURE", "invalid callback signature")
 	ErrReconcileFailed   = apperr.New(http.StatusBadGateway, "RECONCILE_FAILED", "reconcile failed")
 	ErrMerchantRefGen    = apperr.New(http.StatusInternalServerError, "MERCHANT_REF_GENERATION_FAILED", "could not generate merchant reference")
+	ErrPaymentChannelDisabled = apperr.New(http.StatusBadRequest, "PAYMENT_CHANNEL_DISABLED", "selected payment channel is disabled for this event")
+	ErrEventNotFound     = apperr.New(http.StatusNotFound, "EVENT_NOT_FOUND", "event not found")
 )

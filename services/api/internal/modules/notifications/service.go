@@ -3,20 +3,24 @@ package notifications
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/varin/ivyticketing/services/api/internal/modules/notifications/email"
+	"github.com/varin/ivyticketing/services/api/internal/modules/notifications/sms"
 	"github.com/varin/ivyticketing/services/api/internal/modules/notifications/templates"
 )
 
 const (
-	statusPending = "pending"
-	statusSent    = "sent"
-	statusFailed  = "failed"
-	channelEmail  = "email"
+	statusPending   = "pending"
+	statusSent      = "sent"
+	statusFailed    = "failed"
+	channelEmail    = "email"
+	ChannelWhatsApp = "whatsapp"
+	ChannelSMS      = "sms"
 )
 
 // Notifier is the interface other modules depend on. Each consuming package
@@ -29,6 +33,7 @@ type Notifier interface {
 type Service struct {
 	repo     Repository
 	sender   email.Sender
+	sms      *sms.MessagingService
 	lookup   ParticipantLookup
 	resolver templates.Resolver
 	log      *slog.Logger
@@ -38,6 +43,12 @@ type Service struct {
 // lookup and resolver may be nil — when nil, sendAsync skips lookup and uses inline templates.
 func NewService(repo Repository, sender email.Sender, lookup ParticipantLookup, resolver templates.Resolver, log *slog.Logger) *Service {
 	return &Service{repo: repo, sender: sender, lookup: lookup, resolver: resolver, log: log}
+}
+
+// WithSMS registers an SMS / WhatsApp messaging adapter for non-email channels.
+func (s *Service) WithSMS(smsSvc *sms.MessagingService) *Service {
+	s.sms = smsSvc
+	return s
 }
 
 // Enqueue persists the notification as pending and fires sendAsync in a goroutine.
@@ -53,6 +64,25 @@ func (s *Service) Enqueue(ctx context.Context, participantID uuid.UUID, typ stri
 	}
 
 	go s.sendAsync(n.ID, typ, data)
+	return nil
+}
+
+// EnqueueWithChannel queues a notification targeting a specific channel ("email", "whatsapp", or "sms").
+func (s *Service) EnqueueWithChannel(ctx context.Context, participantID uuid.UUID, typ, channel string, data TemplateData) error {
+	payload, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	if channel == "" {
+		channel = channelEmail
+	}
+
+	n, err := s.repo.Create(ctx, participantID, typ, channel, statusPending, payload)
+	if err != nil {
+		return err
+	}
+
+	go s.sendAsyncWithChannel(n.ID, typ, channel, data)
 	return nil
 }
 
@@ -150,6 +180,54 @@ func (s *Service) sendAsync(id uuid.UUID, typ string, data TemplateData) {
 	if err := s.repo.UpdateRetry(ctx, id, "sent", attempts, nil, nil, &now); err != nil {
 		s.log.Warn("notification UpdateRetry failed (success)", "id", id, "attempts", attempts, "err", err)
 	}
+}
+
+func (s *Service) sendAsyncWithChannel(id uuid.UUID, typ, channel string, data TemplateData) {
+	if channel == ChannelWhatsApp || channel == ChannelSMS {
+		ctx := context.Background()
+		now := time.Now()
+
+		if data.ParticipantPhone == "" {
+			lastErr := "no_phone_number"
+			_ = s.repo.UpdateRetry(ctx, id, "failed", 1, &lastErr, nil, &now)
+			s.log.Warn("sms/whatsapp terminal: no phone number", "id", id, "channel", channel)
+			return
+		}
+
+		if s.sms == nil {
+			lastErr := "sms_service_not_configured"
+			_ = s.repo.UpdateRetry(ctx, id, "failed", 1, &lastErr, nil, &now)
+			s.log.Warn("sms/whatsapp terminal: service not configured", "id", id)
+			return
+		}
+
+		result, err := templates.Render(typ, data)
+		body := result.TextBody
+		if err != nil || body == "" {
+			body = fmt.Sprintf("[%s] Pemberitahuan resmi ivyticketing untuk %s", typ, data.ParticipantName)
+		}
+
+		msg := sms.Message{
+			ID:             id.String(),
+			To:             data.ParticipantPhone,
+			Body:           body,
+			Channel:        sms.Channel(channel),
+			TemplateName:   typ,
+			IdempotencyKey: fmt.Sprintf("notif-%s", id),
+		}
+
+		_, sendErr := s.sms.Send(ctx, msg)
+		if sendErr != nil {
+			lastErr := sendErr.Error()
+			_ = s.repo.UpdateRetry(ctx, id, "failed", 1, &lastErr, nil, &now)
+			return
+		}
+
+		_ = s.repo.UpdateRetry(ctx, id, "sent", 1, nil, nil, &now)
+		return
+	}
+
+	s.sendAsync(id, typ, data)
 }
 
 // BackoffForAttempt returns the exponential backoff duration for the given

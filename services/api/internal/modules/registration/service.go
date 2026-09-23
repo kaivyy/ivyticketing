@@ -54,7 +54,24 @@ func (s *Service) ResolveEventMode(ctx context.Context, eventID uuid.UUID) (stri
 	return ev.DefaultMode, nil
 }
 
-func (s *Service) SetEventSettings(ctx context.Context, eventID uuid.UUID, req EventSettingsRequest) error {
+// assertEvent confirms the event exists and belongs to orgID (tenant guard).
+func (s *Service) assertEvent(ctx context.Context, orgID, eventID uuid.UUID) error {
+	e, err := s.repo.GetEventByID(ctx, eventID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrEventNotFound
+	} else if err != nil {
+		return err
+	}
+	if orgID != uuid.Nil && e.OrganizationID != orgID {
+		return ErrEventNotFound
+	}
+	return nil
+}
+
+func (s *Service) SetEventSettings(ctx context.Context, orgID, eventID uuid.UUID, req EventSettingsRequest) error {
+	if err := s.assertEvent(ctx, orgID, eventID); err != nil {
+		return err
+	}
 	if !Valid(Mode(req.DefaultMode)) {
 		return ErrInvalidMode
 	}
@@ -69,7 +86,10 @@ func (s *Service) SetEventSettings(ctx context.Context, eventID uuid.UUID, req E
 	return err
 }
 
-func (s *Service) SetCategorySettings(ctx context.Context, eventID, categoryID uuid.UUID, req CategorySettingsRequest) error {
+func (s *Service) SetCategorySettings(ctx context.Context, orgID, eventID, categoryID uuid.UUID, req CategorySettingsRequest) error {
+	if err := s.assertEvent(ctx, orgID, eventID); err != nil {
+		return err
+	}
 	cat, err := s.repo.GetCategoryByID(ctx, categoryID)
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && cat.EventID != eventID) {
 		return ErrCategoryNotFound
@@ -91,4 +111,38 @@ func (s *Service) SetCategorySettings(ctx context.Context, eventID, categoryID u
 		OverrideEnabled:  req.OverrideEnabled,
 	})
 	return err
+}
+
+func (s *Service) GetEventSettings(ctx context.Context, orgID, eventID uuid.UUID) (SettingsResponse, error) {
+	if err := s.assertEvent(ctx, orgID, eventID); err != nil {
+		return SettingsResponse{}, err
+	}
+	evSettings, evErr := s.repo.GetEventSettings(ctx, eventID)
+	resp := SettingsResponse{EventID: eventID.String()}
+	if evErr == nil {
+		resp.DefaultMode = evSettings.DefaultMode
+		resp.QueueEnabled = evSettings.QueueEnabled
+		resp.BallotEnabled = evSettings.BallotEnabled
+		resp.PriorityEnabled = evSettings.PriorityEnabled
+		resp.WaitlistEnabled = evSettings.WaitlistEnabled
+	} else {
+		resp.DefaultMode = string(ModeNormal)
+	}
+
+	catSettings, err := s.repo.ListCategorySettingsByEvent(ctx, eventID)
+	if err != nil {
+		return SettingsResponse{}, err
+	}
+	for _, cs := range catSettings {
+		c := CategorySettingsResponse{
+			CategoryID:      cs.CategoryID.String(),
+			OverrideEnabled: cs.OverrideEnabled,
+		}
+		if cs.RegistrationMode.Valid {
+			m := cs.RegistrationMode.String
+			c.RegistrationMode = &m
+		}
+		resp.Categories = append(resp.Categories, c)
+	}
+	return resp, nil
 }

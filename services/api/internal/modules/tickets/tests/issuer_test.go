@@ -38,12 +38,13 @@ func (f *fakeQ) CreateTicket(ctx context.Context, arg db.CreateTicketParams) (db
 }
 
 func sampleOrder() db.Order {
+	pid := uuid.New()
 	return db.Order{
 		ID:             uuid.New(),
 		OrganizationID: uuid.New(),
 		EventID:        uuid.New(),
 		CategoryID:     uuid.New(),
-		ParticipantID:  uuid.New(),
+		ParticipantID:  &pid,
 		OrderNumber:    "ORD-20260608-ABCDEF",
 		Status:         "PAID",
 	}

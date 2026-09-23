@@ -7,7 +7,7 @@ import "../styles/global.css";
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Status Sistem — ivyticketing</title>
+    <title>Status Sistem - ivyticketing</title>
   </head>
   <body class="min-h-screen bg-slate-50 text-slate-900">
     <header class="border-b border-slate-200 bg-white">
@@ -37,7 +37,7 @@ import "../styles/global.css";
       const root = document.getElementById("status")!;
 
       function fmtDate(s: string | null): string {
-        if (!s) return "—";
+        if (!s) return "-";
         try {
           return new Date(s).toLocaleString("id-ID", {
             dateStyle: "medium",

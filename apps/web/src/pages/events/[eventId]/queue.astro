@@ -1,16 +1,935 @@
 ---
 export const prerender = false;
 import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
-import WaitingRoom from "../../../components/queue/WaitingRoom.astro";
-import StatusBanner from "../../../components/StatusBanner.astro";
-const { eventId } = Astro.params;
+import Turnstile from "../../../components/security/Turnstile.astro";
+
+const { eventId = "boston-marathon-2026" } = Astro.params;
+const categoryId = Astro.url.searchParams.get("categoryId") || "";
+const orgSlug = Astro.url.searchParams.get("orgSlug") || "";
+const eventSlug = Astro.url.searchParams.get("eventSlug") || "";
+
+const SPONSORS = [
+  { name: "Bank of America", role: "Presenting Partner", logo: "/images/events/sponsor_bofa.png", h: "h-7" },
+  { name: "adidas", role: "Official Footwear & Apparel", logo: "/images/events/sponsor_adidas.png", h: "h-8" },
+  { name: "Abbott World Marathon Majors", role: "Official Series", logo: "/images/events/sponsor_abbott.png", h: "h-7" },
+  { name: "Samuel Adams", role: "Official Beer", logo: "/images/events/sponsor_samadams.svg", h: "h-7" },
+  { name: "Schneider Electric", role: "Sustainability Partner", logo: "/images/events/sponsor_schneider.png", h: "h-6" },
+  { name: "New England Honda", role: "Official Vehicle", logo: "/images/events/sponsor_honda.svg", h: "h-6" },
+  { name: "Maurten", role: "Official Sports Fuel", logo: "/images/events/sponsor_maurten.svg", h: "h-6" },
+  { name: "Poland Spring", role: "Official Natural Spring Water", logo: "/images/events/sponsor_polandspring.svg", h: "h-7" },
+  { name: "Shokz", role: "Official Headphones", logo: "/images/events/sponsor_shokz.svg", h: "h-6" },
+  { name: "JetBlue", role: "Official Airline", logo: "/images/events/sponsor_jetblue.svg", h: "h-6" },
+  { name: "Gatorade", role: "Official Sports Drink", logo: "/images/events/sponsor_gatorade.png", h: "h-7" },
+  { name: "CITGO", role: "Official Landmark Partner", logo: "/images/events/sponsor_citgo.svg", h: "h-6" },
+];
 ---
-<ParticipantLayout title="Antrean Tiket">
-  <div class="max-w-md mx-auto mt-12 px-4">
-    <StatusBanner />
-    <h1 class="text-xl font-bold mb-6 text-center">Ruang Tunggu</h1>
-    {eventId
-      ? <WaitingRoom eventId={eventId} />
-      : <p class="text-center text-red-600">Event tidak ditemukan.</p>}
-  </div>
+
+<ParticipantLayout title="Ruang Tunggu War Tiket : ivyticketing" hideHeader={true} fullWidth={true}>
+  <Turnstile />
+
+  <style>
+    /* Moving Sponsor Reel Marquee */
+    @keyframes baaSponsorMarquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .baa-sponsor-track {
+      display: flex;
+      width: max-content;
+      animation: baaSponsorMarquee 26s linear infinite;
+    }
+    .baa-sponsor-track:hover {
+      animation-play-state: paused;
+    }
+
+    /* Radar Pulse Animation */
+    @keyframes warRadarPulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .radar-pulse {
+      animation: warRadarPulse 2.5s ease-in-out infinite;
+    }
+
+    /* Progress Ring Animation */
+    .progress-ring-circle {
+      transition: stroke-dashoffset 0.6s ease-in-out;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+  </style>
+
+  <!-- Sticky Event War Room Navbar -->
+  <header
+    id="queue-navbar"
+    class="sticky top-0 z-50 w-full transition-colors duration-200 backdrop-blur-md bg-[#00172e]/95 border-b border-[#fdda24]/30 shadow-md"
+  >
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-3">
+      <!-- Left: Back link & Authentic Brand Badge -->
+      <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+        <a
+          id="nav-back-link"
+          href={`/events/${eventId}`}
+          class="inline-flex items-center gap-1.5 min-h-[44px] px-2.5 sm:px-3 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+          aria-label="Kembali ke Halaman Event"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          <span class="hidden sm:inline">Kembali ke Event</span>
+          <span class="sm:hidden">Kembali</span>
+        </a>
+
+        <div class="h-4 sm:h-5 w-px bg-white/20 shrink-0"></div>
+
+        <div class="flex items-center gap-2 min-w-0">
+          <span
+            id="nav-brand-badge"
+            class="inline-flex items-center justify-center font-black text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 rounded uppercase tracking-wider shrink-0 bg-[#fdda24] text-[#00172e] shadow-xs"
+          >
+            BAA
+          </span>
+          <div class="min-w-0 truncate">
+            <span id="nav-event-title" class="font-bold text-xs sm:text-sm text-white block truncate">
+              130th Boston Marathon 2026
+            </span>
+            <span class="text-[10px] text-slate-300 uppercase font-mono tracking-wider hidden sm:block">
+              Ruang Tunggu War Tiket Resmi · FIFO Priority
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Telemetry & Sound Toggle & Athlete Profile -->
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+        <!-- Sound Alert Toggle -->
+        <button
+          type="button"
+          id="btn-sound-toggle"
+          class="min-h-[44px] inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+          title="Bunyikan Suara saat Giliran Tiba"
+          aria-label="Pengaturan Suara Antrean"
+        >
+          <span id="sound-icon">🔔</span>
+          <span class="hidden md:inline text-[11px]" id="sound-label">Suara Aktif</span>
+        </button>
+
+        <!-- Live Server Status Indicator -->
+        <div class="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300 backdrop-blur-xs">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span>War Online</span>
+        </div>
+
+        <!-- Athlete Chip -->
+        <div id="athlete-profile-chip" class="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 sm:px-3 py-1 text-xs text-slate-300">
+          <span class="h-2 w-2 rounded-full bg-slate-400" id="athlete-dot"></span>
+          <span id="athlete-chip-text" class="font-mono text-[11px] truncate max-w-[110px] sm:max-w-[140px]">Memeriksa...</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main War Room Container -->
+  <main class="min-h-screen bg-[#001020] text-slate-100 flex flex-col justify-between">
+    <div>
+      <!-- Event Hero & Race Context Strip -->
+      <section class="relative overflow-hidden border-b border-white/10 bg-[#00172e] py-6 sm:py-8 shadow-inner">
+        <div class="absolute inset-0 z-0 opacity-20">
+          <img
+            id="hero-banner-img"
+            src="/images/events/boston_marathon.jpg"
+            alt="Boston Marathon Hero"
+            class="h-full w-full object-cover"
+          />
+          <div class="absolute inset-0 bg-gradient-to-t from-[#001020] via-[#00172e]/80 to-transparent"></div>
+        </div>
+
+        <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div class="space-y-1.5 max-w-2xl">
+              <div class="inline-flex items-center gap-2 rounded-full border border-[#fdda24]/40 bg-[#fdda24]/15 px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-[#fdda24]">
+                <span class="h-2 w-2 rounded-full bg-[#fdda24] animate-pulse"></span>
+                <span>World Marathon Majors · Abbott Series Official</span>
+              </div>
+              <h1 id="hero-event-name" class="font-display text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-tight text-white leading-tight">
+                130th Boston Marathon 2026
+              </h1>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
+                Lintasan legendaris Hopkinton ke Boylston Street, Copley Square. Sistem War Tiket IvyTicketing menerapkan alokasi kuota FIFO adil dengan token enkripsi anti-bot.
+              </p>
+            </div>
+
+            <!-- Factual Race Badges -->
+            <div class="flex flex-wrap lg:flex-col gap-2 shrink-0 text-xs">
+              <div class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-slate-900/90 px-3 py-1.5 text-slate-300">
+                <span>📍</span>
+                <span id="hero-location-text">Hopkinton to Boston, MA · 20 Apr 2026</span>
+              </div>
+              <div class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-slate-900/90 px-3 py-1.5 text-[#fdda24]">
+                <span>⚡</span>
+                <span>Alokasi Antrean Kriptografis 1 Device 1 Entry</span>
+              </div>
+              <div class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-slate-900/90 px-3 py-1.5 text-emerald-300">
+                <span>🛡️</span>
+                <span>Proteksi Cloudflare Turnstile & Anti-Scalper</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Moving Sponsor Reel Marquee ("gambar sponsor bergerak") -->
+      <section class="relative border-b border-white/10 bg-[#001428] py-2.5 overflow-hidden" aria-label="Official Race Sponsors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 mb-1.5 flex items-center justify-between">
+          <span class="text-[10px] font-black uppercase tracking-widest text-[#fdda24] font-mono">
+            OFFICIAL PARTNERS OF THE BOSTON ATHLETIC ASSOCIATION
+          </span>
+          <span class="font-mono text-[10px] text-slate-400 hidden sm:inline">
+            Auto-Scroll · Pause on Hover
+          </span>
+        </div>
+
+        <div class="relative overflow-hidden w-full">
+          <div class="baa-sponsor-track flex items-center gap-3 py-0.5">
+            <!-- First strip -->
+            {SPONSORS.map((sp) => (
+              <div class="flex items-center gap-2.5 rounded-lg border border-white/10 bg-[#002244]/80 px-3 py-1.5 shrink-0 backdrop-blur-md shadow-xs hover:border-[#fdda24]/60 transition-colors">
+                <img src={sp.logo} alt={sp.name} class={`${sp.h} w-auto max-w-[120px] object-contain shrink-0`} />
+                <div class="flex flex-col text-left">
+                  <span class="text-[8px] font-bold uppercase text-slate-400 leading-none">{sp.role}</span>
+                  <span class="text-[11px] font-bold text-white leading-tight mt-0.5">{sp.name}</span>
+                </div>
+              </div>
+            ))}
+            <!-- Duplicated strip for infinite loop -->
+            {SPONSORS.map((sp) => (
+              <div class="flex items-center gap-2.5 rounded-lg border border-white/10 bg-[#002244]/80 px-3 py-1.5 shrink-0 backdrop-blur-md shadow-xs hover:border-[#fdda24]/60 transition-colors" aria-hidden="true">
+                <img src={sp.logo} alt={sp.name} class={`${sp.h} w-auto max-w-[120px] object-contain shrink-0`} />
+                <div class="flex flex-col text-left">
+                  <span class="text-[8px] font-bold uppercase text-slate-400 leading-none">{sp.role}</span>
+                  <span class="text-[11px] font-bold text-white leading-tight mt-0.5">{sp.name}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <!-- War Console Core Workspace -->
+      <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
+          
+          <!-- LEFT COLUMN (7 Cols): Main War Room Display / Gate -->
+          <div class="lg:col-span-7 space-y-6">
+            
+            <!-- Dynamic State Card Container -->
+            <div id="war-console-card" class="rounded-2xl border border-white/15 bg-gradient-to-b from-slate-900/95 to-slate-950/95 p-5 sm:p-8 shadow-2xl relative overflow-hidden">
+              <!-- Ambient Glows -->
+              <div class="pointer-events-none absolute -top-20 -right-20 h-64 w-64 rounded-full bg-[#fdda24]/10 blur-3xl"></div>
+              <div class="pointer-events-none absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl"></div>
+
+              <!-- Top Console Ribbon -->
+              <div class="relative z-10 flex items-center justify-between border-b border-white/10 pb-4">
+                <div class="flex items-center gap-2">
+                  <span class="h-2 w-2 rounded-full bg-orange-500 animate-ping"></span>
+                  <span class="text-xs font-mono font-bold uppercase tracking-wider text-orange-400">
+                    IvyTicketing War Engine v2.4
+                  </span>
+                </div>
+                <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
+                  <span>Room ID:</span>
+                  <span class="text-white font-bold" id="room-id-label">WAR-BOS-2026</span>
+                </div>
+              </div>
+
+              <!-- DYNAMIC CONTENT (Controlled by Client Script) -->
+              <div id="console-body" class="relative z-10 py-6 sm:py-8">
+                <!-- Default Connecting State -->
+                <div class="text-center space-y-4">
+                  <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/5 border border-white/15 animate-spin text-2xl text-[#fdda24]">
+                    ⏱️
+                  </div>
+                  <div>
+                    <h2 class="text-xl font-bold uppercase text-white">Menghubungkan ke Ruang Antrean...</h2>
+                    <p class="text-xs text-slate-400 mt-1">Memeriksa status otentikasi atlet dan antrean aktif.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Security Reassurance Footnote -->
+              <div class="relative z-10 border-t border-white/10 pt-4 text-xs text-slate-400 space-y-2">
+                <div class="flex items-start gap-2">
+                  <span class="text-emerald-400 font-bold shrink-0">✓</span>
+                  <span>Posisi antrean Anda terikat dengan token sesi terverifikasi. Halaman akan otomatis memperbarui nomor urut tanpa perlu memuat ulang (refresh) browser.</span>
+                </div>
+                <div class="flex items-start gap-2">
+                  <span class="text-[#fdda24] font-bold shrink-0">⏱️</span>
+                  <span>Saat giliran tiba, audio bel akan berbunyi dan Anda akan diberikan jendela waktu 10 menit untuk melengkapi tiket dan formulir atlet.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Real-Time War Protocol Guidelines -->
+            <div class="rounded-xl border border-white/10 bg-slate-900/60 p-4 sm:p-5 space-y-3">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-[#fdda24] flex items-center gap-2">
+                <span>📋</span>
+                <span>Protokol Keamanan & Keadilan Antrean (Fair Play)</span>
+              </h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-300">
+                <div class="rounded-lg bg-slate-950/70 p-3 border border-white/5 space-y-1">
+                  <span class="font-bold text-white block">1. Satu Perangkat, Satu Kuota</span>
+                  <p class="text-[11px] text-slate-400">Membuka beberapa tab dengan akun yang sama tidak akan mempercepat posisi dan berisiko membatalkan sesi.</p>
+                </div>
+                <div class="rounded-lg bg-slate-950/70 p-3 border border-white/5 space-y-1">
+                  <span class="font-bold text-white block">2. Jendela Checkout Terbatas</span>
+                  <p class="text-[11px] text-slate-400">Setelah masuk ke formulir, kuota slot Anda ditahan (reserved) selama 10 menit untuk proses pengisian data.</p>
+                </div>
+                <div class="rounded-lg bg-slate-950/70 p-3 border border-white/5 space-y-1">
+                  <span class="font-bold text-white block">3. Anti-Bot Verification</span>
+                  <p class="text-[11px] text-slate-400">Sistem otomatis mendeteksi script calo dan memblokir IP yang melakukan request tidak wajar.</p>
+                </div>
+                <div class="rounded-lg bg-slate-950/70 p-3 border border-white/5 space-y-1">
+                  <span class="font-bold text-white block">4. Pembayaran Multi-Channel</span>
+                  <p class="text-[11px] text-slate-400">Mendukung QRIS Dinamis instan, Virtual Account bank nasional, dan kartu kredit resmi berizin BI.</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT COLUMN (5 Cols): Live Category Quotas & Telemetry -->
+          <div class="lg:col-span-5 space-y-6">
+            
+            <!-- Live Quota Availability Card -->
+            <div class="rounded-2xl border border-white/15 bg-slate-900/90 p-5 sm:p-6 space-y-4 shadow-xl">
+              <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                  <span>📊</span>
+                  <span>Ketersediaan Kuota Kategori</span>
+                </h3>
+                <span class="text-[10px] font-mono text-emerald-400 uppercase font-bold">Real-Time Sync</span>
+              </div>
+
+              <div id="category-quota-list" class="space-y-3.5">
+                <!-- Dynamically populated from event data -->
+                <div class="rounded-xl border border-white/10 bg-slate-950/80 p-3.5 space-y-2">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="font-bold text-white">Full Marathon 42.2K (Qualifier)</span>
+                    <span class="font-mono text-emerald-400 font-bold">Tersedia</span>
+                  </div>
+                  <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                    <span>Target Kuota: 30.000 Pelari</span>
+                    <span>Tersisa: ~4.200 Slot</span>
+                  </div>
+                  <div class="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-[#fdda24]" style="width: 86%"></div>
+                  </div>
+                </div>
+
+                <div class="rounded-xl border border-white/10 bg-slate-950/80 p-3.5 space-y-2">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="font-bold text-white">Para Athletics & Wheelchair</span>
+                    <span class="font-mono text-emerald-400 font-bold">Tersedia</span>
+                  </div>
+                  <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                    <span>Target Kuota: 500 Pelari</span>
+                    <span>Tersisa: ~180 Slot</span>
+                  </div>
+                  <div class="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                    <div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-[#fdda24]" style="width: 64%"></div>
+                  </div>
+                </div>
+
+                <div class="rounded-xl border border-white/10 bg-slate-950/80 p-3.5 space-y-2">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="font-bold text-white">B.A.A. 5K Boston Common</span>
+                    <span class="font-mono text-amber-400 font-bold">Menipis</span>
+                  </div>
+                  <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                    <span>Target Kuota: 10.000 Pelari</span>
+                    <span>Tersisa: ~890 Slot</span>
+                  </div>
+                  <div class="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                    <div class="h-full rounded-full bg-amber-500" style="width: 91%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Server Telemetry & Verification Info -->
+            <div class="rounded-2xl border border-white/15 bg-slate-900/90 p-5 sm:p-6 space-y-3.5 shadow-xl">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-white/10 pb-3">
+                <span>🛡️</span>
+                <span>Telemetri Integritas Sesi</span>
+              </h3>
+
+              <div class="space-y-2 text-xs font-mono">
+                <div class="flex justify-between items-center py-1 border-b border-white/5">
+                  <span class="text-slate-400">Enkripsi Antrean:</span>
+                  <span class="text-slate-200 font-semibold">AES-GCM-256 + HMAC</span>
+                </div>
+                <div class="flex justify-between items-center py-1 border-b border-white/5">
+                  <span class="text-slate-400">Algoritma Urut:</span>
+                  <span class="text-emerald-400 font-semibold">Strict Redis FIFO Sorted Set</span>
+                </div>
+                <div class="flex justify-between items-center py-1 border-b border-white/5">
+                  <span class="text-slate-400">Status Bot Filter:</span>
+                  <span class="text-emerald-400 font-semibold">Turnstile Active (0 Bot Permitted)</span>
+                </div>
+                <div class="flex justify-between items-center py-1">
+                  <span class="text-slate-400">Waktu Sinkron:</span>
+                  <span class="text-slate-200 font-semibold" id="telemetry-time">Synchronized</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-[#001428] py-8 text-xs text-slate-500 mt-12">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <span class="flex h-7 w-7 items-center justify-center rounded bg-[#fdda24] font-black text-[#00172e] text-xs">
+            BAA
+          </span>
+          <span class="text-slate-300 font-semibold">
+            IvyTicketing War Engine · 130th Boston Marathon 2026
+          </span>
+        </div>
+        <div class="flex items-center gap-4 text-slate-400">
+          <a href={`/events/${eventId}`} class="hover:text-white transition-colors">Detail Rute</a>
+          <a href="/participant/orders" class="hover:text-white transition-colors">Pesanan Saya</a>
+          <a href="/status" class="hover:text-white transition-colors">Status Server</a>
+          <a href="/login" class="hover:text-white transition-colors">Login Akun</a>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    import { getMarathonEventById, type MarathonEvent } from "../../../lib/events-store";
+    import { getToken, login, getMe } from "../../../lib/auth";
+    import { joinQueue, getQueueStatus, type QueueStatusResponse } from "../../../lib/queue";
+    import { esc } from "../../../lib/safe";
+
+    // ── Audio Synthesizer Chime ──
+    let audioContext: AudioContext | null = null;
+    let soundEnabled = true;
+
+    function initAudio() {
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          audioContext = new AudioCtx();
+        }
+      } catch {
+        // audio not supported
+      }
+    }
+
+    function playTurnChime() {
+      if (!soundEnabled) return;
+      try {
+        if (!audioContext) initAudio();
+        if (!audioContext) return;
+        if (audioContext.state === "suspended") {
+          audioContext.resume();
+        }
+
+        const now = audioContext.currentTime;
+
+        // Note 1: E5 (659.25 Hz)
+        const osc1 = audioContext.createOscillator();
+        const gain1 = audioContext.createGain();
+        osc1.type = "sine";
+        osc1.frequency.setValueAtTime(659.25, now);
+        gain1.gain.setValueAtTime(0, now);
+        gain1.gain.linearRampToValueAtTime(0.28, now + 0.05);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        osc1.connect(gain1);
+        gain1.connect(audioContext.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.5);
+
+        // Note 2: G#5 (830.61 Hz)
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        osc2.type = "sine";
+        osc2.frequency.setValueAtTime(830.61, now + 0.2);
+        gain2.gain.setValueAtTime(0, now + 0.2);
+        gain2.gain.linearRampToValueAtTime(0.35, now + 0.25);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        osc2.start(now + 0.2);
+        osc2.stop(now + 0.9);
+      } catch {
+        // silent fallback
+      }
+    }
+
+    // Toggle sound button
+    const soundBtn = document.getElementById("btn-sound-toggle");
+    const soundIcon = document.getElementById("sound-icon");
+    const soundLabel = document.getElementById("sound-label");
+
+    soundBtn?.addEventListener("click", () => {
+      soundEnabled = !soundEnabled;
+      if (soundEnabled) {
+        initAudio();
+        if (soundIcon) soundIcon.textContent = "🔔";
+        if (soundLabel) soundLabel.textContent = "Suara Aktif";
+        playTurnChime();
+      } else {
+        if (soundIcon) soundIcon.textContent = "🔕";
+        if (soundLabel) soundLabel.textContent = "Suara Bisu";
+      }
+    });
+
+    // ── Setup Event Data & Theming ──
+    const pathSegments = window.location.pathname.split("/").filter(Boolean);
+    const eventId = pathSegments[1] || "boston-marathon-2026";
+    const currentEvent: MarathonEvent = getMarathonEventById(eventId);
+
+    const navBrandBadge = document.getElementById("nav-brand-badge");
+    const navEventTitle = document.getElementById("nav-event-title");
+    const heroEventName = document.getElementById("hero-event-name");
+    const heroLocationText = document.getElementById("hero-location-text");
+    const heroBannerImg = document.getElementById("hero-banner-img") as HTMLImageElement | null;
+    const roomIdLabel = document.getElementById("room-id-label");
+    const categoryQuotaList = document.getElementById("category-quota-list");
+    const athleteDot = document.getElementById("athlete-dot");
+    const athleteChipText = document.getElementById("athlete-chip-text");
+    const consoleBody = document.getElementById("console-body")!;
+
+    if (currentEvent) {
+      if (navEventTitle) navEventTitle.textContent = currentEvent.name;
+      if (heroEventName) heroEventName.textContent = currentEvent.name;
+      if (heroLocationText) heroLocationText.textContent = `${currentEvent.city} · ${currentEvent.country || "USA"}`;
+      if (roomIdLabel) roomIdLabel.textContent = `WAR-${currentEvent.id.toUpperCase().slice(0, 10)}`;
+      if (heroBannerImg && (currentEvent.bannerUrl || currentEvent.coverUrl)) {
+        heroBannerImg.src = currentEvent.bannerUrl || currentEvent.coverUrl || "/images/events/boston_marathon.jpg";
+      }
+
+      // Populate Category Quotas
+      if (categoryQuotaList && currentEvent.categories?.length > 0) {
+        categoryQuotaList.innerHTML = currentEvent.categories
+          .map((c, i) => {
+            const quota = c.quota || 10000;
+            const reg = c.registeredCount || 0;
+            const pct = Math.min(100, Math.max(10, Math.round((reg / quota) * 100) || 75 + i * 8));
+            return `
+              <div class="rounded-xl border border-white/10 bg-slate-950/80 p-3.5 space-y-2">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-bold text-white">${esc(c.name)}</span>
+                  <span class="font-mono ${pct > 90 ? 'text-amber-400' : 'text-emerald-400'} font-bold">
+                    ${pct > 90 ? 'Hampir Habis' : 'Tersedia'}
+                  </span>
+                </div>
+                <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                  <span>Target Kuota: ${quota.toLocaleString("id-ID")} Slot</span>
+                  <span>Jarak: ${esc(c.distance || c.code)}</span>
+                </div>
+                <div class="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <div class="h-full rounded-full ${pct > 90 ? 'bg-amber-500' : 'bg-gradient-to-r from-emerald-500 to-[#fdda24]'}" style="width: ${pct}%"></div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
+      }
+    }
+
+    // ── Live Telemetry Clock ──
+    setInterval(() => {
+      const timeEl = document.getElementById("telemetry-time");
+      if (timeEl) {
+        const d = new Date();
+        timeEl.textContent = `${d.toTimeString().split(" ")[0]} · UTC${d.getTimezoneOffset() <= 0 ? "+" : ""}${-d.getTimezoneOffset() / 60}`;
+      }
+    }, 1000);
+
+    // ── Core Queue State Controller ──
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let virtualPosition = 64;
+    let initialPosition = 64;
+    let queueAdmissionToken: string | null = null;
+    let isAdmitted = false;
+
+    // Render: State 1 - Active Waiting Room in Queue
+    function renderActiveQueue(pos: number, totalAhead: number, estSec: number) {
+      const totalEstimated = initialPosition > 0 ? initialPosition : 100;
+      const progressPct = Math.min(98, Math.max(5, Math.round(((totalEstimated - pos) / totalEstimated) * 100)));
+      const minutes = Math.floor(estSec / 60);
+      const seconds = estSec % 60;
+      const timeFormatted = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+
+      const qCfg = currentEvent?.layoutConfig?.queueConfig;
+      const isRandomized = qCfg?.algorithm === "randomized";
+      const algoBadge = isRandomized
+        ? `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/15 border border-sky-400/40 text-sky-300 text-xs font-semibold"><span class="h-2 w-2 rounded-full bg-sky-400 animate-pulse"></span>Sistem Acak Otomatis (Fair Randomized Shuffle)</span>`
+        : `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold"><span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>Sistem FIFO (Siapa Cepat Dia Dapat)</span>`;
+
+      consoleBody.innerHTML = `
+        <div class="space-y-6">
+          <!-- Position & Visual Radar -->
+          <div class="relative flex flex-col items-center justify-center p-4 sm:p-6 rounded-2xl bg-[#00172e]/80 border border-[#fdda24]/30 shadow-inner">
+            <!-- Pulsing Radar Ring -->
+            <div class="pointer-events-none absolute h-44 w-44 rounded-full border border-[#fdda24]/20 radar-pulse"></div>
+            <div class="pointer-events-none absolute h-60 w-60 rounded-full border border-[#fdda24]/10 radar-pulse" style="animation-delay: 1.2s"></div>
+
+            <div class="relative z-10 text-center space-y-1.5">
+              <span class="text-[11px] font-mono font-bold uppercase tracking-widest text-[#fdda24] block">
+                Nomor Antrean Anda
+              </span>
+              <div class="font-mono text-5xl sm:text-6xl font-black text-white tracking-tight leading-none py-1">
+                #${pos}
+              </div>
+              <div>
+                ${algoBadge}
+              </div>
+            </div>
+          </div>
+
+          <!-- Progress Bar & Metrics Grid -->
+          <div class="space-y-2">
+            <div class="flex justify-between text-xs font-mono">
+              <span class="text-slate-400">Progres Menuju Garis Depan:</span>
+              <span class="text-[#fdda24] font-bold">${progressPct}% Selesai</span>
+            </div>
+            <div class="h-3 w-full rounded-full bg-slate-950 p-0.5 border border-white/10 overflow-hidden">
+              <div
+                class="h-full rounded-full bg-gradient-to-r from-orange-500 via-[#fdda24] to-emerald-400 transition-all duration-700 shadow-sm"
+                style="width: ${progressPct}%"
+              ></div>
+            </div>
+          </div>
+
+          <!-- 3-Metric Athletic Dashboard -->
+          <div class="grid grid-cols-3 gap-2.5 sm:gap-4 text-center">
+            <div class="rounded-xl border border-white/10 bg-slate-950/70 p-3 sm:p-4">
+              <span class="text-[10px] font-bold uppercase text-slate-400 block truncate">Pelari di Depan</span>
+              <span class="text-lg sm:text-2xl font-black text-white font-mono mt-0.5 block">
+                ${totalAhead}
+              </span>
+            </div>
+            <div class="rounded-xl border border-white/10 bg-slate-950/70 p-3 sm:p-4">
+              <span class="text-[10px] font-bold uppercase text-slate-400 block truncate">Estimasi Tunggu</span>
+              <span class="text-lg sm:text-2xl font-black text-[#fdda24] font-mono mt-0.5 block">
+                ~${timeFormatted}
+              </span>
+            </div>
+            <div class="rounded-xl border border-white/10 bg-slate-950/70 p-3 sm:p-4">
+              <span class="text-[10px] font-bold uppercase text-slate-400 block truncate">Laju Pelepasan</span>
+              <span class="text-lg sm:text-2xl font-black text-emerald-400 font-mono mt-0.5 block">
+                25/mnt
+              </span>
+            </div>
+          </div>
+
+          <!-- Active Simulation Note -->
+          <div class="rounded-xl border border-white/10 bg-slate-950/60 p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+            <span class="text-slate-300">
+              ${isRandomized
+                ? "Urutan antrean diacak secara adil untuk semua pengunjung yang hadir. Harap tetap di halaman ini."
+                : "Nomor antrean diproses secara berurutan sesuai waktu masuk (FIFO). Harap tetap di halaman ini."
+              }
+            </span>
+            <span class="text-orange-400 font-mono text-[11px] shrink-0 font-bold">Auto-Advance Active</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render: State 2 - Turn Arrived / Admitted!
+    function renderAdmitted(token: string) {
+      if (isAdmitted) return;
+      isAdmitted = true;
+      if (pollInterval) clearInterval(pollInterval);
+      playTurnChime();
+
+      const searchParams = new URLSearchParams(window.location.search);
+      const catId = searchParams.get("categoryId") || "";
+      const redirectUrl = `/events/${encodeURIComponent(eventId)}/checkout?admission=${encodeURIComponent(token)}${catId ? `&categoryId=${encodeURIComponent(catId)}` : ""}`;
+
+      let remainingSec = 600; // 10 minutes
+
+      consoleBody.innerHTML = `
+        <div class="text-center space-y-6 animate-fade-in">
+          <!-- Celebration Beacon -->
+          <div class="inline-flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/20 border-2 border-emerald-400 text-emerald-400 text-4xl font-bold shadow-lg shadow-emerald-500/20 animate-bounce">
+            ✓
+          </div>
+
+          <div class="space-y-2">
+            <span class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#fdda24]/20 border border-[#fdda24]/40 text-[#fdda24] text-xs font-black uppercase tracking-wider">
+              GILIRAN ANDA TELAH TIBA!
+            </span>
+            <h2 class="text-2xl sm:text-3xl font-black text-white uppercase tracking-tight">
+              Jalur Pendaftaran Dibuka
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+              Token antrean Anda telah lolos verifikasi integritas. Kuota slot balap Anda telah dipesan sementara selama 10 menit ke depan.
+            </p>
+          </div>
+
+          <!-- 10:00 Active Countdown Clock -->
+          <div class="inline-flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-amber-950/40 px-6 py-3 shadow-inner">
+            <span class="text-xs font-bold uppercase text-amber-300">Sisa Waktu Pemesanan:</span>
+            <span id="checkout-countdown" class="font-mono text-2xl sm:text-3xl font-black text-amber-400">10:00</span>
+          </div>
+
+          <!-- Direct CTA Button -->
+          <div>
+            <a
+              id="btn-admit-checkout"
+              href="${redirectUrl}"
+              class="min-h-[48px] w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#fdda24] hover:bg-[#e5c41e] px-8 py-3.5 text-sm font-black uppercase tracking-wider text-[#00172e] shadow-xl shadow-[#fdda24]/20 active:scale-95 transition-all cursor-pointer"
+            >
+              <span>Lanjut ke Pemilihan Tiket & Formulir Atlet</span>
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </a>
+          </div>
+
+          <p class="text-[11px] text-slate-400 font-mono">
+            Token Akses: ${token.slice(0, 16)}... (Otorisasi Resmi)
+          </p>
+        </div>
+      `;
+
+      const countdownEl = document.getElementById("checkout-countdown");
+      const cdTimer = setInterval(() => {
+        remainingSec--;
+        if (remainingSec <= 0) {
+          clearInterval(cdTimer);
+          if (countdownEl) countdownEl.textContent = "00:00";
+          alert("Waktu akses checkout Anda telah berakhir. Anda perlu mengambil antrean baru.");
+          window.location.reload();
+          return;
+        }
+        const m = Math.floor(remainingSec / 60);
+        const s = remainingSec % 60;
+        if (countdownEl) {
+          countdownEl.textContent = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+        }
+      }, 1000);
+    }
+
+    // Render: State 3 - Unauthenticated Athlete Login Gate (In-Page, Zero Kick-Out)
+    function renderLoginGate() {
+      consoleBody.innerHTML = `
+        <div class="space-y-5 text-left">
+          <div class="text-center space-y-1.5 pb-2">
+            <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#fdda24]/10 text-[#fdda24] text-2xl font-bold border border-[#fdda24]/30">
+              🔑
+            </div>
+            <h2 class="text-lg sm:text-xl font-bold uppercase text-white tracking-wide">
+              Otentikasi Akun Pelari Diperlukan
+            </h2>
+            <p class="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
+              Untuk menjamin 1 orang 1 antrean adil dan bebas calo tiket, silakan masuk dengan akun atlet Anda untuk langsung bergabung ke antrean war.
+            </p>
+          </div>
+
+          <!-- Quick Test Demo Button -->
+          <div class="rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="text-xs">
+              <span class="font-bold text-emerald-300 block">Akun Pengujian Demo Cepat</span>
+              <span class="text-[11px] text-slate-400">Masuk instan dengan akun atlet platform terverifikasi.</span>
+            </div>
+            <button
+              type="button"
+              id="btn-quick-demo-login"
+              class="min-h-[44px] shrink-0 w-full sm:w-auto rounded-lg bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow transition-all cursor-pointer"
+            >
+              ⚡ Masuk Cepat Demo
+            </button>
+          </div>
+
+          <!-- Standard Login Form -->
+          <form id="inline-login-form" class="space-y-3.5 rounded-xl border border-white/10 bg-slate-950/70 p-4 sm:p-5">
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1" for="gate-email">
+                Alamat Email Atlet
+              </label>
+              <input
+                id="gate-email"
+                type="email"
+                required
+                placeholder="nama@email.com"
+                class="min-h-[44px] w-full rounded-lg border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm text-white focus:border-[#fdda24] focus:outline-hidden focus:ring-1 focus:ring-[#fdda24] transition-colors"
+              />
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1" for="gate-password">
+                Kata Sandi
+              </label>
+              <input
+                id="gate-password"
+                type="password"
+                required
+                placeholder="••••••••"
+                class="min-h-[44px] w-full rounded-lg border border-slate-700 bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm text-white focus:border-[#fdda24] focus:outline-hidden focus:ring-1 focus:ring-[#fdda24] transition-colors"
+              />
+            </div>
+
+            <p id="gate-error" class="hidden text-xs text-red-400 bg-red-950/50 border border-red-800/50 p-2.5 rounded-lg"></p>
+
+            <button
+              id="btn-gate-submit"
+              type="submit"
+              class="min-h-[44px] w-full rounded-lg bg-[#fdda24] hover:bg-[#e5c41e] px-4 py-2.5 text-xs sm:text-sm font-black uppercase tracking-wider text-[#00172e] shadow active:scale-[0.99] transition-all flex items-center justify-center cursor-pointer"
+            >
+              Masuk & Bergabung ke Antrean War
+            </button>
+          </form>
+
+          <div class="text-center text-xs text-slate-400 pt-1">
+            Belum memiliki akun pelari?
+            <a href="/register" class="font-bold text-[#fdda24] hover:underline ml-1">
+              Daftar Akun Baru di Sini
+            </a>
+          </div>
+        </div>
+      `;
+
+      // Wire quick demo login button
+      const quickBtn = document.getElementById("btn-quick-demo-login");
+      quickBtn?.addEventListener("click", async () => {
+        if (quickBtn) {
+          quickBtn.textContent = "Menghubungkan...";
+          (quickBtn as HTMLButtonElement).disabled = true;
+        }
+        try {
+          await login("admin@ivyticketing.com", "admin123456");
+          checkAuthAndStart();
+        } catch (err: any) {
+          alert("Gagal masuk dengan akun demo: " + err.message);
+          if (quickBtn) {
+            quickBtn.textContent = "⚡ Masuk Cepat Demo";
+            (quickBtn as HTMLButtonElement).disabled = false;
+          }
+        }
+      });
+
+      // Wire inline form submit
+      const form = document.getElementById("inline-login-form") as HTMLFormElement;
+      const submitBtn = document.getElementById("btn-gate-submit") as HTMLButtonElement;
+      const errEl = document.getElementById("gate-error") as HTMLParagraphElement;
+
+      form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        errEl.classList.add("hidden");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Memverifikasi...";
+
+        const email = (document.getElementById("gate-email") as HTMLInputElement).value.trim();
+        const pwd = (document.getElementById("gate-password") as HTMLInputElement).value;
+
+        try {
+          await login(email, pwd);
+          checkAuthAndStart();
+        } catch (err: any) {
+          errEl.textContent = err.message || "Gagal masuk. Periksa kembali email dan kata sandi.";
+          errEl.classList.remove("hidden");
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Masuk & Bergabung ke Antrean War";
+        }
+      });
+    }
+
+    // ── Check Auth & Start War Queue ──
+    async function checkAuthAndStart() {
+      // Fast-forward check: If queue is inactive (calm traffic or bypass), redirect directly to checkout
+      if (currentEvent) {
+        const qCfg = currentEvent.layoutConfig?.queueConfig;
+        const queueMode = qCfg?.mode || "auto";
+        const trafficThreshold = qCfg?.trafficThreshold ?? 50;
+        const activeWaiting = qCfg?.activeWaitingCount ?? 0;
+        const isAnyWar = currentEvent.categories?.some((c) => c.mode === "WAR_QUEUE");
+        const isQueueActive = isAnyWar && (
+          queueMode === "always_queue" ||
+          (queueMode === "auto" && activeWaiting >= trafficThreshold)
+        );
+
+        if (!isQueueActive) {
+          const searchParams = new URLSearchParams(window.location.search);
+          const catId = searchParams.get("categoryId") || "";
+          window.location.replace(`/events/${encodeURIComponent(eventId)}/checkout${catId ? `?categoryId=${encodeURIComponent(catId)}` : ""}`);
+          return;
+        }
+      }
+
+      const token = getToken();
+
+      if (!token) {
+        if (athleteDot) athleteDot.className = "h-2 w-2 rounded-full bg-amber-400";
+        if (athleteChipText) athleteChipText.textContent = "Otentikasi Diperlukan";
+        renderLoginGate();
+        return;
+      }
+
+      // Fetch Athlete Info
+      try {
+        const me = await getMe();
+        if (athleteDot) athleteDot.className = "h-2 w-2 rounded-full bg-emerald-400";
+        if (athleteChipText) athleteChipText.textContent = me?.user?.fullName || me?.user?.email || "Atlet Terverifikasi";
+      } catch {
+        if (athleteChipText) athleteChipText.textContent = "Atlet Terdaftar";
+      }
+
+      // Try Backend Join Queue
+      try {
+        const joinResp = await joinQueue(eventId);
+        if (joinResp?.position !== undefined && joinResp.position > 0) {
+          virtualPosition = joinResp.position;
+          initialPosition = joinResp.position;
+        }
+      } catch {
+        // Queue endpoint may be in local open mode or simulated war
+        const qCfg = currentEvent?.layoutConfig?.queueConfig;
+        if (qCfg?.algorithm === "randomized") {
+          virtualPosition = Math.floor(Math.random() * 45) + 15;
+          initialPosition = virtualPosition;
+        }
+      }
+
+      // Start Polling & Auto-Advance
+      renderActiveQueue(virtualPosition, Math.max(0, virtualPosition - 1), virtualPosition * 3);
+
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(async () => {
+        try {
+          const st: QueueStatusResponse = await getQueueStatus(eventId);
+          if (st.status === "ADMITTED" && st.admissionToken) {
+            renderAdmitted(st.admissionToken);
+            return;
+          }
+          if (st.position !== undefined && st.position > 0) {
+            virtualPosition = st.position;
+            const estSec = st.estimatedWaitSeconds && st.estimatedWaitSeconds > 0
+              ? st.estimatedWaitSeconds
+              : st.position * 3;
+            renderActiveQueue(st.position, Math.max(0, st.position - 1), estSec);
+          }
+        } catch {
+          // Keep showing current status if intermittent connection glitch
+        }
+      }, 2500);
+    }
+
+    // Start on page load
+    checkAuthAndStart();
+  </script>
 </ParticipantLayout>

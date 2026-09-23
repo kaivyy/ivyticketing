@@ -356,11 +356,15 @@ func (s *Service) ExecutePickup(ctx context.Context, in ExecutePickupInput) (db.
 		if in.Notes != "" {
 			notesArg = pgtypeText(in.Notes)
 		}
+		var pid uuid.UUID
+		if t.ParticipantID != nil {
+			pid = *t.ParticipantID
+		}
 		rec, err := tx.CreatePickupRecord(ctx, db.CreateRacepackPickupRecordParams{
 			OrganizationID: in.OrgID,
 			EventID:        in.EventID,
 			TicketID:       in.TicketID,
-			ParticipantID:  t.ParticipantID,
+			ParticipantID:  pid,
 			BibNumber:      t.BibNumber.String,
 			CounterID:      in.CounterID,
 			SlotID:         slotArg,

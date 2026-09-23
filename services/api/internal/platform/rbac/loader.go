@@ -35,3 +35,40 @@ func (l *Loader) LoadPermissions(ctx context.Context, orgID, userID uuid.UUID) (
 	}
 	return perms, true, nil
 }
+
+// ResolveOrgSlug resolves an organization slug or ID string to its UUID.
+func (l *Loader) ResolveOrgSlug(ctx context.Context, identifier string) (uuid.UUID, error) {
+	if parsed, err := uuid.Parse(identifier); err == nil {
+		return parsed, nil
+	}
+	org, err := l.q.GetOrganizationBySlug(ctx, identifier)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return org.ID, nil
+}
+
+// ResolveEventSlug resolves an event slug or ID string to its UUID and its canonical organization UUID.
+func (l *Loader) ResolveEventSlug(ctx context.Context, orgID uuid.UUID, identifier string) (uuid.UUID, uuid.UUID, error) {
+	if parsed, err := uuid.Parse(identifier); err == nil {
+		ev, err := l.q.GetEventByID(ctx, parsed)
+		if err == nil {
+			return ev.ID, ev.OrganizationID, nil
+		}
+		return parsed, orgID, nil
+	}
+	if orgID != uuid.Nil {
+		ev, err := l.q.GetEventByOrgAndSlug(ctx, db.GetEventByOrgAndSlugParams{
+			OrganizationID: orgID,
+			Slug:           identifier,
+		})
+		if err == nil {
+			return ev.ID, ev.OrganizationID, nil
+		}
+	}
+	evGlobal, err := l.q.GetEventBySlug(ctx, identifier)
+	if err == nil {
+		return evGlobal.ID, evGlobal.OrganizationID, nil
+	}
+	return uuid.Nil, uuid.Nil, err
+}

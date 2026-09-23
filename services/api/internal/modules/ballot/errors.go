@@ -10,6 +10,7 @@ var (
 	ErrBallotClosed             = apperr.New(http.StatusConflict, "BALLOT_CLOSED", "ballot application window is not open")
 	ErrAlreadyApplied           = apperr.New(http.StatusConflict, "BALLOT_ALREADY_APPLIED", "already applied to this ballot")
 	ErrNotWinner                = apperr.New(http.StatusForbidden, "BALLOT_NOT_WINNER", "ballot entry is not a winner")
+	ErrDrawNotFound             = apperr.New(http.StatusNotFound, "BALLOT_DRAW_NOT_FOUND", "ballot draw not found")
 	ErrDrawNotAnnounced         = apperr.New(http.StatusConflict, "BALLOT_DRAW_NOT_ANNOUNCED", "ballot results not yet announced")
 	ErrPaymentWindowExpired     = apperr.New(http.StatusConflict, "BALLOT_PAYMENT_WINDOW_EXPIRED", "winner payment window has expired")
 	ErrDrawAlreadyRun           = apperr.New(http.StatusConflict, "BALLOT_DRAW_ALREADY_RUN", "draw has already been executed")

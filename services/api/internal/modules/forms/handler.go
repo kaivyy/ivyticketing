@@ -56,6 +56,20 @@ func (h *Handler) GetForm(w http.ResponseWriter, r *http.Request) {
 	apperr.WriteJSON(w, http.StatusOK, form)
 }
 
+func (h *Handler) GetPublicForm(w http.ResponseWriter, r *http.Request) {
+	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		return
+	}
+	form, err := h.svc.GetPublicForm(r.Context(), eventID)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, form)
+}
+
 func (h *Handler) UpdateForm(w http.ResponseWriter, r *http.Request) {
 	orgID, eventID, ok := h.ids(w, r)
 	if !ok {

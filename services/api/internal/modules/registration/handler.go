@@ -14,10 +14,22 @@ type Handler struct{ svc *Service }
 
 func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
 
-func (h *Handler) SetEventSettings(w http.ResponseWriter, r *http.Request) {
+func parseOrgAndEvent(r *http.Request) (uuid.UUID, uuid.UUID, error) {
+	orgID, err := uuid.Parse(chi.URLParam(r, "orgId"))
+	if err != nil {
+		return uuid.Nil, uuid.Nil, apperr.New(http.StatusBadRequest, "INVALID_ORG_ID", "invalid organization id")
+	}
 	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
 	if err != nil {
-		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		return uuid.Nil, uuid.Nil, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id")
+	}
+	return orgID, eventID, nil
+}
+
+func (h *Handler) SetEventSettings(w http.ResponseWriter, r *http.Request) {
+	orgID, eventID, err := parseOrgAndEvent(r)
+	if err != nil {
+		apperr.WriteError(w, r, err)
 		return
 	}
 	var req EventSettingsRequest
@@ -25,7 +37,7 @@ func (h *Handler) SetEventSettings(w http.ResponseWriter, r *http.Request) {
 		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_BODY", "invalid request body"))
 		return
 	}
-	if err := h.svc.SetEventSettings(r.Context(), eventID, req); err != nil {
+	if err := h.svc.SetEventSettings(r.Context(), orgID, eventID, req); err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}
@@ -33,9 +45,9 @@ func (h *Handler) SetEventSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) SetCategorySettings(w http.ResponseWriter, r *http.Request) {
-	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	orgID, eventID, err := parseOrgAndEvent(r)
 	if err != nil {
-		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		apperr.WriteError(w, r, err)
 		return
 	}
 	var req CategorySettingsRequest
@@ -48,7 +60,7 @@ func (h *Handler) SetCategorySettings(w http.ResponseWriter, r *http.Request) {
 		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_CATEGORY_ID", "invalid category id"))
 		return
 	}
-	if err := h.svc.SetCategorySettings(r.Context(), eventID, catID, req); err != nil {
+	if err := h.svc.SetCategorySettings(r.Context(), orgID, eventID, catID, req); err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}
@@ -56,40 +68,15 @@ func (h *Handler) SetCategorySettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetEventSettings(w http.ResponseWriter, r *http.Request) {
-	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
-	if err != nil {
-		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
-		return
-	}
-
-	evSettings, evErr := h.svc.repo.GetEventSettings(r.Context(), eventID)
-
-	resp := SettingsResponse{EventID: eventID.String()}
-	if evErr == nil {
-		resp.DefaultMode = evSettings.DefaultMode
-		resp.QueueEnabled = evSettings.QueueEnabled
-		resp.BallotEnabled = evSettings.BallotEnabled
-		resp.PriorityEnabled = evSettings.PriorityEnabled
-		resp.WaitlistEnabled = evSettings.WaitlistEnabled
-	} else {
-		resp.DefaultMode = string(ModeNormal)
-	}
-
-	catSettings, err := h.svc.repo.ListCategorySettingsByEvent(r.Context(), eventID)
+	orgID, eventID, err := parseOrgAndEvent(r)
 	if err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}
-	for _, cs := range catSettings {
-		c := CategorySettingsResponse{
-			CategoryID:      cs.CategoryID.String(),
-			OverrideEnabled: cs.OverrideEnabled,
-		}
-		if cs.RegistrationMode.Valid {
-			m := cs.RegistrationMode.String
-			c.RegistrationMode = &m
-		}
-		resp.Categories = append(resp.Categories, c)
+	resp, err := h.svc.GetEventSettings(r.Context(), orgID, eventID)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
 	}
 	apperr.WriteJSON(w, http.StatusOK, resp)
 }

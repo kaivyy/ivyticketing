@@ -92,11 +92,50 @@ WHERE draw_id = $1 AND status = 'WINNER';
 
 -- name: ListExpiringWinners :many
 SELECT * FROM ballot_entries
-WHERE status = 'WINNER' AND payment_deadline < now()
+WHERE status = 'WINNER'
+  AND payment_deadline < now()
+  AND NOT EXISTS (
+      SELECT 1 FROM orders o
+      WHERE (
+          (o.participant_id = ballot_entries.participant_id AND o.category_id = ballot_entries.category_id)
+          OR (ballot_entries.access_grant_id IS NOT NULL AND o.id IN (SELECT order_id FROM access_grants WHERE id = ballot_entries.access_grant_id))
+      )
+      AND (o.status = 'PAID' OR (o.status = 'PENDING_PAYMENT' AND o.expired_at > now()))
+  )
 LIMIT $1;
+
+-- name: ExpireBallotWinner :one
+UPDATE ballot_entries
+SET status = 'LAPSED'
+WHERE ballot_entries.id = $1
+  AND ballot_entries.status = 'WINNER'
+  AND NOT EXISTS (
+      SELECT 1 FROM orders o
+      WHERE (
+          (o.participant_id = ballot_entries.participant_id AND o.category_id = ballot_entries.category_id)
+          OR (ballot_entries.access_grant_id IS NOT NULL AND o.id IN (SELECT order_id FROM access_grants WHERE id = ballot_entries.access_grant_id))
+      )
+      AND (o.status = 'PAID' OR (o.status = 'PENDING_PAYMENT' AND o.expired_at > now()))
+  )
+RETURNING *;
+
+-- name: ConvertBallotWinnerForOrder :exec
+UPDATE ballot_entries
+SET status = 'CONVERTED', converted_at = now()
+WHERE (
+    (ballot_entries.participant_id = $1 AND ballot_entries.category_id = $2)
+    OR (ballot_entries.access_grant_id IS NOT NULL AND ballot_entries.access_grant_id IN (SELECT id FROM access_grants WHERE order_id = $3))
+)
+AND ballot_entries.status IN ('WINNER', 'LAPSED');
 
 -- name: GetBallotEntryByParticipant :many
 SELECT * FROM ballot_entries
 WHERE participant_id = $1
 ORDER BY applied_at DESC
 LIMIT $2 OFFSET $3;
+
+-- name: ListBallotDrawsByEvent :many
+SELECT * FROM ballot_draws
+WHERE event_id = $1
+ORDER BY created_at DESC;
+

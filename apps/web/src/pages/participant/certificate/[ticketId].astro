@@ -15,15 +15,15 @@ import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
     const root = document.getElementById("cert-root")!;
 
     function fmtRank(n?: number): string {
-      if (n == null) return "—";
+      if (n == null) return "-";
       const medal = n === 1 ? "🥇 " : n === 2 ? "🥈 " : n === 3 ? "🥉 " : "";
       return `${medal}${n}`;
     }
 
     function resultCard(res: ResultRow): string {
-      const time = res.chipTime || res.gunTime || "—";
+      const time = res.chipTime || res.gunTime || "-";
       const status = STATUS_LABELS[res.status] ?? res.status;
-      const gender = res.gender ? GENDER_LABELS[res.gender] ?? res.gender : "—";
+      const gender = res.gender ? GENDER_LABELS[res.gender] ?? res.gender : "-";
       return `
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
           ${statBox("Waktu (net)", esc(time), "font-mono")}
@@ -32,7 +32,7 @@ import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
           ${statBox("Peringkat Gender", fmtRank(res.rankGender))}
           ${statBox("BIB", esc(res.bibNumber), "font-mono")}
           ${statBox("Gender", esc(gender))}
-          ${statBox("Kel. Umur", res.ageGroup ? esc(res.ageGroup) : "—")}
+          ${statBox("Kel. Umur", res.ageGroup ? esc(res.ageGroup) : "-")}
           ${statBox("Peringkat Kel.", fmtRank(res.rankAgeGroup))}
         </div>`;
     }

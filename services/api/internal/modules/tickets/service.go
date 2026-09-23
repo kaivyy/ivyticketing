@@ -2,6 +2,7 @@ package tickets
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/google/uuid"
@@ -61,6 +62,12 @@ func toResponse(t db.Ticket) TicketResponse {
 		v := t.BibAssignmentMethod.String
 		r.BibAssignmentMethod = &v
 	}
+	if len(t.FormAnswers) > 0 {
+		var fa map[string]any
+		if err := json.Unmarshal(t.FormAnswers, &fa); err == nil {
+			r.FormAnswers = fa
+		}
+	}
 	return r
 }
 
@@ -74,7 +81,7 @@ func (s *Service) GetTicketForUser(ctx context.Context, repo Repository, userID,
 	if err != nil {
 		return TicketWithQR{}, err
 	}
-	if t.ParticipantID != userID {
+	if t.ParticipantID == nil || *t.ParticipantID != userID {
 		return TicketWithQR{}, ErrTicketNotFound
 	}
 	token, err := s.signer.Sign(t.ID, t.EventID)
@@ -93,7 +100,7 @@ func (s *Service) GetTicketByOrderForUser(ctx context.Context, userID, orderID u
 	if err != nil {
 		return TicketWithQR{}, err
 	}
-	if t.ParticipantID != userID {
+	if t.ParticipantID == nil || *t.ParticipantID != userID {
 		return TicketWithQR{}, ErrTicketNotFound
 	}
 	token, err := s.signer.Sign(t.ID, t.EventID)
@@ -150,7 +157,7 @@ func (s *Service) GetInvoiceForUser(ctx context.Context, userID, orderID uuid.UU
 	if err != nil {
 		return InvoiceResponse{}, err
 	}
-	if order.ParticipantID != userID {
+	if order.ParticipantID == nil || *order.ParticipantID != userID {
 		return InvoiceResponse{}, ErrTicketNotFound
 	}
 	if order.Status != orderStatusPaid {
@@ -175,4 +182,26 @@ func (s *Service) GetInvoiceForUser(ctx context.Context, userID, orderID uuid.UU
 		Currency:     "IDR",
 		IssuedAt:     t.IssuedAt.Time,
 	}, nil
+}
+
+// UpdateParticipant updates the holder details and form answers of a ticket.
+func (s *Service) UpdateParticipant(ctx context.Context, orgID, eventID, ticketID uuid.UUID, req UpdateParticipantRequest) (TicketResponse, error) {
+	var answersJSON []byte
+	if len(req.FormAnswers) > 0 {
+		if b, err := json.Marshal(req.FormAnswers); err == nil {
+			answersJSON = b
+		}
+	}
+	updated, err := s.repo.UpdateTicketParticipant(ctx, db.UpdateTicketParticipantParams{
+		ID:             ticketID,
+		HolderName:     req.HolderName,
+		HolderEmail:    req.HolderEmail,
+		FormAnswers:    answersJSON,
+		OrganizationID: orgID,
+		EventID:        eventID,
+	})
+	if err != nil {
+		return TicketResponse{}, err
+	}
+	return toResponse(updated), nil
 }

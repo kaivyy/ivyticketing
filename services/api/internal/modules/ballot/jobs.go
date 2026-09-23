@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-
-	"github.com/varin/ivyticketing/services/api/internal/db"
 )
 
 type BatchPromoter interface {
@@ -28,10 +26,7 @@ func (e *WinnerExpirer) Run(ctx context.Context) error {
 	}
 	affected := map[uuid.UUID]bool{}
 	for _, w := range winners {
-		_, err := e.repo.UpdateBallotEntryStatus(ctx, db.UpdateBallotEntryStatusParams{
-			ID:     w.ID,
-			Status: StatusLapsed,
-		})
+		_, err := e.repo.ExpireBallotWinner(ctx, w.ID)
 		if err != nil {
 			continue
 		}

@@ -1,7 +1,5 @@
 import { authedFetch } from "./api";
-import { getToken, refresh, redirectToLogin } from "./auth";
-
-const API_URL = import.meta.env.PUBLIC_API_URL ?? "http://localhost:8080";
+import { getToken, refresh, redirectToLogin, getApiBaseUrl } from "./auth";
 
 export interface ResultRow {
   id: string;
@@ -70,11 +68,20 @@ export interface CreateTemplateBody {
 const base = (orgId: string, eventId: string) =>
   `/organizations/${orgId}/events/${eventId}/results`;
 
-// Status labels (Indonesian) for the FINISHED/DNF/DNS domain.
+// Status labels (Indonesian) for the competition domain.
 export const STATUS_LABELS: Record<string, string> = {
   FINISHED: "Selesai",
   DNF: "DNF",
   DNS: "DNS",
+  DSQ: "DSQ",
+  OTL: "OTL",
+  PENDING_REVIEW: "Menunggu Review",
+  WITHDRAWN: "Mundur",
+  RETIRED: "Pensiun",
+  DISQUALIFIED: "Didiskualifikasi",
+  COMPLETED: "Selesai",
+  ACTIVE: "Aktif",
+  REGISTERED: "Terdaftar",
 };
 
 // Gender labels (Indonesian) for the M/F/X domain.
@@ -183,7 +190,8 @@ export async function importCSV(
   eventId: string,
   csvText: string
 ): Promise<ImportSummary> {
-  const url = `${API_URL}/api/v1${base(orgId, eventId)}/import`;
+  const baseHost = getApiBaseUrl();
+  const url = `${baseHost}/api/v1${base(orgId, eventId)}/import`;
   const doFetch = () =>
     fetch(url, {
       method: "POST",
@@ -216,3 +224,215 @@ export async function importCSV(
   }
   return (await res.json()) as ImportSummary;
 }
+
+// --- Timing Integration (RACE RESULT / CSV / Native) ---
+
+export interface TimingConfig {
+  id: string;
+  eventId: string;
+  provider: string;
+  transport?: string;
+  syncMode?: string;
+  policy?: Record<string, any>;
+  ingestionTokenPrefix: string;
+  externalRaceId?: string;
+  isActive: boolean;
+  settings?: Record<string, any>;
+}
+
+export interface ConfigureTimingResponse {
+  config: TimingConfig;
+  ingestionToken: string;
+}
+
+export interface TimingCheckpoint {
+  id: string;
+  eventId: string;
+  code: string;
+  name: string;
+  checkpointType: string;
+  orderIndex: number;
+  distanceMeters?: number;
+  aliases?: string[];
+  providerAliases?: Record<string, string[]>;
+}
+
+export interface RaceWave {
+  id: string;
+  eventId: string;
+  categoryId?: string;
+  code: string;
+  name: string;
+  startAt?: string;
+  orderIndex: number;
+}
+
+export interface ChipMapping {
+  id: string;
+  eventId: string;
+  bibNumber: string;
+  transponderCode: string;
+  isActive: boolean;
+  status: string;
+  notes?: string;
+}
+
+export interface PassingStats {
+  total: number;
+  processedCount: number;
+  pendingCount: number;
+}
+
+export interface TimingProcessSummary {
+  passingsEvaluated: number;
+  resultsUpdated: number;
+  ranked: boolean;
+}
+
+export function getTimingConfig(orgId: string, eventId: string): Promise<TimingConfig> {
+  return authedFetch<TimingConfig>(`${base(orgId, eventId)}/timing/config`);
+}
+
+export function configureTiming(
+  orgId: string,
+  eventId: string,
+  body: {
+    provider: string;
+    transport?: string;
+    syncMode?: string;
+    policy?: Record<string, any>;
+    externalRaceId?: string;
+    settings?: Record<string, any>;
+  }
+): Promise<ConfigureTimingResponse> {
+  return authedFetch<ConfigureTimingResponse>(`${base(orgId, eventId)}/timing/config`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function listCheckpoints(
+  orgId: string,
+  eventId: string
+): Promise<{ checkpoints: TimingCheckpoint[] }> {
+  return authedFetch<{ checkpoints: TimingCheckpoint[] }>(
+    `${base(orgId, eventId)}/timing/checkpoints`
+  );
+}
+
+export function upsertCheckpoint(
+  orgId: string,
+  eventId: string,
+  body: {
+    code: string;
+    name: string;
+    checkpointType: string;
+    orderIndex: number;
+    distanceMeters?: number;
+    aliases?: string[];
+    providerAliases?: Record<string, string[]>;
+  }
+): Promise<void> {
+  return authedFetch<void>(`${base(orgId, eventId)}/timing/checkpoints`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function listWaves(orgId: string, eventId: string): Promise<{ waves: RaceWave[] }> {
+  return authedFetch<{ waves: RaceWave[] }>(`${base(orgId, eventId)}/timing/waves`);
+}
+
+export function createWave(
+  orgId: string,
+  eventId: string,
+  body: {
+    categoryId?: string;
+    code: string;
+    name: string;
+    startAt?: string;
+    orderIndex: number;
+  }
+): Promise<RaceWave> {
+  return authedFetch<RaceWave>(`${base(orgId, eventId)}/timing/waves`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function listMappings(
+  orgId: string,
+  eventId: string
+): Promise<{ mappings: ChipMapping[] }> {
+  return authedFetch<{ mappings: ChipMapping[] }>(`${base(orgId, eventId)}/timing/mappings`);
+}
+
+export function assignMapping(
+  orgId: string,
+  eventId: string,
+  body: {
+    bibNumber: string;
+    transponderCode: string;
+    replaceOld: boolean;
+    notes?: string;
+  }
+): Promise<void> {
+  return authedFetch<void>(`${base(orgId, eventId)}/timing/mappings`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function getPassingStats(orgId: string, eventId: string): Promise<PassingStats> {
+  return authedFetch<PassingStats>(`${base(orgId, eventId)}/timing/passings/stats`);
+}
+
+export function processTiming(
+  orgId: string,
+  eventId: string
+): Promise<TimingProcessSummary> {
+  return authedFetch<TimingProcessSummary>(`${base(orgId, eventId)}/timing/process`, {
+    method: "POST",
+  });
+}
+
+export async function importMappings(
+  orgId: string,
+  eventId: string,
+  csvText: string,
+  replace = true
+): Promise<number> {
+  const baseHost = getApiBaseUrl();
+  const url = `${baseHost}/api/v1${base(orgId, eventId)}/timing/mappings/import?replace=${replace}`;
+  const doFetch = () =>
+    fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/csv",
+        Authorization: `Bearer ${getToken() ?? ""}`,
+      },
+      credentials: "include",
+      body: csvText,
+    });
+
+  let res = await doFetch();
+  if (res.status === 401) {
+    const ok = await refresh();
+    if (!ok) {
+      redirectToLogin();
+      throw new Error("unauthenticated");
+    }
+    res = await doFetch();
+  }
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.error?.message) msg = body.error.message;
+    } catch {}
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  return data.imported ?? 0;
+}
+

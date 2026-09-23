@@ -2,6 +2,7 @@ package queue
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -114,7 +115,9 @@ func (s *Service) Join(ctx context.Context, orgID, eventID, participantID uuid.U
 		return JoinResponse{}, err
 	} else {
 		// newly issued
-		_ = s.store.AddWaiting(ctx, eventID.String(), participantID.String(), tok.Score)
+		if s.store != nil {
+			_ = s.store.AddWaiting(ctx, eventID.String(), participantID.String(), tok.Score)
+		}
 		if s.audit != nil {
 			oid := orgID
 			aid := participantID
@@ -132,8 +135,36 @@ func (s *Service) Join(ctx context.Context, orgID, eventID, participantID uuid.U
 	return JoinResponse{TokenID: tok.ID.String(), Status: tok.Status, Position: pos}, nil
 }
 
+// assertEventOrg confirms the event belongs to orgID (tenant guard).
+func (s *Service) assertEventOrg(ctx context.Context, orgID, eventID uuid.UUID) error {
+	if s.events == nil || orgID == uuid.Nil {
+		return nil
+	}
+	actualOrgID, err := s.events.GetEventOrgID(ctx, eventID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrEventNotFound
+		}
+		return err
+	}
+	if actualOrgID != orgID {
+		return ErrEventNotFound
+	}
+	return nil
+}
+
 // Status returns the participant's queue position and state.
 func (s *Service) Status(ctx context.Context, eventID, participantID uuid.UUID) (StatusResponse, error) {
+	// 1. Check Redis cache first to prevent database connection pool exhaustion under high concurrency.
+	if s.store != nil {
+		if cached, err := s.store.GetCachedStatus(ctx, eventID.String(), participantID.String()); err == nil && cached != "" {
+			var resp StatusResponse
+			if err := json.Unmarshal([]byte(cached), &resp); err == nil {
+				return resp, nil
+			}
+		}
+	}
+
 	tok, err := s.repo.GetTokenByEventParticipant(ctx, eventID, participantID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return StatusResponse{}, ErrTokenNotFound
@@ -152,7 +183,10 @@ func (s *Service) Status(ctx context.Context, eventID, participantID uuid.UUID) 
 
 	resp := StatusResponse{TokenID: tok.ID.String(), Status: tok.Status, SystemState: state}
 	if tok.Status == StatusWaiting {
-		pos, _ := s.store.Rank(ctx, eventID.String(), participantID.String())
+		var pos int64
+		if s.store != nil {
+			pos, _ = s.store.Rank(ctx, eventID.String(), participantID.String())
+		}
 		resp.Position = pos
 		if rate > 0 {
 			resp.EstimatedWaitSeconds = pos / int64(rate)
@@ -168,6 +202,14 @@ func (s *Service) Status(ctx context.Context, eventID, participantID uuid.UUID) 
 			resp.CheckoutExpiresAt = adm.CheckoutExpiresAt.Time.Format(time.RFC3339)
 		}
 	}
+
+	// 2. Cache response for 2 seconds.
+	if s.store != nil {
+		if b, err := json.Marshal(resp); err == nil {
+			_ = s.store.SetCachedStatus(ctx, eventID.String(), participantID.String(), string(b), 2*time.Second)
+		}
+	}
+
 	return resp, nil
 }
 

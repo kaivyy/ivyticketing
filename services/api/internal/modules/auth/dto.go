@@ -10,10 +10,11 @@ type RegisterRequest struct {
 }
 
 type UserResponse struct {
-	ID       uuid.UUID `json:"id"`
-	Email    string    `json:"email"`
-	FullName string    `json:"fullName"`
-	Phone    string    `json:"phone"`
+	ID              uuid.UUID `json:"id"`
+	Email           string    `json:"email"`
+	FullName        string    `json:"fullName"`
+	Phone           string    `json:"phone"`
+	IsPlatformAdmin bool      `json:"isPlatformAdmin"`
 }
 
 type LoginRequest struct {
@@ -39,10 +40,12 @@ type RefreshResult struct {
 }
 
 type MembershipResponse struct {
-	OrganizationID uuid.UUID `json:"organizationId"`
-	MemberID       uuid.UUID `json:"memberId"`
-	RoleSlugs      []string  `json:"roleSlugs"`
-	Permissions    []string  `json:"permissions"`
+	OrganizationID   uuid.UUID `json:"organizationId"`
+	OrganizationSlug string    `json:"organizationSlug,omitempty"`
+	OrganizationName string    `json:"organizationName,omitempty"`
+	MemberID         uuid.UUID `json:"memberId"`
+	RoleSlugs        []string  `json:"roleSlugs"`
+	Permissions      []string  `json:"permissions"`
 }
 
 type MeResponse struct {

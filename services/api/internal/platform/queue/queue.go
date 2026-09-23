@@ -5,6 +5,7 @@ package queue
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -56,4 +57,29 @@ func (a *Adapter) MoveToWaiting(ctx context.Context, eventID, member string, sco
 
 func (a *Adapter) RemoveAllowed(ctx context.Context, eventID, member string) error {
 	return a.c.ZRem(ctx, allowedKey(eventID), member).Err()
+}
+
+func statusCacheKey(eventID, participantID string) string {
+	return fmt.Sprintf("queue:status:%s:%s", eventID, participantID)
+}
+
+func (a *Adapter) GetCachedStatus(ctx context.Context, eventID, participantID string) (string, error) {
+	if a == nil || a.c == nil {
+		return "", redis.Nil
+	}
+	return a.c.Get(ctx, statusCacheKey(eventID, participantID)).Result()
+}
+
+func (a *Adapter) SetCachedStatus(ctx context.Context, eventID, participantID string, val string, ttl time.Duration) error {
+	if a == nil || a.c == nil {
+		return nil
+	}
+	return a.c.Set(ctx, statusCacheKey(eventID, participantID), val, ttl).Err()
+}
+
+func (a *Adapter) InvalidateCachedStatus(ctx context.Context, eventID, participantID string) error {
+	if a == nil || a.c == nil {
+		return nil
+	}
+	return a.c.Del(ctx, statusCacheKey(eventID, participantID)).Err()
 }

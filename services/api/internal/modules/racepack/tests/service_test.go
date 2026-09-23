@@ -64,7 +64,11 @@ func (r *fakeRepo) seedTicket(t db.Ticket) {
 	r.tickets[t.ID] = t
 	r.ticketStatus = t.Status
 	r.ticketEventID = t.EventID
-	r.ticketPartID = t.ParticipantID
+	if t.ParticipantID != nil {
+		r.ticketPartID = *t.ParticipantID
+	} else {
+		r.ticketPartID = uuid.Nil
+	}
 	if t.BibNumber.Valid {
 		r.bib = t.BibNumber.String
 	} else {
@@ -430,7 +434,7 @@ func (r *fakeRepo) LockTicketForUpdate(ctx context.Context, ticketID uuid.UUID) 
 		ID: ticketID,
 		OrganizationID: uuid.Nil,
 		EventID:        r.ticketEventID,
-		ParticipantID:  r.ticketPartID,
+		ParticipantID:  &r.ticketPartID,
 		Status:         r.ticketStatus,
 		BibNumber:      pgtype.Text{String: r.bib, Valid: r.bib != ""},
 	}, nil
@@ -450,12 +454,12 @@ func (r *fakeRepo) GetUserTicket(ctx context.Context, ticketID uuid.UUID) (db.Ge
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return db.GetUserTicketByIDRow{
-		ID:        ticketID,
-		EventID:   r.ticketEventID,
-		ParticipantID: r.ticketPartID,
-		Status:    r.ticketStatus,
-		BibNumber: pgtype.Text{String: r.bib, Valid: r.bib != ""},
-		OrderStatus: r.orderStatus,
+		ID:            ticketID,
+		EventID:       r.ticketEventID,
+		ParticipantID: &r.ticketPartID,
+		Status:        r.ticketStatus,
+		BibNumber:     pgtype.Text{String: r.bib, Valid: r.bib != ""},
+		OrderStatus:   r.orderStatus,
 	}, nil
 }
 
@@ -507,9 +511,10 @@ func pickupFixture(repo *fakeRepo, eventID, orgID uuid.UUID) (ticketID, counterI
 		UpdatedAt: pgtype.Timestamptz{Time: nowish(), Valid: true},
 	})
 	ticketID = uuid.New()
+	pid := uuid.New()
 	repo.seedTicket(db.Ticket{
 		ID: ticketID, OrganizationID: orgID, EventID: eventID,
-		ParticipantID: uuid.New(),
+		ParticipantID: &pid,
 		Status: racepack.TicketStatusValid,
 		BibNumber:      pgtype.Text{String: "A00001", Valid: true},
 		OrderID:        uuid.New(),
@@ -642,9 +647,10 @@ func TestExecutePickup_TicketFromOtherEvent(t *testing.T) {
 	_, counterID := pickupFixture(repo, eventID, orgID)
 	// Ticket in a different event.
 	wrongTicket := uuid.New()
+	pid := uuid.New()
 	repo.seedTicket(db.Ticket{
 		ID: wrongTicket, OrganizationID: orgID, EventID: uuid.New(),
-		ParticipantID: uuid.New(),
+		ParticipantID: &pid,
 		Status: racepack.TicketStatusValid,
 		BibNumber: pgtype.Text{String: "A00001", Valid: true},
 		OrderID: uuid.New(),
@@ -775,9 +781,10 @@ func TestProxyAuthorization_TicketEventMismatch(t *testing.T) {
 	svc := racepack.NewService(repo, nil, nil)
 	orgID, eventID := uuid.New(), uuid.New()
 	wrongTicket := uuid.New()
+	pid1 := uuid.New()
 	repo.seedTicket(db.Ticket{
 		ID: wrongTicket, OrganizationID: orgID, EventID: uuid.New(),
-		ParticipantID: uuid.New(),
+		ParticipantID: &pid1,
 		Status: racepack.TicketStatusValid,
 		BibNumber: pgtype.Text{String: "A00001", Valid: true},
 		OrderID: uuid.New(),
@@ -794,9 +801,10 @@ func TestDashboardSummary_OpenCases(t *testing.T) {
 	eventID, orgID := uuid.New(), uuid.New()
 	// Seed a ticket first, then create a counter that the pickup will use.
 	ticketID := uuid.New()
+	pid2 := uuid.New()
 	repo.seedTicket(db.Ticket{
 		ID: ticketID, OrganizationID: orgID, EventID: eventID,
-		ParticipantID: uuid.New(),
+		ParticipantID: &pid2,
 		Status: racepack.TicketStatusValid,
 		BibNumber: pgtype.Text{String: "A00001", Valid: true},
 		OrderID: uuid.New(),

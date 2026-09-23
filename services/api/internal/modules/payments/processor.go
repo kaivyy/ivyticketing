@@ -263,6 +263,13 @@ func (p *Processor) applyPaid(ctx context.Context, tx Repository, webhookID uuid
 		if err := tx.CompleteReservationsForOrder(ctx, order.ID); err != nil {
 			return err
 		}
+		if order.ParticipantID != nil {
+			_ = tx.ConvertBallotWinnerForOrder(ctx, db.ConvertBallotWinnerForOrderParams{
+				ParticipantID: *order.ParticipantID,
+				CategoryID:    order.CategoryID,
+				OrderID:       &order.ID,
+			})
+		}
 		if p.issuer != nil {
 			if err := p.issuer.IssueForOrder(ctx, tx.Querier(), order); err != nil {
 				return err

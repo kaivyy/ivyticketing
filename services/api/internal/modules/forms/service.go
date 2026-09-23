@@ -47,6 +47,16 @@ func (s *Service) GetForm(ctx context.Context, orgID, eventID uuid.UUID) (FormRe
 	return s.buildFormResponse(ctx, form)
 }
 
+func (s *Service) GetPublicForm(ctx context.Context, eventID uuid.UUID) (FormResponse, error) {
+	form, err := s.repo.GetFormSchemaByEvent(ctx, eventID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return FormResponse{EventID: eventID, Fields: []FieldResponse{}}, nil
+	} else if err != nil {
+		return FormResponse{}, err
+	}
+	return s.buildFormResponse(ctx, form)
+}
+
 func (s *Service) UpdateForm(ctx context.Context, orgID, eventID uuid.UUID, req UpdateFormRequest) (FormResponse, error) {
 	form, err := s.ensureForm(ctx, orgID, eventID)
 	if err != nil {
@@ -270,6 +280,31 @@ func (s *Service) PreviewValidate(ctx context.Context, orgID, eventID uuid.UUID,
 		errs = []formschema.FieldError{}
 	}
 	return PreviewValidateResponse{Valid: len(errs) == 0, Errors: errs, VisibleFields: keys}, nil
+}
+
+func (s *Service) ValidateEventAnswers(ctx context.Context, eventID, categoryID uuid.UUID, answers map[string]any) error {
+	form, err := s.repo.GetFormSchemaByEvent(ctx, eventID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	rows, err := s.repo.ListFieldsBySchema(ctx, form.ID)
+	if err != nil {
+		return err
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	fields, err := toSchemaFields(rows)
+	if err != nil {
+		return err
+	}
+	errs := formschema.ValidateAnswers(fields, answers, &categoryID)
+	if len(errs) > 0 {
+		return apperr.New(400, "INVALID_FORM_ANSWERS", errs[0].FieldKey+": "+errs[0].Message)
+	}
+	return nil
 }
 
 // --- helpers ---

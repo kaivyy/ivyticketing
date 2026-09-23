@@ -3,7 +3,7 @@ export const prerender = false;
 import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
 const { orgId, eventId } = Astro.params;
 ---
-<OrganizerLayout title="Laporan & Ekspor — ivyticketing">
+<OrganizerLayout title="Laporan & Ekspor - ivyticketing">
   <div id="reports" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
     <p class="text-slate-500">Memuat laporan…</p>
   </div>
@@ -50,7 +50,7 @@ const { orgId, eventId } = Astro.params;
 
     function fmtMoney(v: unknown): string {
       const n = typeof v === "number" ? v : Number(v);
-      if (!isFinite(n)) return String(v ?? "—");
+      if (!isFinite(n)) return String(v ?? "-");
       return "Rp " + n.toLocaleString("id-ID");
     }
 
@@ -119,7 +119,7 @@ const { orgId, eventId } = Astro.params;
       ) {
         return fmtMoney(v);
       }
-      if (v == null) return "—";
+      if (v == null) return "-";
       if (typeof v === "boolean") return v ? "Ya" : "Tidak";
       return String(v);
     }
@@ -147,14 +147,14 @@ const { orgId, eventId } = Astro.params;
                   <tr class="border-b border-slate-100">
                     <td class="py-2 pr-3">${esc(typeLabel(j.reportType))}</td>
                     <td class="py-2 pr-3">${statusBadge(j.status)}</td>
-                    <td class="py-2 pr-3">${j.rowCount != null ? j.rowCount : "—"}</td>
+                    <td class="py-2 pr-3">${j.rowCount != null ? j.rowCount : "-"}</td>
                     <td class="py-2 pr-3 text-xs text-slate-500">${esc(new Date(j.createdAt).toLocaleString("id-ID"))}</td>
                     <td class="py-2 pr-3">${
                       j.status === "READY" && j.fileUrl
                         ? `<a href="${esc(j.fileUrl)}" class="text-blue-600 hover:underline" download>Unduh CSV</a>`
                         : j.status === "FAILED"
                           ? `<span class="text-xs text-red-600">${esc(j.error ?? "gagal")}</span>`
-                          : '<span class="text-xs text-slate-400">—</span>'
+                          : '<span class="text-xs text-slate-400">-</span>'
                     }</td>
                   </tr>`
                 )

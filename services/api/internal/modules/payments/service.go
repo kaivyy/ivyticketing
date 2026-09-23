@@ -45,7 +45,7 @@ func (s *Service) CreatePayment(ctx context.Context, participantID, orderID uuid
 	} else if err != nil {
 		return PaymentResponse{}, err
 	}
-	if order.ParticipantID != participantID {
+	if order.ParticipantID == nil || *order.ParticipantID != participantID {
 		return PaymentResponse{}, ErrPaymentNotFound
 	}
 	if order.Status != OrderPendingPayment {
@@ -55,6 +55,23 @@ func (s *Service) CreatePayment(ctx context.Context, participantID, orderID uuid
 		return PaymentResponse{}, ErrPaymentActive
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return PaymentResponse{}, err
+	}
+
+	channelToCheck := req.Channel
+	if channelToCheck == "" {
+		channelToCheck = req.Method
+	}
+	if channelToCheck != "" {
+		enabled, err := s.repo.IsPaymentChannelEnabled(ctx, db.IsPaymentChannelEnabledParams{
+			EventID:     order.EventID,
+			ChannelCode: channelToCheck,
+		})
+		if err != nil {
+			return PaymentResponse{}, err
+		}
+		if !enabled {
+			return PaymentResponse{}, ErrPaymentChannelDisabled
+		}
 	}
 
 	now := time.Now()
@@ -162,4 +179,84 @@ func (s *Service) recordCreated(ctx context.Context, p db.Payment) {
 		TargetType:     "payment",
 		TargetID:       p.ID.String(),
 	})
+}
+
+// ListEventPaymentChannels returns all payment channels configured for an event.
+func (s *Service) ListEventPaymentChannels(ctx context.Context, orgID, eventID uuid.UUID) ([]PaymentChannelResponse, error) {
+	ev, err := s.repo.GetEventByID(ctx, eventID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrEventNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	if ev.OrganizationID != orgID {
+		return nil, ErrEventNotFound
+	}
+	rows, err := s.repo.ListPaymentChannelsByEvent(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]PaymentChannelResponse, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, PaymentChannelResponse{
+			ChannelCode: r.ChannelCode,
+			IsEnabled:   r.IsEnabled,
+			UpdatedAt:   r.UpdatedAt.Time,
+		})
+	}
+	return out, nil
+}
+
+// UpdateEventPaymentChannels persists the enabled/disabled state of payment channels for an event.
+func (s *Service) UpdateEventPaymentChannels(ctx context.Context, orgID, eventID uuid.UUID, req UpdatePaymentChannelsRequest) ([]PaymentChannelResponse, error) {
+	ev, err := s.repo.GetEventByID(ctx, eventID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrEventNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	if ev.OrganizationID != orgID {
+		return nil, ErrEventNotFound
+	}
+
+	var out []PaymentChannelResponse
+	err = s.repo.ExecTx(ctx, func(tx Repository) error {
+		for _, ch := range req.Channels {
+			row, err := tx.UpsertEventPaymentChannel(ctx, db.UpsertEventPaymentChannelParams{
+				EventID:     eventID,
+				ChannelCode: ch.ChannelCode,
+				IsEnabled:   ch.IsEnabled,
+			})
+			if err != nil {
+				return err
+			}
+			out = append(out, PaymentChannelResponse{
+				ChannelCode: row.ChannelCode,
+				IsEnabled:   row.IsEnabled,
+				UpdatedAt:   row.UpdatedAt.Time,
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// GetPublicEventPaymentChannels returns active/configured channels for an event (public view).
+func (s *Service) GetPublicEventPaymentChannels(ctx context.Context, eventID uuid.UUID) ([]PaymentChannelResponse, error) {
+	rows, err := s.repo.ListPaymentChannelsByEvent(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]PaymentChannelResponse, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, PaymentChannelResponse{
+			ChannelCode: r.ChannelCode,
+			IsEnabled:   r.IsEnabled,
+			UpdatedAt:   r.UpdatedAt.Time,
+		})
+	}
+	return out, nil
 }

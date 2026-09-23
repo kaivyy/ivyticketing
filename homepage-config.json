@@ -1,0 +1,227 @@
+{
+  "brand": {
+    "displayMode": "icon_only",
+    "brandName": "IvyTicketing",
+    "tagline": "Sports Registration Engine",
+    "iconShape": "rounded"
+  },
+  "navbar": {
+    "style": "transparent_gradient",
+    "mobileNavType": "bottom_nav",
+    "opacity": 0.96,
+    "blur": "md",
+    "showBorder": true,
+    "glassBlur": 0,
+    "glassSaturate": 1,
+    "glassTint": "rgba(255, 255, 255, 0.255)",
+    "glassRadius": 48
+  },
+  "corners": {
+    "style": "square"
+  },
+  "theme": {
+    "mode": "athletic_dark",
+    "bgColor": "#0a1120",
+    "surfaceColor": "#101a2e",
+    "textColor": "#f8fafc",
+    "accentColor": "#ea580c"
+  },
+  "hero": {
+    "mode": "slider",
+    "autoplay": true,
+    "intervalSeconds": 5,
+    "overlayDarkness": 0.35,
+    "statsStyle": "transparent",
+    "imagePosition": "top",
+    "showTags": false,
+    "bottomBlur": true,
+    "slides": [
+      {
+        "id": "slide-bkk",
+        "tag": "BANGKOK MIDNIGHT · SUNDAY NIGHT SPECIAL",
+        "tagColor": "bg-amber-500 text-black font-black",
+        "title": "Bangkok Midnight Marathon 2026",
+        "subtitle": "Menembus gemerlap kuil megah Sanam Chai dan landmark Rama VIII di bawah langit malam Bangkok dengan rute steril berlisensi.",
+        "bgImage": "/images/events/bangkok_marathon.jpg",
+        "primaryCtaText": "Daftar Bangkok Midnight",
+        "primaryCtaLink": "/events/bangkok-midnight-marathon-2026",
+        "secondaryCtaText": "Lihat Detail Rute",
+        "secondaryCtaLink": "/events/bangkok-midnight-marathon-2026#section-route",
+        "stats": [
+          {
+            "label": "Flag-Off",
+            "value": "01:00 ICT"
+          },
+          {
+            "label": "Kategori",
+            "value": "42K · 21K · 10K"
+          },
+          {
+            "label": "Total Peserta",
+            "value": "15.000 Pelari"
+          }
+        ]
+      },
+      {
+        "id": "slide-boston",
+        "tag": "130TH BOSTON MARATHON · ABBOTT WORLD MAJOR",
+        "tagColor": "bg-[#fdda24] text-[#002244] font-black",
+        "title": "130th Boston Marathon 2026",
+        "subtitle": "Lomba marathon tahunan tertua di dunia. Menaklukkan Hopkinton ke Boylston Street dengan sorak Heartbreak Hill dan standar kualifikasi prestisius.",
+        "showSubtitle": false,
+        "bgImage": "/images/events/boston_marathon.jpg",
+        "primaryCtaText": "Daftar Boston Marathon",
+        "primaryCtaLink": "/events/boston-marathon-2026",
+        "secondaryCtaText": "Standar Kualifikasi",
+        "secondaryCtaLink": "/events/boston-marathon-2026#baa-qualifiers",
+        "stats": [
+          {
+            "label": "Tanggal",
+            "value": "20 Apr 2026"
+          },
+          {
+            "label": "Peserta",
+            "value": "30.000 Pelari"
+          },
+          {
+            "label": "Garis Finish",
+            "value": "Boylston St"
+          }
+        ]
+      },
+      {
+        "id": "slide-ironman",
+        "tag": "",
+        "tagColor": "",
+        "title": "IRONMAN 70.3 Triathlon Lombok 2026",
+        "subtitle": "1.9K Ocean Swim Samudra Hindia, 90K Coastal Highway Cycling, dan 21.1K Sunset Boulevard Run menuju podium dunia.",
+        "bgImage": "/images/events/ironman_triathlon.jpg",
+        "primaryCtaText": "Daftar IRONMAN 70.3",
+        "primaryCtaLink": "/events/ironman-703-triathlon-2026",
+        "secondaryCtaText": "Jadwal & Logistik",
+        "secondaryCtaLink": "/events/ironman-703-triathlon-2026#im-schedule",
+        "stats": [
+          {
+            "label": "Jarak Total",
+            "value": "113.1 KM"
+          },
+          {
+            "label": "Kona Slots",
+            "value": "45 Tiket Dunia"
+          },
+          {
+            "label": "Status War",
+            "value": "Buka Sekarang"
+          }
+        ]
+      },
+      {
+        "id": "slide-tokyo",
+        "tag": "ABBOTT WORLD MARATHON MAJOR · JAPAN",
+        "tagColor": "bg-red-600 text-white font-black",
+        "title": "Tokyo International Marathon 2026",
+        "subtitle": "Ajang World Marathon Major pertama di Asia. 38.000 pelari menyusuri Shinjuku, Asakusa, dan Ginza dengan antrean kuota war sistem ballot.",
+        "bgImage": "/images/events/tokyo_marathon.jpg",
+        "primaryCtaText": "Daftar Tokyo Marathon",
+        "primaryCtaLink": "/events/tokyo-international-marathon-2026",
+        "secondaryCtaText": "Panduan Kuota Ballot",
+        "secondaryCtaLink": "/events/tokyo-international-marathon-2026#tokyo-quota-table",
+        "stats": [
+          {
+            "label": "Kuota Ballot",
+            "value": "38.000 Slot"
+          },
+          {
+            "label": "Cut-Off",
+            "value": "07:00:00"
+          },
+          {
+            "label": "Garis Finish",
+            "value": "Tokyo Station"
+          }
+        ]
+      },
+      {
+        "id": "slide-borobudur",
+        "tag": "HERITAGE MARATHON · DASA WARSA",
+        "tagColor": "bg-orange-500 text-black font-black",
+        "title": "Borobudur Heritage Marathon 2026",
+        "subtitle": "Menyatu dengan warisan budaya luhur Candi Borobudur dan perbukitan Menoreh diiringi sambutan hangat 15 cheer zones pedesaan.",
+        "bgImage": "/images/events/borobudur_marathon.jpg",
+        "primaryCtaText": "Daftar Borobudur Marathon",
+        "primaryCtaLink": "/events/borobudur-heritage-marathon-2026",
+        "secondaryCtaText": "Profil Rute 285m",
+        "secondaryCtaLink": "/events/borobudur-heritage-marathon-2026#section-route",
+        "stats": [
+          {
+            "label": "Elevasi",
+            "value": "285m Rolling"
+          },
+          {
+            "label": "Cheer Zones",
+            "value": "15 Titik Warga"
+          },
+          {
+            "label": "Start Fajar",
+            "value": "04:30 WIB"
+          }
+        ]
+      },
+      {
+        "id": "slide-summarecon",
+        "tag": "URBAN RUN FESTIVAL · NIGHT LIGHTS",
+        "tagColor": "bg-emerald-500 text-black font-black",
+        "title": "Summarecon Bandung Run Fest 2026",
+        "subtitle": "Festival lari kota bernuansa neon kuning cerah dengan lintasan datar terukur, expo olahraga, dan hiburan panggung penutup.",
+        "bgImage": "/images/events/bandung_runfest.jpg",
+        "primaryCtaText": "Daftar Bandung Run Fest",
+        "primaryCtaLink": "/events/summarecon-bandung-runfest-2026",
+        "secondaryCtaText": "Kategori 10K & 5K",
+        "secondaryCtaLink": "/events/summarecon-bandung-runfest-2026#section-categories",
+        "stats": [
+          {
+            "label": "Karakter",
+            "value": "Flat PB Course"
+          },
+          {
+            "label": "Hadiah",
+            "value": "Total 250 Juta"
+          },
+          {
+            "label": "Status Tiket",
+            "value": "Early Bird"
+          }
+        ]
+      },
+      {
+        "id": "slide-berlin",
+        "tag": "FASTEST COURSE IN THE WORLD · WORLD RECORD",
+        "tagColor": "bg-sky-500 text-black font-black",
+        "title": "BMW Berlin Speed Marathon 2026",
+        "subtitle": "Lintasan legendaris tempat tumbangnya rekor dunia maraton dengan rute super datar 20m elevasi dan klimaks Gerbang Brandenburg.",
+        "bgImage": "/images/events/hero_marathon.jpg",
+        "primaryCtaText": "Daftar Berlin Marathon",
+        "primaryCtaLink": "/events/berlin-speed-marathon-2026",
+        "secondaryCtaText": "Detail Rekor Rute",
+        "secondaryCtaLink": "/events/berlin-speed-marathon-2026#section-route",
+        "stats": [
+          {
+            "label": "Elevasi Datar",
+            "value": "20m Saja"
+          },
+          {
+            "label": "Rekor Dunia",
+            "value": "2:00:35 WR"
+          },
+          {
+            "label": "Finish Gate",
+            "value": "Gerbang Brandenburg"
+          }
+        ]
+      }
+    ]
+  },
+  "features": {
+    "showSportFilter": true
+  }
+}

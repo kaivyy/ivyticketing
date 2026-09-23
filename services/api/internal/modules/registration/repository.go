@@ -16,6 +16,7 @@ type Repository interface {
 	UpsertCategorySettings(ctx context.Context, arg db.UpsertCategoryRegistrationSettingsParams) (db.CategoryRegistrationSetting, error)
 	ListCategorySettingsByEvent(ctx context.Context, eventID uuid.UUID) ([]db.CategoryRegistrationSetting, error)
 	GetCategoryByID(ctx context.Context, categoryID uuid.UUID) (db.EventCategory, error)
+	GetEventByID(ctx context.Context, eventID uuid.UUID) (db.Event, error)
 }
 
 type sqlcRepo struct {
@@ -48,4 +49,8 @@ func (r *sqlcRepo) ListCategorySettingsByEvent(ctx context.Context, eventID uuid
 
 func (r *sqlcRepo) GetCategoryByID(ctx context.Context, categoryID uuid.UUID) (db.EventCategory, error) {
 	return r.q.GetCategoryByID(ctx, categoryID)
+}
+
+func (r *sqlcRepo) GetEventByID(ctx context.Context, eventID uuid.UUID) (db.Event, error) {
+	return r.q.GetEventByID(ctx, eventID)
 }

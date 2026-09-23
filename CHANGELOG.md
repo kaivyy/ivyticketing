@@ -4,9 +4,102 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
-## [Phase 23–27] — 2026-07-07
+## [Unreleased] : 2026-09-23
 
-### Phase 23 — Enterprise API & Integration
+### Major Enhancements: Multi-Sport Competition Engine, Security Remediation, and Documentation System
+
+This release consolidates the generic multi-sport tournament competition engine, critical security and transaction integrity remediations, and a source-verified 36-file documentation suite.
+
+#### Added
+- Generic Multi-Sport Tournament Engine:
+  - Migrations 00066, 00067, 00068 introducing normalized tables for Sports, Disciplines, Events, Categories, Stages, Matches, Rosters, and Results.
+  - Pluggable tournament stage formats: single race, round-robin pools, single elimination, double elimination, heats, and multi-day peloton stages.
+  - Official scoring resolvers: BWF badminton 21-point rally scoring with deuce logic and road cycling peloton bunch finish time gap rules.
+  - Support for multi-participant formations: INDIVIDUAL, TEAM, PAIR, RELAY, and SQUAD with match statuses SCHEDULED, LIVE, COMPLETED, SUSPENDED, CANCELLED, FORFEIT, WALKOVER, and BYE.
+- Multi-Vendor Timing & Results Integration:
+  - Timing provider adapter interface supporting RaceResult, Native RFID transponder passings, and Generic CSV imports.
+  - Intermediate split time checkpoint tracking (5K, 10K, Halfway, 30K) and automatic category/gender ranking calculations.
+  - Dynamic finisher certificate renderer with cryptographic QR verification stamp.
+- Comprehensive 36-File Documentation System:
+  - Created complete verified documentation suite in `docs/` covering getting-started, core concepts, user guides, architecture, technical workflows, reference catalogs, operations runbooks, development setup, and security architecture.
+  - Rewrote root `README.md` as a production-grade open-source project landing page with verified architecture diagrams, capabilities, and navigation links.
+
+#### Fixed
+- Critical P0 Ballot Winner False Lapse:
+  - Eliminated the race condition where paid ballot winners were incorrectly lapsed by the expiration worker.
+  - Updated `ballot_entries.status` to `CONVERTED` atomically within the order checkout and payment transactions.
+  - Added expirer order cross-check preventing lapsing any entrant with an active or paid order.
+- Access Grant Single-Use Enforcement & Atomicity:
+  - Enforced single-use consumption of `access_grants` atomically inside the `orders.Checkout` PostgreSQL transaction before commit.
+  - Added strict participant identity and category validation on all access grant redemptions.
+- High-Traffic Queue Hardening & Protection:
+  - Implemented 2-second Redis status caching (`queue:status:{eventId}:{participantId}`) to protect PostgreSQL connection pools during mass polling.
+  - Added sliding-window rate limiting on queue status polling returning 429 TOO_MANY_REQUESTS on excessive polling.
+- Multi-Tenant RBAC & BOLA Defense:
+  - Hardened `middleware/authz.go` with canonical slug-to-UUID rewriting and strict event-to-organization database ownership verification, preventing cross-tenant access even in platform admin mode.
+
+#### Security & Reliability
+- Zero-Overselling Concurrency Protection: Verified row-level locking (`SELECT ... FOR UPDATE`) in `orders.Checkout` under high-concurrency 50-thread adversarial benchmarks.
+- Payment vs Winner-Expiration Race Protection: Verified zero double-allocation under concurrent payment and sweep worker execution.
+- Webhook Signature & Idempotency Hardening: Guaranteed at-most-once processing of payment callbacks via SHA-256 payload deduplication.
+
+---
+
+## [Phase 29] : 2026-09-21
+
+### End-to-End System Enhancement and Audit Gap Resolution
+
+Comprehensive resolution of gaps identified in the system audit across Public Catalog, Organizer Ballot Draw, Dynamic Forms, Payment Channels, Queue Admission, and Mobile Notifications:
+
+#### Added
+- Public Event Catalog (`/api/v1/public/events` and `/api/v1/public/events/{idOrSlug}`): PostgreSQL queries `ListAllPublishedEvents` and `GetPublishedEventByIDOrSlug` exposed via public API; dynamic sync in `apps/web/src/lib/events-store.ts` and `apps/web/src/pages/events/index.astro`.
+- Organizer Ballot Draw Management (`apps/web/src/pages/org/[orgId]/events/[eventId]/ballot.astro`): Full draw lifecycle with Create Draw, Cryptographic SHA-256 Draw Execution, Winner Announcement, Waitlist Promotion, and CSV Export.
+- Server-Side Dynamic Form Validation: `ValidateEventAnswers` in forms service; integrated `FormValidator` interface into `orders.Checkout` and `orders.GuestCheckout`.
+- Dynamic Form Section 4 in Public Checkout: Render dynamic custom fields based on category scope, package answers into athlete data, and preview in confirmation modal.
+- Payment Channel Multi-Tenant Persistence: Migration `00065_create_event_payment_channels.sql` with table `event_payment_channels`; backend endpoints `GET/PUT /payment-channels` and public endpoint; checkout validation.
+- WhatsApp & SMS Notification Adapter: Package `services/api/internal/modules/notifications/sms/` with vendor-agnostic `Provider` interface, sliding window `MemoryRateLimiter`, thread-safe `MemoryIdempotencyStore`, `GenericHTTPProvider`, and HMAC `WebhookHandler`.
+- Documentation: `docs/ENHANCEMENT_AUDIT_RESOLUTION_2026-09-21.md`.
+
+#### Fixed
+- Removed client-side fake pass generator (`mockToken = "ADM-BOS-PASS-..."`) and artificial position decrement loop in `apps/web/src/pages/events/[eventId]/queue.astro`.
+- Enforced genuine backend admission verification awaiting authentic `ADMITTED` status and UUID admission token.
+
+---
+
+## [Phase 28] : 2026-09-19
+
+### Comprehensive Organizer Platform Enhancement
+
+Comprehensive upgrade of the Organizer & Race Management module based on ORGANIZER_AUDIT.md:
+
+#### Added
+- Migration `00064_organizer_enhancements`: Added `distance_km`, `cutoff_time`, `pricing_tiers` to `event_categories`; `form_answers` and refund tracking columns to `orders`; `form_answers` and `wave_id` to `tickets`; created `org_payout_accounts` and `payout_requests` tables.
+- Participant Management Directory (`apps/web/src/pages/org/[orgId]/events/[eventId]/participants.astro`): Search, multi-filtering, athlete profile drawer, contact updating, and refund actions.
+- Race Day Web Scanner (`apps/web/src/pages/org/[orgId]/events/[eventId]/scanner.astro`): Camera BarcodeDetector API, manual barcode gun input, Web Audio API tone feedback, live check-in counters.
+- Race Waves & Checkpoints UI (`apps/web/src/pages/org/[orgId]/events/[eventId]/results.astro`): Corrals scheduling and timing checkpoints management.
+- Billing & Payout Management (`apps/web/src/pages/org/[orgId]/billing.astro`): Net ticket balance calculation, bank account registration, payout requests.
+- Broadcast Email Composer (`apps/web/src/pages/org/[orgId]/notifications.astro`): Event & category audience filtering, recipient count preview, mass email dispatch.
+- Visual Audit Log Table (`apps/web/src/pages/org/[orgId]/settings.astro`): Activity trail with actor resolution and JSON metadata.
+- Endpoints in Go backend:
+  - `GET /organizations/{orgId}/audit-logs`
+  - `POST /organizations/{orgId}/broadcast`
+  - `GET /organizations/{orgId}/broadcast/preview`
+  - `GET /billing/balance`, `GET/POST /billing/payout-accounts`, `GET/POST /billing/payouts`
+  - `PUT /organizations/{orgId}/events/{eventId}/tickets/{ticketId}/participant`
+- Documentation: `docs/ORGANIZER.md`, `docs/ORGANIZER_OPERATIONS.md`, `docs/TIMING.md`, `docs/RBAC.md`, `docs/DATA_MODEL.md`.
+
+#### Fixed
+- Fixed Astro `<script define:vars>` crashes across 6 organizer pages by migrating to clean ES module scripts.
+- Resolved organization slug vs UUID lookup in `services/api/internal/platform/middleware/authz.go`.
+- Mounted Ballot routes on `/organizations/{orgId}` and `/org/{orgId}` alias.
+- Mounted Corporate access routes at organization level.
+- Stored athlete form answers during checkout into both orders and tickets tables.
+
+---
+
+## [Phase 23-27] : 2026-07-07
+
+### Phase 23 : Enterprise API & Integration
 
 Per-org API keys, outbound webhook subscriptions, and an idempotent delivery
 ledger. A versioned public read API is mounted at `/api/public/v1` on a separate

@@ -7,7 +7,7 @@ const notifTypes = [
   {
     type: "order.created",
     name: "Pesanan Dibuat",
-    description: "Dikirim saat pesanan baru berhasil dibuat oleh peserta. Berisi nomor pesanan, total, dan link pembayaran.",
+    description: "Dikirim saat pesanan baru berhasil dibuat oleh peserta. Berisi nomor pesanan, total, dan instruksi pembayaran.",
   },
   {
     type: "payment.paid",
@@ -41,41 +41,334 @@ const notifTypes = [
   },
 ];
 ---
-<OrganizerLayout title="Notifikasi — ivyticketing">
-  <div class="space-y-6">
-    <div>
-      <h1 class="text-2xl font-bold text-slate-900">Notifikasi</h1>
-      <p class="mt-1 text-sm text-slate-500">Kelola notifikasi email otomatis untuk peserta Anda.</p>
-    </div>
 
-    <!-- Mode banner -->
-    <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
-      <p class="text-sm font-medium text-amber-800">Mode Log Aktif</p>
-      <p class="mt-1 text-sm text-amber-700">
-        Email notifikasi saat ini aktif dalam mode logging. Setiap notifikasi tercatat di log server tetapi tidak dikirimkan ke peserta.
-        Untuk mengaktifkan pengiriman email nyata, konfigurasikan <code class="rounded bg-amber-100 px-1 py-0.5 font-mono text-xs">SMTP_HOST</code> atau
-        <code class="rounded bg-amber-100 px-1 py-0.5 font-mono text-xs">RESEND_API_KEY</code> di environment server.
+<OrganizerLayout title="Notifikasi & Broadcast : ivyticketing" orgId={orgId}>
+  <div id="notif-root" data-org-id={orgId} class="space-y-6 max-w-5xl">
+    <!-- Header -->
+    <div class="border-b border-slate-200 pb-4">
+      <h1 class="font-display text-2xl font-bold uppercase tracking-tight text-slate-900">
+        Komunikasi & Notifikasi
+      </h1>
+      <p class="mt-1 text-sm text-slate-500">
+        Kirim pengumuman broadcast langsung ke email pelari dan kelola notifikasi transaksional otomatis.
       </p>
     </div>
 
-    <!-- Notification types -->
-    <div class="rounded-lg border border-slate-200 bg-white divide-y divide-slate-100">
-      {notifTypes.map((n) => (
-        <div class="flex items-start justify-between gap-4 px-5 py-4">
-          <div class="min-w-0">
-            <p class="text-sm font-medium text-slate-900">{n.name}</p>
-            <p class="mt-0.5 text-xs text-slate-500">{n.description}</p>
-            <code class="mt-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">{n.type}</code>
+    <!-- Navigation Tabs -->
+    <div class="flex border-b border-slate-200">
+      <button
+        id="tab-btn-broadcast"
+        type="button"
+        class="border-b-2 border-orange-500 px-4 py-2.5 text-sm font-semibold text-orange-600 focus:outline-none"
+      >
+        Kirim Broadcast Email
+      </button>
+      <button
+        id="tab-btn-system"
+        type="button"
+        class="border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none"
+      >
+        Katalog Notifikasi Otomatis
+      </button>
+    </div>
+
+    <!-- Tab 1: Broadcast Composer -->
+    <div id="tab-pane-broadcast" class="space-y-6">
+      <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="mb-5 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
+          <div>
+            <h2 class="font-display text-base font-bold uppercase text-slate-900">Komposer Broadcast Pelari</h2>
+            <p class="text-xs text-slate-500">Kirim panduan race pack, perubahan rute cuaca, atau pengumuman penting.</p>
           </div>
-          <span class="shrink-0 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-            Aktif (Log)
-          </span>
+          <div id="audience-badge" class="mt-2 sm:mt-0 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+            <span class="h-2 w-2 rounded-full bg-slate-400"></span>
+            <span>Pilih event untuk melihat target audiens</span>
+          </div>
         </div>
-      ))}
+
+        <form id="broadcast-form" class="space-y-4">
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label for="broadcast-event" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                Pilih Event <span class="text-red-500">*</span>
+              </label>
+              <select
+                id="broadcast-event"
+                name="eventId"
+                required
+                class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              >
+                <option value="">Memuat daftar event...</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="broadcast-category" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                Target Kategori
+              </label>
+              <select
+                id="broadcast-category"
+                name="categoryId"
+                class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              >
+                <option value="">Semua Kategori (Seluruh Peserta Event)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label for="broadcast-subject" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Subjek Email <span class="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="broadcast-subject"
+              name="subject"
+              required
+              placeholder="Contoh: Informasi Penting Pengambilan Race Pack & Jadwal Start"
+              class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            />
+          </div>
+
+          <div>
+            <label for="broadcast-message" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Isi Pengumuman <span class="text-red-500">*</span>
+            </label>
+            <textarea
+              id="broadcast-message"
+              name="message"
+              rows="6"
+              required
+              placeholder="Tuliskan isi pesan lengkap untuk para atlet..."
+              class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+            ></textarea>
+            <p class="mt-1 text-xs text-slate-400">
+              Tips: Email akan diawali dengan sapaan resmi nama peserta secara otomatis.
+            </p>
+          </div>
+
+          <div id="broadcast-alert" class="hidden rounded-lg p-4 text-sm font-medium"></div>
+
+          <div class="flex items-center justify-end gap-3 pt-2">
+            <button
+              id="broadcast-submit-btn"
+              type="submit"
+              class="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+              <span>Kirim Broadcast Email</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Tab 2: System Notifications -->
+    <div id="tab-pane-system" class="hidden space-y-6">
+      <!-- Mode banner -->
+      <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <p class="text-sm font-semibold text-amber-800">Mode Notifikasi Server</p>
+        <p class="mt-1 text-sm text-amber-700">
+          Email notifikasi transaksional terkonfigurasi pada log server.
+          Untuk pengiriman email nyata via SMTP, atur variabel lingkungan <code class="rounded bg-amber-100 px-1 py-0.5 font-mono text-xs">SMTP_HOST</code> pada backend platform.
+        </p>
+      </div>
+
+      <!-- Notification types -->
+      <div class="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden shadow-sm">
+        {notifTypes.map((n) => (
+          <div class="flex items-start justify-between gap-4 px-5 py-4 hover:bg-slate-50 transition-colors">
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-slate-900">{n.name}</p>
+              <p class="mt-0.5 text-xs text-slate-500">{n.description}</p>
+              <code class="mt-1.5 inline-block rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600 border border-slate-200">{n.type}</code>
+            </div>
+            <span class="shrink-0 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
+              Aktif (Sistem)
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
 
     <p class="text-xs text-slate-400">
       <a href={`/org/${orgId}/dashboard`} class="underline hover:text-slate-600">Kembali ke Dashboard</a>
     </p>
   </div>
+
+  <script>
+    import { authedFetch } from "../../../lib/api";
+    import { esc } from "../../../lib/safe";
+
+    const root = document.getElementById("notif-root");
+    const orgId = root?.dataset.orgId || window.location.pathname.split("/")[2] || "";
+
+    const tabBtnBroadcast = document.getElementById("tab-btn-broadcast");
+    const tabBtnSystem = document.getElementById("tab-btn-system");
+    const paneBroadcast = document.getElementById("tab-pane-broadcast");
+    const paneSystem = document.getElementById("tab-pane-system");
+
+    const eventSelect = document.getElementById("broadcast-event") as HTMLSelectElement | null;
+    const categorySelect = document.getElementById("broadcast-category") as HTMLSelectElement | null;
+    const audienceBadge = document.getElementById("audience-badge");
+    const broadcastForm = document.getElementById("broadcast-form") as HTMLFormElement | null;
+    const submitBtn = document.getElementById("broadcast-submit-btn") as HTMLButtonElement | null;
+    const alertBox = document.getElementById("broadcast-alert");
+
+    // Tab switching
+    tabBtnBroadcast?.addEventListener("click", () => {
+      tabBtnBroadcast.className = "border-b-2 border-orange-500 px-4 py-2.5 text-sm font-semibold text-orange-600 focus:outline-none";
+      tabBtnSystem?.setAttribute("class", "border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none");
+      paneBroadcast?.classList.remove("hidden");
+      paneSystem?.classList.add("hidden");
+    });
+
+    tabBtnSystem?.addEventListener("click", () => {
+      tabBtnSystem.className = "border-b-2 border-orange-500 px-4 py-2.5 text-sm font-semibold text-orange-600 focus:outline-none";
+      tabBtnBroadcast?.setAttribute("class", "border-b-2 border-transparent px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-300 focus:outline-none");
+      paneSystem?.classList.remove("hidden");
+      paneBroadcast?.classList.add("hidden");
+    });
+
+    // Load events
+    async function loadEvents() {
+      if (!eventSelect) return;
+      try {
+        const events = await authedFetch(`/organizations/${orgId}/events`);
+        if (!Array.isArray(events) || events.length === 0) {
+          eventSelect.innerHTML = '<option value="">Tidak ada event aktif</option>';
+          return;
+        }
+
+        eventSelect.innerHTML = '<option value="">Pilih salah satu event...</option>' +
+          events.map((e: any) => `<option value="${esc(e.id)}">${esc(e.name || e.title || "Event")}</option>`).join("");
+      } catch (err: any) {
+        eventSelect.innerHTML = `<option value="">Gagal memuat event: ${esc(err.message)}</option>`;
+      }
+    }
+
+    // Load categories for selected event
+    async function loadCategories(eventId: string) {
+      if (!categorySelect) return;
+      if (!eventId) {
+        categorySelect.innerHTML = '<option value="">Semua Kategori (Seluruh Peserta Event)</option>';
+        return;
+      }
+      try {
+        const cats = await authedFetch(`/organizations/${orgId}/events/${eventId}/categories`);
+        categorySelect.innerHTML = '<option value="">Semua Kategori (Seluruh Peserta Event)</option>';
+        if (Array.isArray(cats)) {
+          cats.forEach((c: any) => {
+            categorySelect.innerHTML += `<option value="${esc(c.id)}">${esc(c.name)}</option>`;
+          });
+        }
+      } catch (err) {
+        categorySelect.innerHTML = '<option value="">Semua Kategori (Seluruh Peserta Event)</option>';
+      }
+    }
+
+    // Update audience preview
+    async function updateAudiencePreview() {
+      if (!audienceBadge || !eventSelect) return;
+      const eventId = eventSelect.value;
+      const categoryId = categorySelect?.value || "";
+
+      if (!eventId) {
+        audienceBadge.innerHTML = '<span class="h-2 w-2 rounded-full bg-slate-400"></span><span>Pilih event untuk melihat target audiens</span>';
+        audienceBadge.className = "mt-2 sm:mt-0 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600";
+        return;
+      }
+
+      audienceBadge.innerHTML = '<span class="h-2 w-2 rounded-full bg-orange-400 animate-pulse"></span><span>Menghitung peserta...</span>';
+      try {
+        let url = `/organizations/${orgId}/broadcast/preview?eventId=${encodeURIComponent(eventId)}`;
+        if (categoryId) {
+          url += `&categoryId=${encodeURIComponent(categoryId)}`;
+        }
+        const res = await authedFetch(url);
+        const count = res.recipientCount ?? 0;
+        audienceBadge.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-500"></span><span class="font-bold text-emerald-800">${count} Peserta Aktif</span><span>siap menerima email</span>`;
+        audienceBadge.className = "mt-2 sm:mt-0 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 border border-emerald-200";
+      } catch (err: any) {
+        audienceBadge.innerHTML = '<span class="h-2 w-2 rounded-full bg-amber-400"></span><span>Data estimasi belum tersedia</span>';
+      }
+    }
+
+    eventSelect?.addEventListener("change", async () => {
+      const eventId = eventSelect.value;
+      await loadCategories(eventId);
+      await updateAudiencePreview();
+    });
+
+    categorySelect?.addEventListener("change", () => {
+      updateAudiencePreview();
+    });
+
+    // Submit broadcast
+    broadcastForm?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!eventSelect || !submitBtn || !alertBox) return;
+
+      const eventId = eventSelect.value;
+      const categoryId = categorySelect?.value || null;
+      const subjectInput = document.getElementById("broadcast-subject") as HTMLInputElement;
+      const messageInput = document.getElementById("broadcast-message") as HTMLTextAreaElement;
+
+      const subject = subjectInput?.value.trim();
+      const message = messageInput?.value.trim();
+
+      if (!eventId || !subject || !message) {
+        alertBox.className = "rounded-lg bg-red-50 p-4 text-sm font-medium text-red-700 border border-red-200";
+        alertBox.textContent = "Mohon lengkapi event, subjek, dan isi pesan broadcast.";
+        alertBox.classList.remove("hidden");
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `
+        <svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>Mengirim Broadcast...</span>
+      `;
+      alertBox.classList.add("hidden");
+
+      try {
+        const payload: any = { eventId, subject, message };
+        if (categoryId) payload.categoryId = categoryId;
+
+        const res = await authedFetch(`/organizations/${orgId}/broadcast`, {
+          method: "POST",
+          body: payload,
+        });
+
+        alertBox.className = "rounded-lg bg-emerald-50 p-4 text-sm font-medium text-emerald-800 border border-emerald-200";
+        alertBox.innerHTML = `
+          <p class="font-bold">Broadcast Berhasil Dikirim!</p>
+          <p class="mt-1 text-xs text-emerald-700">Pesan "${esc(res.subject)}" telah diproses untuk ${res.recipientCount ?? 0} peserta terdaftar.</p>
+        `;
+        alertBox.classList.remove("hidden");
+
+        subjectInput.value = "";
+        messageInput.value = "";
+      } catch (err: any) {
+        alertBox.className = "rounded-lg bg-red-50 p-4 text-sm font-medium text-red-700 border border-red-200";
+        alertBox.textContent = `Gagal mengirim broadcast: ${err.message || "Terjadi kesalahan server"}`;
+        alertBox.classList.remove("hidden");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+          <span>Kirim Broadcast Email</span>
+        `;
+      }
+    });
+
+    loadEvents();
+  </script>
 </OrganizerLayout>

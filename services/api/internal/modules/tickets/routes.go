@@ -21,7 +21,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 // /organizations/{orgId}/events/{eventId}.
 //
 // Two permissions are in play:
-//   - ticket.view: read-only listing
+//   - ticket.view: read-only listing & participant contact updates
 //   - bib.manage : write operations (assign / override / clear / bulk / export)
 //
 // Reads remain gated by ticket.view so existing dashboards keep working; writes
@@ -30,7 +30,10 @@ func (h *Handler) RegisterEventRoutes(r chi.Router, loader middleware.Permission
 	r.With(middleware.RequirePermission(loader, "ticket.view")).
 		Get("/tickets", h.ListByOrgEvent)
 
-	// BIB management — all gated by bib.manage.
+	r.With(middleware.RequirePermission(loader, "ticket.view")).
+		Put("/tickets/{ticketId}/participant", h.UpdateParticipant)
+
+	// BIB management: all gated by bib.manage.
 	r.Route("/tickets/bib", func(r chi.Router) {
 		r.Use(middleware.RequirePermission(loader, "bib.manage"))
 		r.Post("/bulk-assign", h.BulkAssignBibs)

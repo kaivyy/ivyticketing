@@ -58,6 +58,14 @@ func (f *fakeRepo) GetOrganizationByID(_ context.Context, id uuid.UUID) (db.Orga
 	}
 	return o, nil
 }
+func (f *fakeRepo) GetOrganizationBySlug(_ context.Context, slug string) (db.Organization, error) {
+	for _, o := range f.orgs {
+		if o.Slug == slug {
+			return o, nil
+		}
+	}
+	return db.Organization{}, pgx.ErrNoRows
+}
 func (f *fakeRepo) ListOrganizationsForUser(_ context.Context, userID uuid.UUID) ([]db.Organization, error) {
 	var out []db.Organization
 	for _, m := range f.members {
@@ -100,6 +108,35 @@ func (f *fakeRepo) AddMemberRole(_ context.Context, arg db.AddMemberRoleParams) 
 	f.memberRoles[arg.OrganizationMemberID] = append(f.memberRoles[arg.OrganizationMemberID], arg.RoleID)
 	return nil
 }
+func (f *fakeRepo) ListAuditLogs(_ context.Context, _ uuid.UUID, _ int32) ([]db.ListAuditLogsWithActorByOrgRow, error) {
+	return nil, nil
+}
+func (f *fakeRepo) ListAllOrganizationsWithStats(_ context.Context) ([]db.ListAllOrganizationsWithStatsRow, error) {
+	var out []db.ListAllOrganizationsWithStatsRow
+	for _, o := range f.orgs {
+		out = append(out, db.ListAllOrganizationsWithStatsRow{
+			ID:          o.ID,
+			Name:        o.Name,
+			Slug:        o.Slug,
+			EventCount:  0,
+			MemberCount: 1,
+			LeadEmail:   "test@ivyticketing.com",
+			LeadName:    "Test Lead",
+		})
+	}
+	return out, nil
+}
+func (f *fakeRepo) GetUserByEmail(_ context.Context, _ string) (db.User, error) {
+	return db.User{}, pgx.ErrNoRows
+}
+func (f *fakeRepo) CreateUser(_ context.Context, arg db.CreateUserParams) (db.User, error) {
+	return db.User{
+		ID:       uuid.New(),
+		Email:    arg.Email,
+		FullName: arg.FullName,
+	}, nil
+}
+
 
 func TestCreate_CopiesTemplatesAndAssignsOwner(t *testing.T) {
 	repo := newFakeRepo()
@@ -156,3 +193,43 @@ func TestCreate_RejectsDuplicateSlug(t *testing.T) {
 		t.Fatalf("second create err = %v, want ErrSlugTaken", err)
 	}
 }
+
+func TestListAuditLogs(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+	orgID := uuid.New()
+
+	logs, err := svc.ListAuditLogs(ctx, orgID, 25)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if logs == nil {
+		t.Fatalf("expected non-nil logs slice")
+	}
+}
+
+func TestAdminCreateOrganizer(t *testing.T) {
+	repo := newFakeRepo()
+	svc := NewService(repo)
+	ctx := context.Background()
+
+	res, err := svc.AdminCreateOrganizer(ctx, AdminCreateOrganizerRequest{
+		Name:         "Bali Marathon Foundation",
+		Slug:         "bali-marathon",
+		LeadFullName: "Wayan Runner",
+		LeadEmail:    "wayan@balimarathon.com",
+		LeadPassword: "SecretPassword123!",
+		LeadPhone:    "0812345678",
+	})
+	if err != nil {
+		t.Fatalf("AdminCreateOrganizer failed: %v", err)
+	}
+	if res.Name != "Bali Marathon Foundation" || res.Slug != "bali-marathon" {
+		t.Errorf("unexpected name/slug: %+v", res)
+	}
+	if res.LeadEmail != "wayan@balimarathon.com" {
+		t.Errorf("unexpected lead email: %s", res.LeadEmail)
+	}
+}
+

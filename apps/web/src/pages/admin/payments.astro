@@ -1,0 +1,777 @@
+---
+export const prerender = false;
+import AdminLayout from "../../layouts/AdminLayout.astro";
+---
+
+<AdminLayout title="Gateway & Kanal Pembayaran : ivyticketing">
+  <div class="border-b border-slate-800 bg-slate-900/60 px-4 py-3 sm:px-6">
+    <div class="mx-auto flex max-w-6xl items-center justify-between">
+      <div>
+        <h1 class="text-base font-bold uppercase tracking-wider text-white">
+          Gateway & Kanal Pembayaran
+        </h1>
+        <p class="text-xs text-slate-400 mt-0.5">
+          Atur payment gateway aktif, kredensial API, dan pilih kanal pembayaran yang tersedia di checkout.
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-950 px-2.5 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/30">
+          <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Sistem Siap</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <main class="mx-auto max-w-6xl p-4 sm:p-6 space-y-6">
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-16 right-4 z-50 pointer-events-none transition-all duration-300"></div>
+
+    <!-- Summary Stats Bar -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4" id="stats-bar">
+      <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Gateway Utama</span>
+        <span class="text-base sm:text-lg font-bold text-white block mt-1" id="stat-active-gw">Memuat...</span>
+        <span class="text-[11px] text-orange-400 font-mono" id="stat-gw-mode">Sandbox Mode</span>
+      </div>
+      <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Kanal Aktif</span>
+        <span class="text-base sm:text-lg font-bold text-emerald-400 block mt-1" id="stat-active-channels">0 / 0</span>
+        <span class="text-[11px] text-slate-400">Siap Ditampilkan</span>
+      </div>
+      <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Kategori Aktif</span>
+        <span class="text-base sm:text-lg font-bold text-white block mt-1" id="stat-active-categories">3 Kategori</span>
+        <span class="text-[11px] text-slate-400">QRIS, VA, Kartu</span>
+      </div>
+      <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Status Sinkronisasi</span>
+        <span class="text-base sm:text-lg font-bold text-sky-400 block mt-1" id="stat-sync-status">Tersinkron</span>
+        <span class="text-[11px] text-slate-400">Real-Time Checkout</span>
+      </div>
+    </div>
+
+    <!-- Section 1: Pemilihan Payment Gateway Utama -->
+    <section class="rounded-xl border border-slate-800 bg-slate-900/80 p-5 sm:p-6 space-y-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">
+        <div>
+          <h2 class="text-base font-bold uppercase tracking-wider text-white">
+            1. Pemilihan Payment Gateway Utama
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Pilih gateway yang menangani pemrosesan transaksi tagihan dan webhook konfirmasi dana.
+          </p>
+        </div>
+        <span class="text-xs text-slate-500 font-mono">1 Gateway Aktif</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="gateway-cards-grid">
+        <!-- Will be dynamically populated -->
+      </div>
+    </section>
+
+    <!-- Section 2: Manajemen Kanal Pembayaran (Channel Toggles & Fees) -->
+    <section class="rounded-xl border border-slate-800 bg-slate-900/80 p-5 sm:p-6 space-y-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+        <div>
+          <h2 class="text-base font-bold uppercase tracking-wider text-white">
+            2. Pengaturan Kanal Pembayaran & Biaya
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Aktifkan atau nonaktifkan kanal pembayaran dan sesuaikan nominal biaya layanan per kanal.
+          </p>
+        </div>
+
+        <!-- Quick Filter & Actions -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            id="btn-enable-all"
+            class="min-h-[44px] rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+          >
+            Aktifkan Semua
+          </button>
+          <button
+            type="button"
+            id="btn-qris-va-only"
+            class="min-h-[44px] rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-orange-400 hover:bg-slate-700 transition-colors"
+          >
+            Hanya QRIS & VA
+          </button>
+          <button
+            type="button"
+            id="btn-disable-all"
+            class="min-h-[44px] rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-slate-700 transition-colors"
+          >
+            Nonaktifkan Semua
+          </button>
+        </div>
+      </div>
+
+      <!-- Channel Categories Tabs -->
+      <div class="flex border-b border-slate-800 gap-2 overflow-x-auto pb-1" id="category-tabs">
+        <button
+          type="button"
+          class="cat-tab-btn min-h-[44px] px-3.5 py-2 text-xs font-bold uppercase tracking-wider border-b-2 border-orange-500 text-orange-400"
+          data-cat="all"
+        >
+          Semua Kanal (<span id="count-all">0</span>)
+        </button>
+        <button
+          type="button"
+          class="cat-tab-btn min-h-[44px] px-3.5 py-2 text-xs font-bold uppercase tracking-wider border-b-2 border-transparent text-slate-400 hover:text-slate-200"
+          data-cat="qris"
+        >
+          QRIS & E-Wallet (<span id="count-qris">0</span>)
+        </button>
+        <button
+          type="button"
+          class="cat-tab-btn min-h-[44px] px-3.5 py-2 text-xs font-bold uppercase tracking-wider border-b-2 border-transparent text-slate-400 hover:text-slate-200"
+          data-cat="va"
+        >
+          Virtual Account Bank (<span id="count-va">0</span>)
+        </button>
+        <button
+          type="button"
+          class="cat-tab-btn min-h-[44px] px-3.5 py-2 text-xs font-bold uppercase tracking-wider border-b-2 border-transparent text-slate-400 hover:text-slate-200"
+          data-cat="card"
+        >
+          Kartu Kredit (<span id="count-card">0</span>)
+        </button>
+      </div>
+
+      <!-- Channel Rows Container -->
+      <div class="space-y-3" id="channels-list">
+        <!-- Will be dynamically populated -->
+      </div>
+    </section>
+
+    <!-- Section 3: Live Preview Halaman Checkout -->
+    <section class="rounded-xl border border-slate-800 bg-slate-900/80 p-5 sm:p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h2 class="text-base font-bold uppercase tracking-wider text-white">
+            3. Live Preview Tampilan Checkout Peserta
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">
+            Pratinjau tampilan akordion dan opsi pembayaran yang akan dilihat atlet di halaman checkout.
+          </p>
+        </div>
+        <span class="rounded bg-orange-950/80 border border-orange-500/30 px-2.5 py-1 text-[10px] font-mono uppercase font-bold text-orange-400">
+          Live Preview
+        </span>
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-slate-950 p-4 sm:p-6" id="preview-container">
+        <!-- Live preview injected here -->
+      </div>
+    </section>
+
+    <!-- Floating Action Bar -->
+    <div class="sticky bottom-4 z-20 rounded-2xl border border-slate-800 bg-slate-900/95 p-4 shadow-xl backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <span class="flex h-3 w-3 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="text-xs text-slate-300" id="save-status-indicator">
+          Perubahan otomatis disinkronkan ke checkout lokal.
+        </span>
+      </div>
+      <div class="flex items-center gap-3 w-full sm:w-auto">
+        <button
+          type="button"
+          id="btn-reset-default"
+          class="min-h-[48px] flex-1 sm:flex-none rounded-xl border border-slate-700 bg-slate-800 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+        >
+          Reset Default
+        </button>
+        <button
+          type="button"
+          id="btn-save-settings"
+          class="min-h-[48px] flex-1 sm:flex-none rounded-xl bg-orange-600 hover:bg-orange-500 px-7 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-all shadow-md active:scale-95"
+        >
+          Simpan Konfigurasi Pembayaran
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    import {
+      getPaymentSettings,
+      savePaymentSettings,
+      getDefaultPaymentSettings,
+      type PlatformPaymentSettings,
+      type PaymentChannelConfig,
+    } from "../../lib/payment-settings";
+    import { esc } from "../../lib/safe";
+
+    // Application State
+    let currentSettings: PlatformPaymentSettings = getPaymentSettings();
+    let currentCategoryFilter = "all";
+
+    const fmt = (n: number) => `Rp${n.toLocaleString("id-ID")}`;
+
+    function showToast(message: string, isError = false) {
+      const container = document.getElementById("toast-container")!;
+      const toast = document.createElement("div");
+      toast.className = `pointer-events-auto flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-bold shadow-lg transition-all transform duration-300 mb-2 ${
+        isError
+          ? "bg-red-900 text-white border border-red-700"
+          : "bg-emerald-900 text-emerald-100 border border-emerald-700"
+      }`;
+      toast.innerHTML = `<span>${isError ? "✕" : "✓"}</span> <span>${esc(message)}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function updateStats() {
+      const activeGw = currentSettings.gateways.find(g => g.code === currentSettings.activeGateway) || currentSettings.gateways[0];
+      const activeChannelsCount = currentSettings.channels.filter(c => c.isActive).length;
+      const totalChannelsCount = currentSettings.channels.length;
+
+      document.getElementById("stat-active-gw")!.textContent = activeGw ? activeGw.name : "Xendit";
+      document.getElementById("stat-gw-mode")!.textContent = activeGw?.isProduction ? "Production Mode" : "Sandbox / Test Mode";
+      document.getElementById("stat-active-channels")!.textContent = `${activeChannelsCount} / ${totalChannelsCount}`;
+
+      // Update category tab counts
+      document.getElementById("count-all")!.textContent = totalChannelsCount.toString();
+      document.getElementById("count-qris")!.textContent = currentSettings.channels.filter(c => c.category === "qris").length.toString();
+      document.getElementById("count-va")!.textContent = currentSettings.channels.filter(c => c.category === "va").length.toString();
+      document.getElementById("count-card")!.textContent = currentSettings.channels.filter(c => c.category === "card").length.toString();
+    }
+
+    // ── Render Gateway Cards ───────────────────────────────────────────────────
+    function renderGateways() {
+      const container = document.getElementById("gateway-cards-grid")!;
+      container.innerHTML = currentSettings.gateways.map(gw => {
+        const isSelected = currentSettings.activeGateway === gw.code;
+        return `
+          <div
+            class="gateway-card rounded-xl border p-4 sm:p-5 transition-all flex flex-col justify-between ${
+              isSelected
+                ? "border-orange-500 bg-orange-950/20 ring-1 ring-orange-500/50"
+                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+            }"
+            data-gw-code="${gw.code}"
+          >
+            <div class="space-y-3">
+              <div class="flex items-start justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-800 text-white font-bold text-xs">
+                    ${gw.code === "xendit" ? "X" : gw.code === "duitku" ? "D" : gw.code === "midtrans" ? "M" : "S"}
+                  </span>
+                  <div>
+                    <h3 class="font-bold text-sm text-white">${esc(gw.name)}</h3>
+                    <span class="text-[11px] text-slate-400 font-mono">${esc(gw.type)}</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="rounded px-2 py-0.5 text-[10px] font-bold uppercase font-mono ${
+                    gw.isProduction ? "bg-emerald-950 text-emerald-400 border border-emerald-800" : "bg-amber-950 text-amber-400 border border-amber-800"
+                  }">
+                    ${gw.isProduction ? "PROD" : "SANDBOX"}
+                  </span>
+                  <label class="relative inline-flex items-center cursor-pointer min-h-[44px]">
+                    <input
+                      type="radio"
+                      name="active-gateway"
+                      value="${gw.code}"
+                      ${isSelected ? "checked" : ""}
+                      class="sr-only gw-radio"
+                    />
+                    <div class="w-5 h-5 rounded-full border flex items-center justify-center ${
+                      isSelected ? "border-orange-500 bg-orange-600" : "border-slate-600 bg-slate-800"
+                    }">
+                      ${isSelected ? '<span class="h-2 w-2 rounded-full bg-white"></span>' : ""}
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <p class="text-xs text-slate-400">${esc(gw.description)}</p>
+
+              <!-- Credentials preview / toggles -->
+              <div class="pt-2 border-t border-slate-800/80 space-y-2 text-xs">
+                ${gw.code === "duitku" ? `
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <span class="text-[10px] text-slate-500 block uppercase">Merchant Code</span>
+                      <input
+                        type="text"
+                        class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono mt-0.5 inp-merchant"
+                        value="${esc(gw.merchantCode || "")}"
+                        placeholder="Contoh: D1234"
+                        data-gw="${gw.code}"
+                      />
+                    </div>
+                    <div>
+                      <span class="text-[10px] text-slate-500 block uppercase">API Key</span>
+                      <input
+                        type="password"
+                        class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono mt-0.5 inp-apikey"
+                        value="${esc(gw.apiKey || "")}"
+                        placeholder="••••••••"
+                        data-gw="${gw.code}"
+                      />
+                    </div>
+                  </div>
+                ` : gw.code === "xendit" ? `
+                  <div>
+                    <span class="text-[10px] text-slate-500 block uppercase">Secret API Key</span>
+                    <input
+                      type="password"
+                      class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono mt-0.5 inp-secret"
+                      value="${esc(gw.secretKey || "")}"
+                      placeholder="xnd_development_..."
+                      data-gw="${gw.code}"
+                    />
+                  </div>
+                ` : gw.code === "midtrans" ? `
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <span class="text-[10px] text-slate-500 block uppercase">Server Key</span>
+                      <input
+                        type="password"
+                        class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono mt-0.5 inp-serverkey"
+                        value="${esc(gw.serverKey || "")}"
+                        placeholder="SB-Mid-server-..."
+                        data-gw="${gw.code}"
+                      />
+                    </div>
+                    <div>
+                      <span class="text-[10px] text-slate-500 block uppercase">Client Key</span>
+                      <input
+                        type="text"
+                        class="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono mt-0.5 inp-clientkey"
+                        value="${esc(gw.clientKey || "")}"
+                        placeholder="SB-Mid-client-..."
+                        data-gw="${gw.code}"
+                      />
+                    </div>
+                  </div>
+                ` : `
+                  <div class="p-2 rounded bg-slate-950/60 text-[11px] text-emerald-400 flex items-center gap-1.5 border border-slate-800">
+                    <span>⚡</span>
+                    <span>Engine otomatis terverifikasi tanpa konfigurasi kredensial.</span>
+                  </div>
+                `}
+
+                ${gw.callbackUrl ? `
+                  <div class="flex items-center justify-between text-[11px] text-slate-400 bg-slate-950/60 p-1.5 rounded border border-slate-800">
+                    <span class="truncate font-mono">Webhook: ${esc(gw.callbackUrl)}</span>
+                    <button type="button" class="btn-copy-url text-orange-400 hover:text-orange-300 ml-2 whitespace-nowrap" data-url="${esc(gw.callbackUrl)}">
+                      Salin
+                    </button>
+                  </div>
+                ` : ""}
+              </div>
+            </div>
+
+            <div class="pt-4 flex items-center justify-between">
+              <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-400 min-h-[44px]">
+                <input
+                  type="checkbox"
+                  class="rounded border-slate-700 bg-slate-950 text-orange-600 chk-prod"
+                  data-gw="${gw.code}"
+                  ${gw.isProduction ? "checked" : ""}
+                />
+                <span>Mode Produksi (Live)</span>
+              </label>
+
+              <button
+                type="button"
+                class="btn-select-gw min-h-[44px] rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                  isSelected
+                    ? "bg-orange-600 text-white"
+                    : "bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
+                }"
+                data-gw-code="${gw.code}"
+              >
+                ${isSelected ? "Aktif Sebagai Utama" : "Pilih Gateway"}
+              </button>
+            </div>
+          </div>`;
+      }).join("");
+
+      // Gateway radio / button click handlers
+      container.querySelectorAll<HTMLButtonElement>(".btn-select-gw").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const code = btn.dataset.gwCode!;
+          currentSettings.activeGateway = code;
+          currentSettings.gateways.forEach(g => {
+            g.isActive = (g.code === code);
+          });
+          renderGateways();
+          updateStats();
+          renderPreview();
+        });
+      });
+
+      // Copy webhook URL handlers
+      container.querySelectorAll<HTMLButtonElement>(".btn-copy-url").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const url = btn.dataset.url!;
+          try {
+            await navigator.clipboard.writeText(url);
+            btn.textContent = "Tersalin!";
+            setTimeout(() => { btn.textContent = "Salin"; }, 2000);
+          } catch {
+            // ignore
+          }
+        });
+      });
+
+      // Mode production toggle handlers
+      container.querySelectorAll<HTMLInputElement>(".chk-prod").forEach(chk => {
+        chk.addEventListener("change", () => {
+          const code = chk.dataset.gw;
+          const match = currentSettings.gateways.find(g => g.code === code);
+          if (match) {
+            match.isProduction = chk.checked;
+            renderGateways();
+            updateStats();
+          }
+        });
+      });
+
+      // Input changes handlers
+      container.querySelectorAll<HTMLInputElement>("input[data-gw]").forEach(inp => {
+        inp.addEventListener("input", () => {
+          const code = inp.dataset.gw;
+          const match = currentSettings.gateways.find(g => g.code === code);
+          if (!match) return;
+
+          if (inp.classList.contains("inp-merchant")) match.merchantCode = inp.value.trim();
+          if (inp.classList.contains("inp-apikey")) match.apiKey = inp.value.trim();
+          if (inp.classList.contains("inp-secret")) match.secretKey = inp.value.trim();
+          if (inp.classList.contains("inp-serverkey")) match.serverKey = inp.value.trim();
+          if (inp.classList.contains("inp-clientkey")) match.clientKey = inp.value.trim();
+        });
+      });
+    }
+
+    // ── Render Channel Rows ────────────────────────────────────────────────────
+    function renderChannels() {
+      const container = document.getElementById("channels-list")!;
+      let filtered = currentSettings.channels;
+      if (currentCategoryFilter !== "all") {
+        filtered = filtered.filter(c => c.category === currentCategoryFilter);
+      }
+
+      container.innerHTML = filtered.map(channel => {
+        return `
+          <div class="rounded-xl border p-4 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+            channel.isActive
+              ? "border-slate-800 bg-slate-900/60"
+              : "border-slate-800/40 bg-slate-950/40 opacity-60"
+          }">
+            <!-- Channel Info & Icon -->
+            <div class="flex items-center gap-3 min-w-[240px]">
+              <span class="px-2.5 py-1 rounded text-xs font-black uppercase tracking-wider ${channel.badgeBg} ${channel.badgeFg}">
+                ${esc(channel.logo)}
+              </span>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h4 class="font-bold text-sm text-white">${esc(channel.name)}</h4>
+                  <span class="text-[10px] font-mono text-slate-500 uppercase">${esc(channel.category)}</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-0.5">${esc(channel.description)}</p>
+              </div>
+            </div>
+
+            <!-- Controls: Toggle, Fee, Fee Bearer -->
+            <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+              <!-- Fee Input -->
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] text-slate-400 uppercase font-mono">Biaya:</span>
+                <div class="relative">
+                  <span class="absolute left-2.5 top-2 text-xs text-slate-500 font-mono">Rp</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="500"
+                    class="w-24 bg-slate-950 border border-slate-700 rounded-lg pl-8 pr-2 py-1.5 text-xs text-white font-mono focus:border-orange-500 outline-none inp-fee"
+                    value="${channel.fee}"
+                    data-code="${channel.code}"
+                  />
+                </div>
+              </div>
+
+              <!-- Fee Bearer Select -->
+              <div>
+                <select
+                  class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:border-orange-500 outline-none sel-bearer"
+                  data-code="${channel.code}"
+                >
+                  <option value="BUYER" ${channel.feeBearer === "BUYER" ? "selected" : ""}>Peserta</option>
+                  <option value="ORGANIZER" ${channel.feeBearer === "ORGANIZER" ? "selected" : ""}>Disubsidi</option>
+                </select>
+              </div>
+
+              <!-- Badge text input -->
+              <div>
+                <input
+                  type="text"
+                  placeholder="Badge promo (opsional)"
+                  value="${esc(channel.badge || "")}"
+                  class="w-28 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:border-orange-500 outline-none inp-badge"
+                  data-code="${channel.code}"
+                />
+              </div>
+
+              <!-- Active Toggle Switch -->
+              <label class="relative inline-flex items-center cursor-pointer min-h-[44px] min-w-[56px]">
+                <input
+                  type="checkbox"
+                  class="sr-only chk-channel-active"
+                  data-code="${channel.code}"
+                  ${channel.isActive ? "checked" : ""}
+                />
+                <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[12px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
+                  channel.isActive ? "bg-emerald-600" : "bg-slate-800"
+                }"></div>
+                <span class="ml-2 text-xs font-bold ${channel.isActive ? "text-emerald-400" : "text-slate-500"}">
+                  ${channel.isActive ? "AKTIF" : "OFF"}
+                </span>
+              </label>
+            </div>
+          </div>`;
+      }).join("");
+
+      // Toggle switch change handler
+      container.querySelectorAll<HTMLInputElement>(".chk-channel-active").forEach(chk => {
+        chk.addEventListener("change", () => {
+          const code = chk.dataset.code;
+          const match = currentSettings.channels.find(c => c.code === code);
+          if (match) {
+            match.isActive = chk.checked;
+            renderChannels();
+            updateStats();
+            renderPreview();
+          }
+        });
+      });
+
+      // Fee change handler
+      container.querySelectorAll<HTMLInputElement>(".inp-fee").forEach(inp => {
+        inp.addEventListener("change", () => {
+          const code = inp.dataset.code;
+          const match = currentSettings.channels.find(c => c.code === code);
+          if (match) {
+            match.fee = Math.max(0, parseInt(inp.value) || 0);
+            renderPreview();
+          }
+        });
+      });
+
+      // Fee bearer change handler
+      container.querySelectorAll<HTMLSelectElement>(".sel-bearer").forEach(sel => {
+        sel.addEventListener("change", () => {
+          const code = sel.dataset.code;
+          const match = currentSettings.channels.find(c => c.code === code);
+          if (match) {
+            match.feeBearer = sel.value as "BUYER" | "ORGANIZER";
+            renderPreview();
+          }
+        });
+      });
+
+      // Badge input handler
+      container.querySelectorAll<HTMLInputElement>(".inp-badge").forEach(inp => {
+        inp.addEventListener("input", () => {
+          const code = inp.dataset.code;
+          const match = currentSettings.channels.find(c => c.code === code);
+          if (match) {
+            match.badge = inp.value.trim() || undefined;
+            renderPreview();
+          }
+        });
+      });
+    }
+
+    // ── Render Live Preview ────────────────────────────────────────────────────
+    function renderPreview() {
+      const container = document.getElementById("preview-container")!;
+      const activeChannels = currentSettings.channels.filter(c => c.isActive);
+
+      const qrisChannels = activeChannels.filter(c => c.category === "qris");
+      const vaChannels = activeChannels.filter(c => c.category === "va");
+      const cardChannels = activeChannels.filter(c => c.category === "card");
+
+      const dummySubtotal = 750000;
+
+      if (activeChannels.length === 0) {
+        container.innerHTML = `
+          <div class="rounded-xl border border-red-900/50 bg-red-950/20 p-8 text-center">
+            <p class="text-sm font-bold text-red-400">Peringatan: Seluruh kanal pembayaran sedang dinonaktifkan.</p>
+            <p class="text-xs text-slate-400 mt-1">Peserta tidak akan dapat melakukan checkout sampai minimal 1 kanal diaktifkan.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="space-y-4 max-w-2xl mx-auto">
+          <div class="flex items-center justify-between text-xs text-slate-400 mb-2">
+            <span>Contoh Subtotal Tiket: <strong class="text-white">${fmt(dummySubtotal)}</strong></span>
+            <span class="text-orange-400 font-mono">Gateway: ${esc(currentSettings.activeGateway.toUpperCase())}</span>
+          </div>
+
+          <!-- Group QRIS -->
+          ${qrisChannels.length > 0 ? `
+            <div class="rounded-xl border border-slate-700 bg-slate-900 overflow-hidden">
+              <div class="px-4 py-3 bg-slate-800/80 flex items-center justify-between text-xs font-bold text-white uppercase tracking-wider">
+                <div class="flex items-center gap-2">
+                  <span>📱</span>
+                  <span>QRIS dan Dompet Digital (${qrisChannels.length} Kanal Aktif)</span>
+                </div>
+                <span>▼</span>
+              </div>
+              <div class="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                ${qrisChannels.map(c => `
+                  <div class="rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-xs flex flex-col justify-between">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <span class="px-1.5 py-0.5 rounded text-[9px] font-black ${c.badgeBg} ${c.badgeFg}">${esc(c.logo)}</span>
+                        <span class="font-bold text-white">${esc(c.name)}</span>
+                      </div>
+                      ${c.badge ? `<span class="px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-900 text-emerald-300">${esc(c.badge)}</span>` : ""}
+                    </div>
+                    <div class="mt-2 pt-1 border-t border-slate-700/60 flex items-center justify-between text-[11px]">
+                      <span class="text-slate-400">Total Tagihan</span>
+                      <span class="font-mono font-bold text-orange-400">${fmt(dummySubtotal + c.fee)}</span>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          ` : ""}
+
+          <!-- Group VA -->
+          ${vaChannels.length > 0 ? `
+            <div class="rounded-xl border border-slate-700 bg-slate-900 overflow-hidden">
+              <div class="px-4 py-3 bg-slate-800/80 flex items-center justify-between text-xs font-bold text-white uppercase tracking-wider">
+                <div class="flex items-center gap-2">
+                  <span>🏛️</span>
+                  <span>Virtual Account Bank (${vaChannels.length} Bank Aktif)</span>
+                </div>
+                <span>▼</span>
+              </div>
+              <div class="p-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                ${vaChannels.map(c => `
+                  <div class="rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-xs flex flex-col justify-between">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <span class="px-1.5 py-0.5 rounded text-[9px] font-black ${c.badgeBg} ${c.badgeFg}">${esc(c.logo)}</span>
+                        <span class="font-bold text-white">${esc(c.name)}</span>
+                      </div>
+                      ${c.badge ? `<span class="px-1.5 py-0.5 rounded text-[8px] font-bold bg-orange-900 text-orange-300">${esc(c.badge)}</span>` : ""}
+                    </div>
+                    <div class="mt-2 pt-1 border-t border-slate-700/60 flex items-center justify-between text-[11px]">
+                      <span class="text-slate-400">Total Tagihan</span>
+                      <span class="font-mono font-bold text-orange-400">${fmt(dummySubtotal + c.fee)}</span>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          ` : ""}
+
+          <!-- Group Card -->
+          ${cardChannels.length > 0 ? `
+            <div class="rounded-xl border border-slate-700 bg-slate-900 overflow-hidden">
+              <div class="px-4 py-3 bg-slate-800/80 flex items-center justify-between text-xs font-bold text-white uppercase tracking-wider">
+                <div class="flex items-center gap-2">
+                  <span>💳</span>
+                  <span>Kartu Kredit dan Debit Online (Aktif)</span>
+                </div>
+                <span>▼</span>
+              </div>
+              <div class="p-3">
+                ${cardChannels.map(c => `
+                  <div class="rounded-lg border border-slate-700 bg-slate-800 p-2.5 text-xs flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span class="px-1.5 py-0.5 rounded text-[9px] font-black ${c.badgeBg} ${c.badgeFg}">${esc(c.logo)}</span>
+                      <span class="font-bold text-white">${esc(c.name)}</span>
+                    </div>
+                    <span class="font-mono font-bold text-orange-400">${fmt(dummySubtotal + c.fee)}</span>
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          ` : ""}
+        </div>
+      `;
+    }
+
+    // ── Quick Actions ──────────────────────────────────────────────────────────
+    document.getElementById("btn-enable-all")?.addEventListener("click", () => {
+      currentSettings.channels.forEach(c => { c.isActive = true; });
+      renderChannels();
+      updateStats();
+      renderPreview();
+      showToast("Seluruh 12 kanal pembayaran telah diaktifkan.");
+    });
+
+    document.getElementById("btn-qris-va-only")?.addEventListener("click", () => {
+      currentSettings.channels.forEach(c => {
+        c.isActive = (c.category === "qris" || c.category === "va");
+      });
+      renderChannels();
+      updateStats();
+      renderPreview();
+      showToast("Kanal diset hanya QRIS dan Virtual Account.");
+    });
+
+    document.getElementById("btn-disable-all")?.addEventListener("click", () => {
+      currentSettings.channels.forEach(c => { c.isActive = false; });
+      renderChannels();
+      updateStats();
+      renderPreview();
+      showToast("Seluruh kanal pembayaran telah dinonaktifkan.", true);
+    });
+
+    // Category Tabs handler
+    document.querySelectorAll<HTMLButtonElement>(".cat-tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll<HTMLButtonElement>(".cat-tab-btn").forEach(b => {
+          b.className = "cat-tab-btn min-h-[44px] px-3.5 py-2 text-xs font-bold uppercase tracking-wider border-b-2 border-transparent text-slate-400 hover:text-slate-200";
+        });
+        btn.className = "cat-tab-btn min-h-[44px] px-3.5 py-2 text-xs font-bold uppercase tracking-wider border-b-2 border-orange-500 text-orange-400";
+        currentCategoryFilter = btn.dataset.cat || "all";
+        renderChannels();
+      });
+    });
+
+    // Save Settings button
+    document.getElementById("btn-save-settings")?.addEventListener("click", () => {
+      savePaymentSettings(currentSettings);
+      showToast("Konfigurasi pembayaran berhasil disimpan dan aktif langsung di checkout!");
+      const statusInd = document.getElementById("save-status-indicator");
+      if (statusInd) {
+        statusInd.textContent = `Tersimpan pada ${new Date().toLocaleTimeString("id-ID")}.`;
+      }
+    });
+
+    // Reset default button
+    document.getElementById("btn-reset-default")?.addEventListener("click", () => {
+      if (confirm("Reset seluruh konfigurasi gateway dan kanal pembayaran ke standar awal?")) {
+        currentSettings = getDefaultPaymentSettings();
+        savePaymentSettings(currentSettings);
+        renderGateways();
+        renderChannels();
+        updateStats();
+        renderPreview();
+        showToast("Konfigurasi pembayaran dikembalikan ke default.");
+      }
+    });
+
+    // Initialize View
+    renderGateways();
+    renderChannels();
+    updateStats();
+    renderPreview();
+  </script>
+</AdminLayout>

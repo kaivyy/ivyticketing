@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" class="w-full h-full">
+  <defs>
+    <linearGradient id="ivy-gradient-main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="45%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="ivy-gradient-glow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="ivy-drop-shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Athletic Hexagonal Shield Background -->
+  <path d="M7 14L15 6H33L41 14V34L33 42H15L7 34V14Z" fill="url(#ivy-gradient-main)" filter="url(#ivy-drop-shadow)"/>
+  
+  <!-- Subtle Top Highlight Rim -->
+  <path d="M8.5 14.5L15.8 7.2H32.2L39.5 14.5" stroke="url(#ivy-gradient-glow)" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Dynamic Athletic Monogram: IVY -->
+  <!-- I: Dynamic Forward Slant -->
+  <path d="M13 16.5H16.8L15.2 31.5H11.4L13 16.5Z" fill="#ffffff"/>
+  
+  <!-- V: Aggressive Athletic Wedge -->
+  <path d="M19 16.5H23.2L24.6 26.2L28.2 16.5H32.4L26.5 31.5H22.5L19 16.5Z" fill="#ffffff"/>
+  
+  <!-- Y: Sharp Geometric Crest -->
+  <path d="M32.8 16.5H36.8L38.4 22.8L41.2 16.5H45L40.2 25.4V31.5H36.6V25.4L32.8 16.5Z" fill="#ffffff"/>
+
+  <!-- Athletic Racing Accent Dot / Slash -->
+  <circle cx="39" cy="9.5" r="1.75" fill="#fef08a"/>
+</svg>

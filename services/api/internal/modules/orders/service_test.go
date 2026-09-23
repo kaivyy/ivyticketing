@@ -23,6 +23,7 @@ type fakeRepo struct {
 	orders     map[uuid.UUID]db.Order
 	reserves   map[uuid.UUID]db.InventoryReservation
 	orderNums  map[string]db.Order
+	grants     map[uuid.UUID]db.AccessGrant
 	nextID     uuid.UUID
 }
 
@@ -33,6 +34,7 @@ func newFakeRepo() *fakeRepo {
 		orders:     make(map[uuid.UUID]db.Order),
 		reserves:   make(map[uuid.UUID]db.InventoryReservation),
 		orderNums:  make(map[string]db.Order),
+		grants:     make(map[uuid.UUID]db.AccessGrant),
 		nextID:     uuid.MustParse("00000000-0000-0000-0000-000000000001"),
 	}
 }
@@ -142,6 +144,49 @@ func (f *fakeRepo) CreateOrder(ctx context.Context, arg db.CreateOrderParams) (d
 	return o, nil
 }
 
+func (f *fakeRepo) CreateGuestOrder(ctx context.Context, arg db.CreateGuestOrderParams) (db.Order, error) {
+	id := f.nextUUID()
+	o := db.Order{
+		ID:               id,
+		OrganizationID:   arg.OrganizationID,
+		EventID:          arg.EventID,
+		CategoryID:       arg.CategoryID,
+		ParticipantID:    arg.ParticipantID,
+		OrderNumber:      arg.OrderNumber,
+		Status:           arg.Status,
+		Subtotal:         arg.Subtotal,
+		Fee:              arg.Fee,
+		Discount:         arg.Discount,
+		Total:            arg.Total,
+		ExpiredAt:        arg.ExpiredAt,
+		GuestEmail:       arg.GuestEmail,
+		GuestName:        arg.GuestName,
+		GuestPhone:       arg.GuestPhone,
+		TermsAcceptedAt:  arg.TermsAcceptedAt,
+		TermsVersion:     arg.TermsVersion,
+		WaiverAcceptedAt: arg.WaiverAcceptedAt,
+		WaiverVersion:    arg.WaiverVersion,
+		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.orders[id] = o
+	f.orderNums[arg.OrderNumber] = o
+	return o, nil
+}
+
+func (f *fakeRepo) LinkOrderToParticipant(ctx context.Context, arg db.LinkOrderToParticipantParams) (db.Order, error) {
+	o, ok := f.orders[arg.ID]
+	if !ok {
+		return db.Order{}, pgx.ErrNoRows
+	}
+	o.ParticipantID = arg.ParticipantID
+	f.orders[arg.ID] = o
+	return o, nil
+}
+
+func (f *fakeRepo) LinkTicketToParticipant(ctx context.Context, arg db.LinkTicketToParticipantParams) (db.Ticket, error) {
+	return db.Ticket{OrderID: arg.OrderID, ParticipantID: arg.ParticipantID}, nil
+}
+
 func (f *fakeRepo) UpdateOrderStatus(ctx context.Context, arg db.UpdateOrderStatusParams) (db.Order, error) {
 	o, ok := f.orders[arg.ID]
 	if !ok {
@@ -156,10 +201,24 @@ func (f *fakeRepo) UpdateOrderStatus(ctx context.Context, arg db.UpdateOrderStat
 	return o, nil
 }
 
+func (f *fakeRepo) RecordOrderRefund(ctx context.Context, arg db.RecordOrderRefundParams) (db.Order, error) {
+	o, ok := f.orders[arg.ID]
+	if !ok {
+		return db.Order{}, pgx.ErrNoRows
+	}
+	o.Status = StatusRefunded
+	o.RefundedAmount = arg.RefundedAmount
+	o.RefundReason = arg.RefundReason
+	o.RefundedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	f.orders[arg.ID] = o
+	f.orderNums[o.OrderNumber] = o
+	return o, nil
+}
+
 func (f *fakeRepo) ListOrdersByParticipant(ctx context.Context, participantID uuid.UUID) ([]db.Order, error) {
 	var out []db.Order
 	for _, o := range f.orders {
-		if o.ParticipantID == participantID {
+		if o.ParticipantID != nil && *o.ParticipantID == participantID {
 			out = append(out, o)
 		}
 	}
@@ -179,7 +238,20 @@ func (f *fakeRepo) ListOrdersByOrgEvent(ctx context.Context, arg db.ListOrdersBy
 func (f *fakeRepo) CountActiveOrdersForUserCategory(ctx context.Context, arg db.CountActiveOrdersForUserCategoryParams) (int64, error) {
 	var count int64
 	for _, o := range f.orders {
-		if o.CategoryID == arg.CategoryID && o.ParticipantID == arg.ParticipantID &&
+		if o.CategoryID == arg.CategoryID &&
+			o.ParticipantID != nil && arg.ParticipantID != nil && *o.ParticipantID == *arg.ParticipantID &&
+			(o.Status == StatusPendingPayment || o.Status == StatusPaid) {
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (f *fakeRepo) CountActiveOrdersForGuestCategory(ctx context.Context, arg db.CountActiveOrdersForGuestCategoryParams) (int64, error) {
+	var count int64
+	for _, o := range f.orders {
+		if o.CategoryID == arg.CategoryID &&
+			o.GuestEmail.Valid && arg.GuestEmail.Valid && o.GuestEmail.String == arg.GuestEmail.String &&
 			(o.Status == StatusPendingPayment || o.Status == StatusPaid) {
 			count++
 		}
@@ -196,6 +268,26 @@ func (f *fakeRepo) ListExpiredPendingOrders(_ context.Context, limit int32) ([]u
 		}
 	}
 	return ids, nil
+}
+
+func (f *fakeRepo) GetAccessGrant(ctx context.Context, id uuid.UUID) (db.AccessGrant, error) {
+	g, ok := f.grants[id]
+	if !ok {
+		return db.AccessGrant{}, pgx.ErrNoRows
+	}
+	return g, nil
+}
+
+func (f *fakeRepo) ConsumeAccessGrant(ctx context.Context, grantID, orderID uuid.UUID) error {
+	g, ok := f.grants[grantID]
+	if !ok || g.Status != "ACTIVE" {
+		return ErrGrantAlreadyConsumed
+	}
+	g.Status = "CONSUMED"
+	g.OrderID = &orderID
+	g.ConsumedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	f.grants[grantID] = g
+	return nil
 }
 
 // inventory.Repository methods
@@ -390,4 +482,80 @@ func TestGet_NotOwnerIsNotFound(t *testing.T) {
 
 	_, err = svc.GetForParticipant(ctx, otherUser, resp.ID)
 	assert.ErrorIs(t, err, ErrOrderNotFound)
+}
+
+func TestGuestCheckout_HappyPath(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepo()
+	orgID := uuid.New()
+	eventID, categoryID := repo.seed(orgID, 10, 2)
+
+	svc := NewService(repo, nil, 15*time.Minute, nil, nil)
+	resp, err := svc.GuestCheckout(ctx, GuestCheckoutRequest{
+		GuestEmail:     "guest@example.com",
+		GuestName:      "Budi Guest",
+		GuestPhone:     "081234567890",
+		TermsAccepted:  true,
+		TermsVersion:   "v1.0",
+		WaiverAccepted: true,
+		WaiverVersion:  "v1.0",
+	}, eventID, categoryID)
+	require.NoError(t, err)
+
+	assert.Equal(t, StatusPendingPayment, resp.Status)
+	assert.Nil(t, resp.ParticipantID)
+	require.NotNil(t, resp.GuestEmail)
+	assert.Equal(t, "guest@example.com", *resp.GuestEmail)
+
+	order, ok := repo.orders[resp.ID]
+	require.True(t, ok)
+	assert.Nil(t, order.ParticipantID)
+	assert.Equal(t, "guest@example.com", order.GuestEmail.String)
+}
+
+func TestGuestCheckout_Validations(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepo()
+	orgID := uuid.New()
+	eventID, categoryID := repo.seed(orgID, 10, 2)
+
+	svc := NewService(repo, nil, 15*time.Minute, nil, nil)
+
+	// Missing email
+	_, err := svc.GuestCheckout(ctx, GuestCheckoutRequest{
+		TermsAccepted: true,
+	}, eventID, categoryID)
+	assert.ErrorIs(t, err, ErrGuestEmailRequired)
+
+	// Missing terms consent
+	_, err = svc.GuestCheckout(ctx, GuestCheckoutRequest{
+		GuestEmail:    "guest@example.com",
+		TermsAccepted: false,
+	}, eventID, categoryID)
+	assert.ErrorIs(t, err, ErrTermsRequired)
+}
+
+func TestClaimOrder_HappyPathAndAlreadyClaimed(t *testing.T) {
+	ctx := context.Background()
+	repo := newFakeRepo()
+	orgID := uuid.New()
+	eventID, categoryID := repo.seed(orgID, 10, 2)
+
+	svc := NewService(repo, nil, 15*time.Minute, nil, nil)
+	guestResp, err := svc.GuestCheckout(ctx, GuestCheckoutRequest{
+		GuestEmail:    "guest@example.com",
+		TermsAccepted: true,
+	}, eventID, categoryID)
+	require.NoError(t, err)
+
+	userID := uuid.New()
+	claimResp, err := svc.ClaimOrder(ctx, userID, guestResp.ID)
+	require.NoError(t, err)
+	require.NotNil(t, claimResp.ParticipantID)
+	assert.Equal(t, userID, *claimResp.ParticipantID)
+
+	// Second claim fails
+	otherUser := uuid.New()
+	_, err = svc.ClaimOrder(ctx, otherUser, guestResp.ID)
+	assert.ErrorIs(t, err, ErrOrderAlreadyClaimed)
 }

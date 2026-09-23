@@ -37,6 +37,16 @@ type Repository interface {
 	GetPlatformInvoice(ctx context.Context, id uuid.UUID) (db.PlatformInvoice, error)
 	ListPlatformInvoicesByOrg(ctx context.Context, orgID uuid.UUID, limit, offset int32) ([]db.PlatformInvoice, error)
 	MarkPlatformInvoicePaid(ctx context.Context, id uuid.UUID) (db.PlatformInvoice, error)
+
+	// Payout accounts.
+	CreatePayoutAccount(ctx context.Context, arg db.CreatePayoutAccountParams) (db.OrgPayoutAccount, error)
+	ListPayoutAccountsByOrg(ctx context.Context, orgID uuid.UUID) ([]db.OrgPayoutAccount, error)
+	DeletePayoutAccount(ctx context.Context, arg db.DeletePayoutAccountParams) error
+
+	// Payout requests.
+	CreatePayoutRequest(ctx context.Context, arg db.CreatePayoutRequestParams) (db.PayoutRequest, error)
+	ListPayoutRequestsByOrg(ctx context.Context, orgID uuid.UUID) ([]db.PayoutRequest, error)
+	GetOrgRefundSummary(ctx context.Context, orgID uuid.UUID) (int64, error)
 }
 
 type sqlcRepo struct{ q *db.Queries }
@@ -109,4 +119,25 @@ func (r *sqlcRepo) ListPlatformInvoicesByOrg(ctx context.Context, orgID uuid.UUI
 }
 func (r *sqlcRepo) MarkPlatformInvoicePaid(ctx context.Context, id uuid.UUID) (db.PlatformInvoice, error) {
 	return r.q.MarkPlatformInvoicePaid(ctx, id)
+}
+
+// --- payouts ---
+
+func (r *sqlcRepo) CreatePayoutAccount(ctx context.Context, arg db.CreatePayoutAccountParams) (db.OrgPayoutAccount, error) {
+	return r.q.CreatePayoutAccount(ctx, arg)
+}
+func (r *sqlcRepo) ListPayoutAccountsByOrg(ctx context.Context, orgID uuid.UUID) ([]db.OrgPayoutAccount, error) {
+	return r.q.ListPayoutAccountsByOrg(ctx, orgID)
+}
+func (r *sqlcRepo) DeletePayoutAccount(ctx context.Context, arg db.DeletePayoutAccountParams) error {
+	return r.q.DeletePayoutAccount(ctx, arg)
+}
+func (r *sqlcRepo) CreatePayoutRequest(ctx context.Context, arg db.CreatePayoutRequestParams) (db.PayoutRequest, error) {
+	return r.q.CreatePayoutRequest(ctx, arg)
+}
+func (r *sqlcRepo) ListPayoutRequestsByOrg(ctx context.Context, orgID uuid.UUID) ([]db.PayoutRequest, error) {
+	return r.q.ListPayoutRequestsByOrg(ctx, orgID)
+}
+func (r *sqlcRepo) GetOrgRefundSummary(ctx context.Context, orgID uuid.UUID) (int64, error) {
+	return r.q.GetOrgRefundSummary(ctx, orgID)
 }

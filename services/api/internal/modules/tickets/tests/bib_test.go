@@ -86,6 +86,21 @@ func (r *bibFakeRepo) GetCategoryByID(ctx context.Context, id uuid.UUID) (db.Eve
 func (r *bibFakeRepo) GetOrderByID(ctx context.Context, id uuid.UUID) (db.Order, error) {
 	panic("GetOrderByID not exercised by BIB tests")
 }
+func (r *bibFakeRepo) UpdateTicketParticipant(ctx context.Context, arg db.UpdateTicketParticipantParams) (db.Ticket, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	t, ok := r.tickets[arg.ID]
+	if !ok {
+		return db.Ticket{}, pgx.ErrNoRows
+	}
+	t.HolderName = arg.HolderName
+	t.HolderEmail = arg.HolderEmail
+	if len(arg.FormAnswers) > 0 {
+		t.FormAnswers = arg.FormAnswers
+	}
+	r.tickets[arg.ID] = t
+	return t, nil
+}
 
 // AssignBib — simulate unique-constraint violation on the first N calls per repo.
 func (r *bibFakeRepo) AssignBib(ctx context.Context, ticketID uuid.UUID, bib string, assignedBy uuid.UUID, method string) (db.Ticket, error) {
@@ -174,13 +189,14 @@ func containsSubstr(s, sub string) bool {
 }
 
 func bibSampleTicket(eventID uuid.UUID) db.Ticket {
+	pid := uuid.New()
 	return db.Ticket{
 		ID:             uuid.New(),
 		OrganizationID: uuid.New(),
 		EventID:        eventID,
 		CategoryID:     uuid.New(),
 		OrderID:        uuid.New(),
-		ParticipantID:  uuid.New(),
+		ParticipantID:  &pid,
 		TicketNumber:   "TIX-20260619-ABCDEF",
 		Status:         "VALID",
 		HolderName:     "Pelari Satu",

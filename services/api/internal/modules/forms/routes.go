@@ -23,3 +23,9 @@ func (h *Handler) RegisterRoutes(r chi.Router, loader middleware.PermissionLoade
 		r.Post("/preview/validate", h.PreviewValidate)
 	})
 }
+
+// RegisterPublicRoutes mounts public form schema retrieval endpoints for participant checkout.
+func (h *Handler) RegisterPublicRoutes(r chi.Router) {
+	r.Get("/events/{eventId}/form", h.GetPublicForm)
+	r.Get("/public/events/{eventId}/form", h.GetPublicForm)
+}

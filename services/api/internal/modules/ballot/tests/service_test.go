@@ -82,8 +82,14 @@ func (r *fakeRepo) ListWinnerEntries(_ context.Context, _ uuid.UUID) ([]db.Ballo
 func (r *fakeRepo) ListExpiringWinners(_ context.Context, _ int32) ([]db.BallotEntry, error) {
 	return nil, nil
 }
+func (r *fakeRepo) ExpireBallotWinner(_ context.Context, _ uuid.UUID) (db.BallotEntry, error) {
+	return db.BallotEntry{}, nil
+}
 func (r *fakeRepo) GetBallotEntryByParticipant(_ context.Context, _ db.GetBallotEntryByParticipantParams) ([]db.BallotEntry, error) {
 	return nil, nil
+}
+func (r *fakeRepo) ListBallotDrawsByEvent(_ context.Context, _ uuid.UUID) ([]db.BallotDraw, error) {
+	return []db.BallotDraw{r.draw}, nil
 }
 
 type fakePoolCreator struct{ poolID uuid.UUID }

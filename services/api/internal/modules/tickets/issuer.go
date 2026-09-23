@@ -44,10 +44,22 @@ func (i *Issuer) IssueForOrder(ctx context.Context, q *db.Queries, order db.Orde
 
 // IssueWith is the testable core; q is any IssuerQuerier.
 func (i *Issuer) IssueWith(ctx context.Context, q IssuerQuerier, order db.Order) error {
-	user, err := q.GetUserByID(ctx, order.ParticipantID)
-	if err != nil {
-		return err
+	var holderName, holderEmail string
+	if order.ParticipantID != nil {
+		user, err := q.GetUserByID(ctx, *order.ParticipantID)
+		if err != nil {
+			return err
+		}
+		holderName = user.FullName
+		holderEmail = user.Email
+	} else {
+		holderName = order.GuestName.String
+		if holderName == "" {
+			holderName = "Guest"
+		}
+		holderEmail = order.GuestEmail.String
 	}
+
 	event, err := q.GetEventByID(ctx, order.EventID)
 	if err != nil {
 		return err
@@ -62,6 +74,11 @@ func (i *Issuer) IssueWith(ctx context.Context, q IssuerQuerier, order db.Order)
 		return err
 	}
 
+	formAnswers := order.FormAnswers
+	if len(formAnswers) == 0 {
+		formAnswers = []byte("{}")
+	}
+
 	created, err := q.CreateTicket(ctx, db.CreateTicketParams{
 		OrganizationID: order.OrganizationID,
 		EventID:        order.EventID,
@@ -69,14 +86,15 @@ func (i *Issuer) IssueWith(ctx context.Context, q IssuerQuerier, order db.Order)
 		OrderID:        order.ID,
 		ParticipantID:  order.ParticipantID,
 		TicketNumber:   num,
-		HolderName:     user.FullName,
-		HolderEmail:    user.Email,
+		HolderName:     holderName,
+		HolderEmail:    holderEmail,
 		EventTitle:     event.Name,
 		CategoryName:   category.Name,
 		QrVersion:      1,
+		FormAnswers:    formAnswers,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		// Ticket already issued for this order (ON CONFLICT DO NOTHING) — idempotent no-op.
+		// Ticket already issued for this order (ON CONFLICT DO NOTHING) - idempotent no-op.
 		return nil
 	}
 	if err != nil {
@@ -88,7 +106,7 @@ func (i *Issuer) IssueWith(ctx context.Context, q IssuerQuerier, order db.Order)
 		actor := order.ParticipantID
 		i.audit.Record(ctx, audit.Entry{
 			OrganizationID: &orgID,
-			ActorUserID:    &actor,
+			ActorUserID:    actor,
 			Action:         "TICKET_ISSUED",
 			TargetType:     "ticket",
 			TargetID:       created.ID.String(),

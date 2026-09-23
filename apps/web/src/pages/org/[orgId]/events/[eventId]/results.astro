@@ -3,7 +3,7 @@ export const prerender = false;
 import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
 const { orgId, eventId } = Astro.params;
 ---
-<OrganizerLayout title="Hasil Lomba — ivyticketing">
+<OrganizerLayout title="Hasil Lomba - ivyticketing">
   <div id="results-root" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
     <p class="text-slate-500">Memuat hasil…</p>
   </div>
@@ -20,8 +20,21 @@ const { orgId, eventId } = Astro.params;
       deleteTemplate,
       STATUS_LABELS,
       GENDER_LABELS,
+      getTimingConfig,
+      configureTiming,
+      getPassingStats,
+      processTiming,
+      importMappings,
+      listWaves,
+      createWave,
+      listCheckpoints,
+      upsertCheckpoint,
       type ResultRow,
       type CertificateTemplate,
+      type TimingConfig,
+      type PassingStats,
+      type RaceWave,
+      type TimingCheckpoint,
     } from "../../../../../lib/results";
     import { esc } from "../../../../../lib/safe";
 
@@ -44,13 +57,15 @@ const { orgId, eventId } = Astro.params;
         FINISHED: "bg-green-100 text-green-700",
         DNF: "bg-amber-100 text-amber-700",
         DNS: "bg-slate-100 text-slate-600",
+        DSQ: "bg-rose-100 text-rose-700 font-bold",
+        OTL: "bg-purple-100 text-purple-700 font-bold",
       };
       const c = colors[s] ?? "bg-slate-100 text-slate-600";
       return `<span class="rounded px-1.5 py-0.5 text-[10px] ${c}">${esc(STATUS_LABELS[s] ?? s)}</span>`;
     }
 
     function rankCell(n?: number): string {
-      if (n == null) return '<span class="text-slate-300">—</span>';
+      if (n == null) return '<span class="text-slate-300">-</span>';
       const medal = n === 1 ? "🥇" : n === 2 ? "🥈" : n === 3 ? "🥉" : "";
       return `${medal} ${n}`;
     }
@@ -58,7 +73,7 @@ const { orgId, eventId } = Astro.params;
     function timeCell(r: ResultRow): string {
       if (r.chipTime) return `<span class="font-mono">${esc(r.chipTime)}</span>`;
       if (r.gunTime) return `<span class="font-mono text-slate-500">${esc(r.gunTime)}</span>`;
-      return '<span class="text-slate-300">—</span>';
+      return '<span class="text-slate-300">-</span>';
     }
 
     function resultsTable(rows: ResultRow[], total: number): string {
@@ -67,7 +82,47 @@ const { orgId, eventId } = Astro.params;
       }
       return `
         <p class="mb-2 text-xs text-slate-500">${total} peserta</p>
-        <div class="overflow-x-auto">
+
+        <!-- Mobile Card List View (< sm) -->
+        <div class="space-y-3 sm:hidden">
+          ${rows
+            .map(
+              (r) => `
+            <div class="rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm space-y-2.5">
+              <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-sm">${rankCell(r.rankOverall)}</span>
+                  <span class="font-mono text-xs font-semibold bg-slate-100 px-2 py-0.5 rounded border border-slate-200">BIB ${esc(r.bibNumber)}</span>
+                </div>
+                <div>
+                  ${statusBadge(r.status)}
+                </div>
+              </div>
+
+              <div>
+                <p class="font-bold text-slate-900 text-sm">${esc(r.participantName)}</p>
+                <p class="text-xs text-slate-500">
+                  ${r.gender ? esc(GENDER_LABELS[r.gender] ?? r.gender) : "-"} ${r.ageGroup ? "· " + esc(r.ageGroup) : ""}
+                </p>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 pt-1 text-xs bg-slate-50 p-2.5 rounded-lg">
+                <div>
+                  <span class="text-[10px] uppercase font-bold text-slate-400 block">Waktu Net</span>
+                  <span class="font-mono font-bold text-slate-900">${timeCell(r)}</span>
+                </div>
+                <div>
+                  <span class="text-[10px] uppercase font-bold text-slate-400 block">Waktu Gun</span>
+                  <span class="font-mono text-slate-600">${r.gunTime ? esc(r.gunTime) : "-"}</span>
+                </div>
+              </div>
+            </div>`
+            )
+            .join("")}
+        </div>
+
+        <!-- Desktop Table (sm:) -->
+        <div class="hidden sm:block overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
@@ -88,8 +143,8 @@ const { orgId, eventId } = Astro.params;
                   <td class="py-2 pr-3 font-medium">${rankCell(r.rankOverall)}</td>
                   <td class="py-2 pr-3 font-mono text-xs">${esc(r.bibNumber)}</td>
                   <td class="py-2 pr-3">${esc(r.participantName)}</td>
-                  <td class="py-2 pr-3 text-xs">${r.gender ? esc(GENDER_LABELS[r.gender] ?? r.gender) : "—"}</td>
-                  <td class="py-2 pr-3 text-xs">${r.ageGroup ? esc(r.ageGroup) : "—"}</td>
+                  <td class="py-2 pr-3 text-xs">${r.gender ? esc(GENDER_LABELS[r.gender] ?? r.gender) : "-"}</td>
+                  <td class="py-2 pr-3 text-xs">${r.ageGroup ? esc(r.ageGroup) : "-"}</td>
                   <td class="py-2 pr-3">${timeCell(r)}</td>
                   <td class="py-2 pr-3">${statusBadge(r.status)}</td>
                 </tr>`
@@ -123,60 +178,297 @@ const { orgId, eventId } = Astro.params;
         .join("");
     }
 
+    function wavesTable(waves: RaceWave[]): string {
+      if (!waves || waves.length === 0) {
+        return `<p class="text-xs text-slate-400 py-3">Belum ada gelombang start (wave) yang dibuat.</p>`;
+      }
+      return `
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-700">
+            <thead class="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-600 uppercase">
+              <tr>
+                <th class="px-3 py-2">Urutan</th>
+                <th class="px-3 py-2">Kode</th>
+                <th class="px-3 py-2">Nama Wave</th>
+                <th class="px-3 py-2">Waktu Gun Start</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 font-mono">
+              ${waves.map(w => `
+                <tr class="hover:bg-slate-50">
+                  <td class="px-3 py-2">${w.orderIndex}</td>
+                  <td class="px-3 py-2 font-bold text-orange-600">${esc(w.code)}</td>
+                  <td class="px-3 py-2 font-sans font-medium text-slate-900">${esc(w.name)}</td>
+                  <td class="px-3 py-2 text-slate-600">${w.startAt ? new Date(w.startAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : `<span class="text-slate-400 italic font-sans">Manual / TBD</span>`}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function checkpointsTable(cps: TimingCheckpoint[]): string {
+      if (!cps || cps.length === 0) {
+        return `<p class="text-xs text-slate-400 py-3">Belum ada titik matras timing yang didaftarkan.</p>`;
+      }
+      return `
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-700">
+            <thead class="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-600 uppercase">
+              <tr>
+                <th class="px-3 py-2">Urutan</th>
+                <th class="px-3 py-2">Kode</th>
+                <th class="px-3 py-2">Nama Matras</th>
+                <th class="px-3 py-2">Tipe</th>
+                <th class="px-3 py-2">Jarak</th>
+                <th class="px-3 py-2">Alias Provider</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 font-mono">
+              ${cps.map(c => `
+                <tr class="hover:bg-slate-50">
+                  <td class="px-3 py-2">${c.orderIndex}</td>
+                  <td class="px-3 py-2 font-bold text-slate-900">${esc(c.code)}</td>
+                  <td class="px-3 py-2 font-sans font-medium text-slate-900">${esc(c.name)}</td>
+                  <td class="px-3 py-2">
+                    <span class="rounded px-2 py-0.5 text-[10px] font-semibold ${c.checkpointType === 'START' ? 'bg-blue-100 text-blue-800' : c.checkpointType === 'FINISH' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">
+                      ${esc(c.checkpointType)}
+                    </span>
+                  </td>
+                  <td class="px-3 py-2 text-slate-600">${c.distanceMeters ? (c.distanceMeters / 1000) + " km" : "-"}</td>
+                  <td class="px-3 py-2 text-slate-500 text-[11px]">${esc((c.aliases || []).join(", ") || "-")}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
     async function render() {
       let page;
       let tmplResp;
+      let timingCfg: TimingConfig | null = null;
+      let passingStats: PassingStats = { total: 0, processedCount: 0, pendingCount: 0 };
+      let wavesList: RaceWave[] = [];
+      let checkpointsList: TimingCheckpoint[] = [];
       try {
-        [page, tmplResp] = await Promise.all([
+        const [p, t, cfg, st, wRes, cRes] = await Promise.all([
           listResults(orgId, eventId, { gender: genderFilter || undefined, limit: 200 }),
           listTemplates(orgId, eventId),
+          getTimingConfig(orgId, eventId).catch(() => null),
+          getPassingStats(orgId, eventId).catch(() => ({ total: 0, processedCount: 0, pendingCount: 0 })),
+          listWaves(orgId, eventId).catch(() => ({ waves: [] })),
+          listCheckpoints(orgId, eventId).catch(() => ({ checkpoints: [] })),
         ]);
+        page = p;
+        tmplResp = t;
+        timingCfg = cfg;
+        passingStats = st;
+        wavesList = wRes.waves ?? [];
+        checkpointsList = cRes.checkpoints ?? [];
       } catch (e) {
         root.innerHTML = `<p class="text-red-600">Gagal memuat: ${esc((e as Error).message)}</p>`;
         return;
       }
       const templates = tmplResp.templates ?? [];
 
+      const ingestionEndpoint = `${window.location.origin}/api/v1/organizations/${orgId}/events/${eventId}/results/timing/passings`;
+
       root.innerHTML = `
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h1 class="text-2xl font-bold text-slate-900">Hasil Lomba & Sertifikat</h1>
         </div>
 
-        <section class="rounded-lg border border-slate-200 bg-white p-6">
-          <h2 class="mb-3 text-lg font-semibold">Impor Hasil (CSV)</h2>
-          <p class="mb-3 text-sm text-slate-500">
+        <section class="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div>
+              <h2 class="text-base sm:text-lg font-semibold">Integrasi Timing RFID (RACE RESULT / CSV)</h2>
+              <p class="text-xs sm:text-sm text-slate-500">Menerima deteksi chip matras secara real-time dari Exporter RACE RESULT 12 atau file log.</p>
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <button id="timing-process-btn"
+                class="w-full sm:w-auto min-h-[44px] rounded bg-emerald-600 px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-emerald-700 text-center">
+                Hitung Ulang Timing Telemetri
+              </button>
+            </div>
+          </div>
+
+          <div class="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 mb-4">
+            <div class="rounded-md bg-slate-50 p-3 border border-slate-200">
+              <p class="text-xs text-slate-500 uppercase font-medium">Provider Aktif</p>
+              <p class="text-sm font-semibold text-slate-800">${timingCfg ? esc(timingCfg.provider) : "Belum Dikonfigurasi"}</p>
+              <p class="text-xs text-slate-400 mt-1">${timingCfg?.externalRaceId ? "Race ID: " + esc(timingCfg.externalRaceId) : "External ID: -"}</p>
+            </div>
+            <div class="rounded-md bg-slate-50 p-3 border border-slate-200">
+              <p class="text-xs text-slate-500 uppercase font-medium">Transport & Sync</p>
+              <p class="text-sm font-semibold text-slate-800">${timingCfg ? esc(timingCfg.transport || "HTTP_PUSH") : "-"}</p>
+              <p class="text-xs text-slate-400 mt-1">${timingCfg?.syncMode ? "Mode: " + esc(timingCfg.syncMode) : "Mode: RAW_PASSINGS"}</p>
+            </div>
+            <div class="rounded-md bg-slate-50 p-3 border border-slate-200">
+              <p class="text-xs text-slate-500 uppercase font-medium">Token Prefix (Ingestion)</p>
+              <p class="text-sm font-mono text-slate-800">${timingCfg?.ingestionTokenPrefix ? esc(timingCfg.ingestionTokenPrefix) + "..." : "-"}</p>
+              <p class="text-xs text-slate-400 mt-1">Gunakan di Header Exporter</p>
+            </div>
+            <div class="rounded-md bg-slate-50 p-3 border border-slate-200">
+              <p class="text-xs text-slate-500 uppercase font-medium">Observasi Telemetri</p>
+              <p class="text-sm font-semibold text-slate-800">${passingStats.total} total (${passingStats.pendingCount} antrean)</p>
+              <p class="text-xs text-slate-400 mt-1">${passingStats.processedCount} passing terproses</p>
+            </div>
+          </div>
+
+          <div class="mb-3 rounded bg-slate-100 p-2.5 text-xs text-slate-600 font-mono overflow-x-auto">
+            <span class="font-semibold text-slate-700">Endpoint Exporter RR12:</span> ${ingestionEndpoint}
+          </div>
+
+          <div class="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 border-t border-slate-100 pt-3">
+            <button id="config-timing-btn"
+              class="min-h-[44px] rounded border border-slate-300 px-3.5 py-2 text-xs sm:text-sm hover:bg-slate-50 text-center">
+              ${timingCfg ? "Generate Ulang Token / Config" : "Konfigurasi RACE RESULT"}
+            </button>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <input id="chip-csv-file" type="file" accept=".csv,text/csv" class="text-xs text-slate-500 py-1" />
+              <button id="chip-import-btn"
+                class="min-h-[44px] rounded border border-slate-300 px-3.5 py-2 text-xs sm:text-sm hover:bg-slate-50 text-center">
+                Impor Mapping BIB ↔ Chip
+              </button>
+            </div>
+          </div>
+          <p id="timing-msg" class="mt-2 text-sm text-slate-500"></p>
+        </section>
+
+        <!-- Gelombang Start (Race Waves & Corrals) -->
+        <section class="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div>
+              <h2 class="text-base sm:text-lg font-semibold">Gelombang Start (Waves & Corrals)</h2>
+              <p class="text-xs sm:text-sm text-slate-500">Konfigurasi waktu tembakan pistol start (gun start) untuk setiap gelombang kategori.</p>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            ${wavesTable(wavesList)}
+          </div>
+
+          <!-- Add Wave Form -->
+          <form id="form-add-wave" class="rounded-lg bg-slate-50 p-3.5 border border-slate-200 text-xs space-y-3">
+            <p class="font-bold text-slate-800">Tambah Gelombang Start Baru</p>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label class="block text-slate-600 font-medium mb-1">Kode Wave</label>
+                <input id="wave-code" type="text" placeholder="Contoh: WAVE_A" required class="w-full rounded border border-slate-300 px-3 py-1.5 uppercase font-mono" />
+              </div>
+              <div>
+                <label class="block text-slate-600 font-medium mb-1">Nama Wave</label>
+                <input id="wave-name" type="text" placeholder="Contoh: Wave 1 - Elite" required class="w-full rounded border border-slate-300 px-3 py-1.5" />
+              </div>
+              <div>
+                <label class="block text-slate-600 font-medium mb-1">Waktu Gun Start</label>
+                <input id="wave-start" type="datetime-local" class="w-full rounded border border-slate-300 px-3 py-1.5 font-mono" />
+              </div>
+              <div>
+                <label class="block text-slate-600 font-medium mb-1">Urutan (Index)</label>
+                <input id="wave-order" type="number" min="1" value="1" class="w-full rounded border border-slate-300 px-3 py-1.5 font-mono" />
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <button type="submit" class="rounded bg-orange-600 px-4 py-2 text-xs font-semibold text-white hover:bg-orange-700 min-h-[44px]">
+                Simpan Wave
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <!-- Titik Matras Sensor & Checkpoints -->
+        <section class="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <div>
+              <h2 class="text-base sm:text-lg font-semibold">Titik Sensor Matras & Checkpoint Splits</h2>
+              <p class="text-xs sm:text-sm text-slate-500">Mendefinisikan titik START, SPLIT (5K, 10K, Half), dan FINISH untuk perhitungan chip time dan split pace.</p>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            ${checkpointsTable(checkpointsList)}
+          </div>
+
+          <!-- Add Checkpoint Form -->
+          <form id="form-add-checkpoint" class="rounded-lg bg-slate-50 p-3.5 border border-slate-200 text-xs space-y-3">
+            <p class="font-bold text-slate-800">Tambah / Perbarui Titik Sensor Matras</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div>
+                <label class="block text-slate-600 font-medium mb-1">Kode Sensor</label>
+                <input id="cp-code" type="text" placeholder="Contoh: KM10" required class="w-full rounded border border-slate-300 px-3 py-1.5 uppercase font-mono" />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-slate-600 font-medium mb-1">Nama Matras</label>
+                <input id="cp-name" type="text" placeholder="Contoh: 10K Split Mat" required class="w-full rounded border border-slate-300 px-3 py-1.5" />
+              </div>
+              <div>
+                <label class="block text-slate-600 font-medium mb-1">Tipe</label>
+                <select id="cp-type" class="w-full rounded border border-slate-300 px-3 py-1.5">
+                  <option value="START">START</option>
+                  <option value="SPLIT" selected>SPLIT</option>
+                  <option value="FINISH">FINISH</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-slate-600 font-medium mb-1">Jarak (Meter)</label>
+                <input id="cp-dist" type="number" placeholder="10000" class="w-full rounded border border-slate-300 px-3 py-1.5 font-mono" />
+              </div>
+              <div>
+                <label class="block text-slate-600 font-medium mb-1">Urutan</label>
+                <input id="cp-order" type="number" min="1" value="1" class="w-full rounded border border-slate-300 px-3 py-1.5 font-mono" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-slate-600 font-medium mb-1">Alias Transponder / Timing Provider (pisahkan koma)</label>
+              <input id="cp-alias" type="text" placeholder="Contoh: CHK1, MAT_10K, RR_SPLIT1" class="w-full rounded border border-slate-300 px-3 py-1.5 font-mono" />
+            </div>
+            <div class="flex justify-end">
+              <button type="submit" class="rounded bg-orange-600 px-4 py-2 text-xs font-semibold text-white hover:bg-orange-700 min-h-[44px]">
+                Simpan Titik Matras
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section class="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
+          <h2 class="mb-3 text-base sm:text-lg font-semibold">Impor Manual Hasil Akhir (CSV)</h2>
+          <p class="mb-3 text-xs sm:text-sm text-slate-500 leading-relaxed">
             Kolom yang dikenali: <span class="font-mono text-xs">bib, name, gender, age, age_group, status, chip_time, gun_time, finished_at</span>.
             Hanya <span class="font-mono text-xs">bib</span> yang wajib. Waktu boleh format jam (mis. <span class="font-mono text-xs">1:23:45</span>) atau milidetik.
             Impor ulang bib yang sama akan menimpa datanya.
           </p>
-          <div class="flex flex-wrap items-center gap-3">
+          <div class="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
             <input id="csv-file" type="file" accept=".csv,text/csv"
               class="text-sm file:mr-3 file:rounded file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-sm file:text-white hover:file:bg-blue-700" />
             <button id="import-btn"
-              class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Impor & Ranking</button>
+              class="min-h-[44px] rounded bg-blue-600 px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-blue-700 text-center">Impor & Ranking</button>
           </div>
           <p id="import-msg" class="mt-2 text-sm text-slate-500"></p>
         </section>
 
-        <section class="rounded-lg border border-slate-200 bg-white p-6">
-          <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 class="text-lg font-semibold">Klasemen</h2>
-            <div class="flex items-center gap-2">
-              <select id="gender-filter" class="rounded border border-slate-300 px-2 py-1 text-sm">
+        <section class="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
+          <div class="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h2 class="text-base sm:text-lg font-semibold">Klasemen</h2>
+            <div class="flex flex-wrap items-center gap-2">
+              <select id="gender-filter" class="min-h-[44px] rounded border border-slate-300 px-3 py-2 text-xs sm:text-sm">
                 <option value="">Semua Gender</option>
                 <option value="M" ${genderFilter === "M" ? "selected" : ""}>Pria</option>
                 <option value="F" ${genderFilter === "F" ? "selected" : ""}>Wanita</option>
                 <option value="X" ${genderFilter === "X" ? "selected" : ""}>Lainnya</option>
               </select>
-              <button id="recompute-btn" class="rounded border border-slate-300 px-3 py-1 text-sm hover:bg-slate-100">Hitung Ulang</button>
-              <button id="delete-btn" class="rounded border border-red-300 px-3 py-1 text-sm text-red-600 hover:bg-red-50">Hapus Semua</button>
+              <button id="recompute-btn" class="min-h-[44px] rounded border border-slate-300 px-3 py-2 text-xs sm:text-sm hover:bg-slate-100">Hitung Ulang</button>
+              <button id="delete-btn" class="min-h-[44px] rounded border border-red-300 px-3 py-2 text-xs sm:text-sm text-red-600 hover:bg-red-50">Hapus Semua</button>
             </div>
           </div>
           <div id="results-table">${resultsTable(page.results, page.total)}</div>
           <p id="table-msg" class="mt-2 text-sm text-slate-500"></p>
         </section>
 
-        <section class="rounded-lg border border-slate-200 bg-white p-6">
+        <section class="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
           <h2 class="mb-3 text-lg font-semibold">Template Sertifikat</h2>
           <div class="mb-4 space-y-2">${templateList(templates)}</div>
           <form id="tmpl-form" class="space-y-3 max-w-2xl border-t border-slate-100 pt-4">
@@ -219,6 +511,107 @@ const { orgId, eventId } = Astro.params;
     }
 
     function wire(templates: CertificateTemplate[]) {
+      document.getElementById("timing-process-btn")?.addEventListener("click", async () => {
+        msg("timing-msg", "Mengevaluasi telemetri passings dan menghitung hasil…");
+        try {
+          const res = await processTiming(orgId, eventId);
+          msg("timing-msg", `Berhasil memproses ${res.passingsEvaluated} passing (${res.resultsUpdated} hasil lomba diperbarui).`);
+          await render();
+        } catch (e) {
+          msg("timing-msg", (e as Error).message, true);
+        }
+      });
+
+      document.getElementById("config-timing-btn")?.addEventListener("click", async () => {
+        const provider = prompt(
+          "Pilih Provider (RACE_RESULT, GENERIC_CSV, VENDOR_API, NATIVE_RFID, MANUAL):",
+          timingCfg?.provider || "RACE_RESULT"
+        );
+        if (!provider) return;
+        const raceId = prompt("Masukkan External Race ID (opsional):", timingCfg?.externalRaceId || "");
+        if (raceId === null) return;
+        msg("timing-msg", "Mengonfigurasi provider...");
+        try {
+          const res = await configureTiming(orgId, eventId, {
+            provider: provider.trim().toUpperCase(),
+            transport: "HTTP_PUSH",
+            syncMode: "RAW_PASSINGS",
+            externalRaceId: raceId.trim(),
+          });
+          alert(`Konfigurasi Berhasil!\n\nProvider: ${res.config.provider}\nIngestion Token (Simpan Sekarang, hanya ditampilkan sekali):\n${res.ingestionToken}\n\nGunakan token ini pada Header 'Authorization: Bearer <token>' atau 'X-Timing-Token'.`);
+          await render();
+        } catch (e) {
+          msg("timing-msg", (e as Error).message, true);
+        }
+      });
+
+      document.getElementById("chip-import-btn")?.addEventListener("click", async () => {
+        const input = document.getElementById("chip-csv-file") as HTMLInputElement;
+        const file = input.files?.[0];
+        if (!file) {
+          msg("timing-msg", "Pilih file CSV mapping (bib, chip) terlebih dahulu.", true);
+          return;
+        }
+        msg("timing-msg", "Mengimpor mapping chip…");
+        try {
+          const text = await file.text();
+          const count = await importMappings(orgId, eventId, text, true);
+          msg("timing-msg", `Berhasil mengimpor ${count} mapping transponder.`);
+          await render();
+        } catch (e) {
+          msg("timing-msg", (e as Error).message, true);
+        }
+      });
+
+      document.getElementById("form-add-wave")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const codeInput = document.getElementById("wave-code") as HTMLInputElement;
+        const nameInput = document.getElementById("wave-name") as HTMLInputElement;
+        const orderInput = document.getElementById("wave-order") as HTMLInputElement;
+        const startInput = document.getElementById("wave-start") as HTMLInputElement;
+
+        msg("timing-msg", "Menambahkan gelombang wave...");
+        try {
+          await createWave(orgId, eventId, {
+            code: codeInput.value.trim().toUpperCase(),
+            name: nameInput.value.trim(),
+            orderIndex: parseInt(orderInput.value, 10) || 1,
+            startAt: startInput.value ? new Date(startInput.value).toISOString() : undefined,
+          });
+          msg("timing-msg", "Gelombang start berhasil ditambahkan.");
+          await render();
+        } catch (err) {
+          msg("timing-msg", (err as Error).message, true);
+        }
+      });
+
+      document.getElementById("form-add-checkpoint")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const codeInput = document.getElementById("cp-code") as HTMLInputElement;
+        const nameInput = document.getElementById("cp-name") as HTMLInputElement;
+        const typeInput = document.getElementById("cp-type") as HTMLSelectElement;
+        const distInput = document.getElementById("cp-dist") as HTMLInputElement;
+        const orderInput = document.getElementById("cp-order") as HTMLInputElement;
+        const aliasInput = document.getElementById("cp-alias") as HTMLInputElement;
+
+        msg("timing-msg", "Menyimpan titik sensor checkpoint...");
+        try {
+          const aliases = aliasInput.value ? aliasInput.value.split(",").map(s => s.trim()).filter(Boolean) : [];
+          await upsertCheckpoint(orgId, eventId, {
+            code: codeInput.value.trim().toUpperCase(),
+            name: nameInput.value.trim(),
+            checkpointType: typeInput.value,
+            orderIndex: parseInt(orderInput.value, 10) || 1,
+            distanceMeters: distInput.value ? parseInt(distInput.value, 10) : undefined,
+            aliases,
+          });
+          msg("timing-msg", "Titik sensor berhasil disimpan.");
+          await render();
+        } catch (err) {
+          msg("timing-msg", (err as Error).message, true);
+        }
+      });
+
       document.getElementById("gender-filter")?.addEventListener("change", (e) => {
         genderFilter = (e.target as HTMLSelectElement).value;
         void render();

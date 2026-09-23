@@ -18,6 +18,79 @@ type PermissionLoader interface {
 	LoadPermissions(ctx context.Context, orgID, userID uuid.UUID) (perms map[string]bool, isMember bool, err error)
 }
 
+// OrgSlugResolver resolves an organization slug or ID string to a canonical UUID.
+type OrgSlugResolver interface {
+	ResolveOrgSlug(ctx context.Context, identifier string) (uuid.UUID, error)
+}
+
+// EventSlugResolver resolves an event slug or ID string to a canonical event UUID and org UUID.
+type EventSlugResolver interface {
+	ResolveEventSlug(ctx context.Context, orgID uuid.UUID, identifier string) (eventID uuid.UUID, canonicalOrgID uuid.UUID, err error)
+}
+
+func resolveOrgParam(r *http.Request, loader PermissionLoader) (uuid.UUID, error) {
+	raw := chi.URLParam(r, "orgId")
+	if orgID, err := uuid.Parse(raw); err == nil {
+		return orgID, nil
+	}
+	if resolver, ok := loader.(OrgSlugResolver); ok {
+		orgID, err := resolver.ResolveOrgSlug(r.Context(), raw)
+		if err == nil {
+			// Rewrite route param so downstream handlers receive the canonical UUID
+			if rctx := chi.RouteContext(r.Context()); rctx != nil {
+				for i, k := range rctx.URLParams.Keys {
+					if k == "orgId" {
+						rctx.URLParams.Values[i] = orgID.String()
+						break
+					}
+				}
+			}
+			return orgID, nil
+		}
+	}
+	return uuid.Nil, apperr.New(http.StatusBadRequest, "INVALID_ORG_ID", "invalid organization id")
+}
+
+func resolveEventAndOrgParams(r *http.Request, loader PermissionLoader, orgID uuid.UUID, isPlatformAdmin bool) (uuid.UUID, uuid.UUID, error) {
+	rawEvent := chi.URLParam(r, "eventId")
+	if rawEvent == "" {
+		return orgID, uuid.Nil, nil
+	}
+
+	resolver, ok := loader.(EventSlugResolver)
+	if !ok {
+		parsedEvent, err := uuid.Parse(rawEvent)
+		if err != nil {
+			return orgID, uuid.Nil, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id")
+		}
+		return orgID, parsedEvent, nil
+	}
+
+	eventID, canonicalOrgID, err := resolver.ResolveEventSlug(r.Context(), orgID, rawEvent)
+	if err != nil {
+		return orgID, uuid.Nil, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id")
+	}
+
+	effectiveOrgID := orgID
+	if isPlatformAdmin && canonicalOrgID != uuid.Nil && canonicalOrgID != orgID {
+		effectiveOrgID = canonicalOrgID
+	}
+
+	// Rewrite route params so downstream handlers receive canonical UUIDs
+	if rctx := chi.RouteContext(r.Context()); rctx != nil {
+		for i, k := range rctx.URLParams.Keys {
+			if k == "eventId" {
+				rctx.URLParams.Values[i] = eventID.String()
+			}
+			if isPlatformAdmin && canonicalOrgID != uuid.Nil && k == "orgId" {
+				rctx.URLParams.Values[i] = canonicalOrgID.String()
+			}
+		}
+	}
+
+	return effectiveOrgID, eventID, nil
+}
+
 func RequirePermission(loader PermissionLoader, required string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -27,9 +100,15 @@ func RequirePermission(loader PermissionLoader, required string) func(http.Handl
 				return
 			}
 
-			orgID, err := uuid.Parse(chi.URLParam(r, "orgId"))
+			orgID, err := resolveOrgParam(r, loader)
 			if err != nil {
-				apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_ORG_ID", "invalid organization id"))
+				apperr.WriteError(w, r, err)
+				return
+			}
+
+			orgID, _, err = resolveEventAndOrgParams(r, loader, orgID, id.IsPlatformAdmin)
+			if err != nil {
+				apperr.WriteError(w, r, err)
 				return
 			}
 
@@ -76,9 +155,15 @@ func RequireAnyPermission(loader PermissionLoader, required ...string) func(http
 				return
 			}
 
-			orgID, err := uuid.Parse(chi.URLParam(r, "orgId"))
+			orgID, err := resolveOrgParam(r, loader)
 			if err != nil {
-				apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_ORG_ID", "invalid organization id"))
+				apperr.WriteError(w, r, err)
+				return
+			}
+
+			orgID, _, err = resolveEventAndOrgParams(r, loader, orgID, id.IsPlatformAdmin)
+			if err != nil {
+				apperr.WriteError(w, r, err)
 				return
 			}
 

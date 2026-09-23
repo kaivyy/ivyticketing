@@ -33,6 +33,46 @@ type Repository interface {
 	ListCertificateTemplatesByEvent(ctx context.Context, eventID uuid.UUID) ([]db.CertificateTemplate, error)
 	DeactivateCertificateTemplatesForEvent(ctx context.Context, eventID uuid.UUID) error
 	DeleteCertificateTemplate(ctx context.Context, arg db.DeleteCertificateTemplateParams) error
+
+	// Timing Config
+	UpsertTimingConfig(ctx context.Context, arg db.UpsertTimingConfigParams) (db.TimingConfig, error)
+	GetTimingConfigByEvent(ctx context.Context, eventID uuid.UUID) (db.TimingConfig, error)
+	GetTimingConfigByTokenHash(ctx context.Context, arg db.GetTimingConfigByTokenHashParams) (db.TimingConfig, error)
+
+	// Race Waves
+	CreateRaceWave(ctx context.Context, arg db.CreateRaceWaveParams) (db.RaceWafe, error)
+	UpdateRaceWave(ctx context.Context, arg db.UpdateRaceWaveParams) (db.RaceWafe, error)
+	ListRaceWavesByEvent(ctx context.Context, eventID uuid.UUID) ([]db.RaceWafe, error)
+	GetRaceWaveByID(ctx context.Context, id uuid.UUID) (db.RaceWafe, error)
+	DeleteRaceWave(ctx context.Context, arg db.DeleteRaceWaveParams) error
+
+	// Timing Checkpoints
+	UpsertTimingCheckpoint(ctx context.Context, arg db.UpsertTimingCheckpointParams) (db.TimingCheckpoint, error)
+	ListTimingCheckpointsByEvent(ctx context.Context, eventID uuid.UUID) ([]db.TimingCheckpoint, error)
+	GetTimingCheckpointByCode(ctx context.Context, arg db.GetTimingCheckpointByCodeParams) (db.TimingCheckpoint, error)
+	DeleteTimingCheckpoint(ctx context.Context, arg db.DeleteTimingCheckpointParams) error
+
+	// BIB Transponder Mappings
+	InsertBibTransponderMapping(ctx context.Context, arg db.InsertBibTransponderMappingParams) (db.BibTransponderMapping, error)
+	DeactivateBibMappings(ctx context.Context, arg db.DeactivateBibMappingsParams) error
+	DeactivateChipMappings(ctx context.Context, arg db.DeactivateChipMappingsParams) error
+	GetActiveMappingByChip(ctx context.Context, arg db.GetActiveMappingByChipParams) (db.BibTransponderMapping, error)
+	GetActiveMappingByBib(ctx context.Context, arg db.GetActiveMappingByBibParams) (db.BibTransponderMapping, error)
+	ListMappingsByEvent(ctx context.Context, eventID uuid.UUID) ([]db.BibTransponderMapping, error)
+
+	// Timing Passings
+	InsertTimingPassing(ctx context.Context, arg db.InsertTimingPassingParams) (db.TimingPassing, error)
+	InsertTimingPassingFallback(ctx context.Context, arg db.InsertTimingPassingFallbackParams) (db.TimingPassing, error)
+	ListUnprocessedPassings(ctx context.Context, arg db.ListUnprocessedPassingsParams) ([]db.TimingPassing, error)
+	MarkPassingsProcessed(ctx context.Context, ids []int64) error
+	CountPassingsByEvent(ctx context.Context, eventID uuid.UUID) (db.CountPassingsByEventRow, error)
+
+	// Race Split Times
+	UpsertRaceSplitTime(ctx context.Context, arg db.UpsertRaceSplitTimeParams) (db.RaceSplitTime, error)
+	ListSplitsByResult(ctx context.Context, raceResultID uuid.UUID) ([]db.ListSplitsByResultRow, error)
+
+	// Tickets
+	ListTicketsByEvent(ctx context.Context, arg db.ListTicketsByEventParams) ([]db.Ticket, error)
 }
 
 type sqlcRepo struct {

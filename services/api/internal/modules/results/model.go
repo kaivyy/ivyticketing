@@ -14,6 +14,8 @@ const (
 	StatusFinished = "FINISHED"
 	StatusDNF      = "DNF"
 	StatusDNS      = "DNS"
+	StatusDSQ      = "DSQ"
+	StatusOTL      = "OTL"
 )
 
 // Result source values (mirror race_results.source CHECK constraint).
@@ -194,17 +196,66 @@ func pgTimestamptzPtr(t *time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: *t, Valid: true}
 }
 
-// formatDuration renders elapsed milliseconds as "H:MM:SS" (hours not
-// zero-padded) — the conventional finish-time display for road races.
-func formatDuration(ms int64) string {
+// FormatDurationWithPrecision formats elapsed milliseconds according to the requested precision:
+// - "ceil_s": World Athletics TR 19.24.5 whole-second ceiling rounding for road races (H:MM:SS)
+// - "s": standard whole-second floor truncation (H:MM:SS)
+// - "cs": centiseconds (H:MM:SS.cs)
+// - "ms": milliseconds (H:MM:SS.mmm)
+func FormatDurationWithPrecision(ms int64, precision string) string {
 	if ms < 0 {
 		ms = 0
 	}
-	totalSec := ms / 1000
-	h := totalSec / 3600
-	m := (totalSec % 3600) / 60
-	s := totalSec % 60
-	return itoa2(int(h), false) + ":" + itoa2(int(m), true) + ":" + itoa2(int(s), true)
+
+	switch precision {
+	case "ceil_s":
+		var totalSec int64
+		if ms > 0 {
+			totalSec = (ms + 999) / 1000
+		}
+		h := totalSec / 3600
+		m := (totalSec % 3600) / 60
+		s := totalSec % 60
+		return itoa2(int(h), false) + ":" + itoa2(int(m), true) + ":" + itoa2(int(s), true)
+
+	case "cs":
+		var totalCs int64
+		if ms > 0 {
+			totalCs = (ms + 9) / 10
+		}
+		totalSec := totalCs / 100
+		cs := totalCs % 100
+		h := totalSec / 3600
+		m := (totalSec % 3600) / 60
+		s := totalSec % 60
+		return itoa2(int(h), false) + ":" + itoa2(int(m), true) + ":" + itoa2(int(s), true) + "." + itoa2(int(cs), true)
+
+	case "ms":
+		totalSec := ms / 1000
+		remMs := ms % 1000
+		h := totalSec / 3600
+		m := (totalSec % 3600) / 60
+		s := totalSec % 60
+		msStr := itoa(int(remMs))
+		for len(msStr) < 3 {
+			msStr = "0" + msStr
+		}
+		return itoa2(int(h), false) + ":" + itoa2(int(m), true) + ":" + itoa2(int(s), true) + "." + msStr
+
+	case "s":
+		fallthrough
+	default:
+		totalSec := ms / 1000
+		h := totalSec / 3600
+		m := (totalSec % 3600) / 60
+		s := totalSec % 60
+		return itoa2(int(h), false) + ":" + itoa2(int(m), true) + ":" + itoa2(int(s), true)
+	}
+}
+
+// formatDuration renders elapsed milliseconds as "H:MM:SS" (hours not
+// zero-padded) using whole-second ceiling rounding per World Athletics TR 19.24.5.
+func formatDuration(ms int64) string {
+	return FormatDurationWithPrecision(ms, "ceil_s")
 }
 
 // itoa2 formats n, optionally zero-padded to 2 digits. Kept tiny and

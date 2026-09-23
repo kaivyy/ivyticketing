@@ -91,18 +91,26 @@ func normalizeGender(s string) string {
 	}
 }
 
-// normalizeStatus maps free-form status text to the FINISHED/DNF/DNS domain.
-// Empty or unknown returns "" so the caller keeps its default (FINISHED).
-func normalizeStatus(s string) string {
-	switch strings.ToUpper(strings.TrimSpace(s)) {
-	case "FINISHED", "FINISH", "SELESAI", "OK", "DONE":
-		return StatusFinished
+// normalizeStatus maps free-form status text to the FINISHED/DNF/DNS/DSQ/OTL domain.
+// Unknown values return ("", false) so the caller never silently accepts invalid data.
+func normalizeStatus(s string) (string, bool) {
+	trimmed := strings.ToUpper(strings.TrimSpace(s))
+	if trimmed == "" {
+		return "", true
+	}
+	switch trimmed {
+	case "FINISHED", "FINISH", "SELESAI", "OK", "DONE", "COMPLETED":
+		return StatusFinished, true
 	case "DNF", "DID NOT FINISH":
-		return StatusDNF
+		return StatusDNF, true
 	case "DNS", "DID NOT START":
-		return StatusDNS
+		return StatusDNS, true
+	case "DSQ", "DISQUALIFIED", "DISQUALIFY", "DQ":
+		return StatusDSQ, true
+	case "OTL", "OVER TIME", "OVER_CUTOFF", "OVER TIME LIMIT":
+		return StatusOTL, true
 	default:
-		return ""
+		return "", false
 	}
 }
 
@@ -169,8 +177,45 @@ func parseDurationMs(s string) (int64, error) {
 
 // --- certificate placeholders ---
 
-// certificateSubstitutions builds the {{placeholder}} → value map for a
-// finisher's certificate. Missing values render as an empty string.
+// CertificateData holds sport-agnostic certificate placeholders.
+type CertificateData struct {
+	ParticipantName string
+	EventName       string
+	Sport           string
+	Discipline      string
+	Category        string
+	Rank            string
+	Score           string
+	OfficialResult  string
+	CompetitionDate string
+	Bib             string
+	Team            string
+}
+
+// GenericCertificateSubstitutions builds the {{placeholder}} -> value map for certificates.
+func GenericCertificateSubstitutions(d CertificateData) map[string]string {
+	res := d.OfficialResult
+	if res == "" {
+		res = d.Score
+	}
+	return map[string]string{
+		"name":             d.ParticipantName,
+		"participant_name": d.ParticipantName,
+		"event_name":       d.EventName,
+		"sport":            d.Sport,
+		"discipline":       d.Discipline,
+		"category":         d.Category,
+		"rank":             d.Rank,
+		"score":            d.Score,
+		"official_result":  res,
+		"time":             res,
+		"competition_date": d.CompetitionDate,
+		"bib":              d.Bib,
+		"team":             d.Team,
+	}
+}
+
+// certificateSubstitutions builds the placeholder map for a race result.
 func certificateSubstitutions(v ResultView) map[string]string {
 	rank := ""
 	if v.RankOverall != nil {
@@ -178,7 +223,7 @@ func certificateSubstitutions(v ResultView) map[string]string {
 	}
 	category := ""
 	if v.CategoryID != nil {
-		category = v.AgeGroup // best available category label without a join
+		category = v.AgeGroup
 	}
 	if v.AgeGroup != "" {
 		category = v.AgeGroup
@@ -187,13 +232,14 @@ func certificateSubstitutions(v ResultView) map[string]string {
 	if timeStr == "" {
 		timeStr = v.GunTime
 	}
-	return map[string]string{
-		"name":     v.ParticipantName,
-		"time":     timeStr,
-		"rank":     rank,
-		"category": category,
-		"bib":      v.BibNumber,
-	}
+	return GenericCertificateSubstitutions(CertificateData{
+		ParticipantName: v.ParticipantName,
+		Category:        category,
+		Rank:            rank,
+		Score:           timeStr,
+		OfficialResult:  timeStr,
+		Bib:             v.BibNumber,
+	})
 }
 
 // applyPlaceholders replaces every {{key}} token in text with its substitution.

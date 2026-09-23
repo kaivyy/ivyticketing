@@ -39,6 +39,63 @@ func (h *Handler) CreateDraw(w http.ResponseWriter, r *http.Request) {
 	apperr.WriteJSON(w, http.StatusCreated, draw)
 }
 
+func parseBallotOrg(r *http.Request) uuid.UUID {
+	if oStr := chi.URLParam(r, "orgId"); oStr != "" {
+		if parsed, err := uuid.Parse(oStr); err == nil {
+			return parsed
+		}
+	}
+	return uuid.Nil
+}
+
+func (h *Handler) GetDraw(w http.ResponseWriter, r *http.Request) {
+	drawID, err := uuid.Parse(chi.URLParam(r, "drawId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "BAD_REQUEST", "invalid drawId"))
+		return
+	}
+	orgID := parseBallotOrg(r)
+	draw, err := h.svc.GetDraw(r.Context(), drawID, orgID)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, draw)
+}
+
+func (h *Handler) GetActiveDrawByCategory(w http.ResponseWriter, r *http.Request) {
+	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "BAD_REQUEST", "invalid eventId"))
+		return
+	}
+	categoryID, err := uuid.Parse(chi.URLParam(r, "categoryId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "BAD_REQUEST", "invalid categoryId"))
+		return
+	}
+	draw, err := h.svc.GetActiveDrawByCategory(r.Context(), eventID, categoryID)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, draw)
+}
+
+func (h *Handler) ListDrawsByEvent(w http.ResponseWriter, r *http.Request) {
+	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "BAD_REQUEST", "invalid eventId"))
+		return
+	}
+	draws, err := h.svc.ListDrawsByEvent(r.Context(), eventID)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, draws)
+}
+
 func (h *Handler) UpdateDraw(w http.ResponseWriter, r *http.Request) {
 	actor, ok := authctx.FromContext(r.Context())
 	if !ok {
@@ -46,6 +103,12 @@ func (h *Handler) UpdateDraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = actor
+	orgID := parseBallotOrg(r)
+	drawID, _ := uuid.Parse(chi.URLParam(r, "drawId"))
+	if _, err := h.svc.GetDraw(r.Context(), drawID, orgID); err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
 	apperr.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
@@ -55,8 +118,9 @@ func (h *Handler) OpenDraw(w http.ResponseWriter, r *http.Request) {
 		apperr.WriteError(w, r, apperr.New(http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated"))
 		return
 	}
+	orgID := parseBallotOrg(r)
 	drawID, _ := uuid.Parse(chi.URLParam(r, "drawId"))
-	if err := h.svc.OpenDraw(r.Context(), drawID, actor.UserID); err != nil {
+	if err := h.svc.OpenDraw(r.Context(), drawID, actor.UserID, orgID); err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}
@@ -69,8 +133,9 @@ func (h *Handler) CloseDraw(w http.ResponseWriter, r *http.Request) {
 		apperr.WriteError(w, r, apperr.New(http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated"))
 		return
 	}
+	orgID := parseBallotOrg(r)
 	drawID, _ := uuid.Parse(chi.URLParam(r, "drawId"))
-	if err := h.svc.CloseDraw(r.Context(), drawID, actor.UserID); err != nil {
+	if err := h.svc.CloseDraw(r.Context(), drawID, actor.UserID, orgID); err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}
@@ -83,8 +148,9 @@ func (h *Handler) RunDraw(w http.ResponseWriter, r *http.Request) {
 		apperr.WriteError(w, r, apperr.New(http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated"))
 		return
 	}
+	orgID := parseBallotOrg(r)
 	drawID, _ := uuid.Parse(chi.URLParam(r, "drawId"))
-	if err := h.svc.RunDraw(r.Context(), drawID, actor.UserID); err != nil {
+	if err := h.svc.RunDraw(r.Context(), drawID, actor.UserID, orgID); err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}
@@ -97,8 +163,9 @@ func (h *Handler) AnnounceDraw(w http.ResponseWriter, r *http.Request) {
 		apperr.WriteError(w, r, apperr.New(http.StatusUnauthorized, "UNAUTHENTICATED", "not authenticated"))
 		return
 	}
+	orgID := parseBallotOrg(r)
 	drawID, _ := uuid.Parse(chi.URLParam(r, "drawId"))
-	if err := h.svc.AnnounceDraw(r.Context(), drawID, actor.UserID); err != nil {
+	if err := h.svc.AnnounceDraw(r.Context(), drawID, actor.UserID, orgID); err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}
@@ -106,6 +173,7 @@ func (h *Handler) AnnounceDraw(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListResults(w http.ResponseWriter, r *http.Request) {
+	orgID := parseBallotOrg(r)
 	drawID, _ := uuid.Parse(chi.URLParam(r, "drawId"))
 	limit, offset := int32(50), int32(0)
 	if v := r.URL.Query().Get("limit"); v != "" {
@@ -118,7 +186,7 @@ func (h *Handler) ListResults(w http.ResponseWriter, r *http.Request) {
 			offset = int32(n)
 		}
 	}
-	results, err := h.svc.ListResults(r.Context(), drawID, limit, offset)
+	results, err := h.svc.ListResults(r.Context(), drawID, limit, offset, orgID)
 	if err != nil {
 		apperr.WriteError(w, r, err)
 		return
@@ -127,8 +195,9 @@ func (h *Handler) ListResults(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
+	orgID := parseBallotOrg(r)
 	drawID, _ := uuid.Parse(chi.URLParam(r, "drawId"))
-	data, err := h.svc.ExportResultsCSV(r.Context(), drawID)
+	data, err := h.svc.ExportResultsCSV(r.Context(), drawID, orgID)
 	if err != nil {
 		apperr.WriteError(w, r, err)
 		return
@@ -167,8 +236,10 @@ func (h *Handler) VerifyResultHash(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) PromoteWaitlist(w http.ResponseWriter, r *http.Request) {
+	actor, _ := authctx.FromContext(r.Context())
+	orgID := parseBallotOrg(r)
 	drawID, _ := uuid.Parse(chi.URLParam(r, "drawId"))
-	if err := h.svc.PromoteWaitlist(r.Context(), drawID); err != nil {
+	if err := h.svc.PromoteWaitlist(r.Context(), drawID, actor.UserID, orgID); err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}

@@ -80,8 +80,11 @@ func (s *Service) notifyPaymentExpired(ctx context.Context, orderID uuid.UUID) {
 		deadline = order.ExpiredAt.Time.Format("02 Jan 2006 15:04")
 	}
 	pid := order.ParticipantID
+	if pid == nil {
+		return
+	}
 	go func() {
-		if err := s.notifier.Enqueue(context.Background(), pid, "payment.expired", notifmod.TemplateData{
+		if err := s.notifier.Enqueue(context.Background(), *pid, "payment.expired", notifmod.TemplateData{
 			OrderID:         order.ID.String(),
 			OrderNumber:     order.OrderNumber,
 			TotalAmount:     total,

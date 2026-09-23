@@ -62,6 +62,7 @@ func (s *Service) Release(ctx context.Context, eventID uuid.UUID, n int, window 
 		}
 		if s.store != nil {
 			_ = s.store.MoveToAllowed(ctx, eventID.String(), tok.ParticipantID.String(), expiresAt.Unix())
+			_ = s.store.InvalidateCachedStatus(ctx, eventID.String(), tok.ParticipantID.String())
 		}
 		s.notifyAllowed(ctx, tok.ParticipantID)
 		promoted++

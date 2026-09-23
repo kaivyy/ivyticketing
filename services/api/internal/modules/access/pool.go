@@ -60,7 +60,8 @@ func (p *PoolManager) CreateGrant(ctx context.Context, poolID, participantID, ev
 	return grant.ID, nil
 }
 
-// CheckGrant validates an existing grant is ACTIVE and not expired.
+// CheckGrant validates an existing grant is ACTIVE, belongs to the participant+category,
+// and is not expired or already consumed.
 // grantToken is the grant UUID as a string (passed as admissionToken at checkout).
 func (p *PoolManager) CheckGrant(ctx context.Context, participantID, categoryID uuid.UUID, grantToken string) error {
 	grantID, err := uuid.Parse(grantToken)
@@ -74,16 +75,37 @@ func (p *PoolManager) CheckGrant(ctx context.Context, participantID, categoryID 
 	if err != nil {
 		return err
 	}
-	if grant.Status == GrantStatusExpired {
-		return ErrGrantExpired
+	// Validate participant and category identity.
+	// Returning ErrGrantNotFound prevents leaking another participant's grant existence.
+	if grant.ParticipantID != participantID || grant.CategoryID != categoryID {
+		return ErrGrantNotFound
 	}
 	if grant.Status == GrantStatusConsumed {
 		return ErrGrantAlreadyConsumed
+	}
+	if grant.Status == GrantStatusExpired {
+		return ErrGrantExpired
 	}
 	if grant.ExpiresAt.Valid && time.Now().After(grant.ExpiresAt.Time) {
 		return ErrGrantExpired
 	}
 	return nil
+}
+
+// ConsumeGrant transitions an ACTIVE grant to CONSUMED, linking it to the resulting order.
+func (p *PoolManager) ConsumeGrant(ctx context.Context, grantID, orderID uuid.UUID) error {
+	var ordID *uuid.UUID
+	if orderID != uuid.Nil {
+		ordID = &orderID
+	}
+	_, err := p.repo.ConsumeGrant(ctx, db.ConsumeGrantParams{
+		ID:      grantID,
+		OrderID: ordID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrGrantAlreadyConsumed
+	}
+	return err
 }
 
 // ExpireStaleGrants scans ACTIVE grants past their expiry and marks them EXPIRED.

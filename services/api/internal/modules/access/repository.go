@@ -19,7 +19,7 @@ type Repository interface {
 	GetAccessGrant(ctx context.Context, id uuid.UUID) (db.AccessGrant, error)
 	GetActiveGrantForParticipant(ctx context.Context, arg db.GetActiveGrantForParticipantParams) (db.AccessGrant, error)
 	ExpireGrant(ctx context.Context, id uuid.UUID) error
-	ConsumeGrant(ctx context.Context, arg db.ConsumeGrantParams) error
+	ConsumeGrant(ctx context.Context, arg db.ConsumeGrantParams) (db.AccessGrant, error)
 	ListExpiredActiveGrants(ctx context.Context, limit int32) ([]db.AccessGrant, error)
 
 	// Corporate accounts
@@ -82,7 +82,7 @@ func (r *sqlcRepo) GetActiveGrantForParticipant(ctx context.Context, arg db.GetA
 func (r *sqlcRepo) ExpireGrant(ctx context.Context, id uuid.UUID) error {
 	return r.q.ExpireGrant(ctx, id)
 }
-func (r *sqlcRepo) ConsumeGrant(ctx context.Context, arg db.ConsumeGrantParams) error {
+func (r *sqlcRepo) ConsumeGrant(ctx context.Context, arg db.ConsumeGrantParams) (db.AccessGrant, error) {
 	return r.q.ConsumeGrant(ctx, arg)
 }
 func (r *sqlcRepo) ListExpiredActiveGrants(ctx context.Context, limit int32) ([]db.AccessGrant, error) {
@@ -129,7 +129,7 @@ func (r *sqlcRepo) TransferPoolSlots(ctx context.Context, arg db.TransferPoolSlo
 // EligibilityRepo adapters
 func (r *sqlcRepo) CountPaidOrdersByUserInOrg(ctx context.Context, userID, orgID uuid.UUID) (int64, error) {
 	return r.q.CountPaidOrdersByUserInOrg(ctx, db.CountPaidOrdersByUserInOrgParams{
-		ParticipantID:  userID,
+		ParticipantID:  &userID,
 		OrganizationID: orgID,
 	})
 }
@@ -138,7 +138,7 @@ func (r *sqlcRepo) GetUserMembershipID(ctx context.Context, userID uuid.UUID) (s
 }
 func (r *sqlcRepo) HasPaidOrderForEvent(ctx context.Context, userID, eventID uuid.UUID) (bool, error) {
 	return r.q.HasPaidOrderForEvent(ctx, db.HasPaidOrderForEventParams{
-		ParticipantID: userID,
+		ParticipantID: &userID,
 		EventID:       eventID,
 	})
 }

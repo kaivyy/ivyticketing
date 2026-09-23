@@ -1,4 +1,4 @@
-import { getToken, refresh, redirectToLogin } from "./auth";
+import { getToken, refresh, redirectToLogin, getApiBaseUrl, fetchApi } from "./auth";
 
 export interface ReadyResponse {
   status: "ready" | "not_ready";
@@ -10,12 +10,9 @@ export interface ApiError {
   message: string;
 }
 
-const API_URL = import.meta.env.PUBLIC_API_URL ?? "http://localhost:8080";
-const BASE = API_URL;
-
 export async function fetchReadiness(): Promise<ReadyResponse | null> {
   try {
-    const res = await fetch(`${API_URL}/readyz`);
+    const res = await fetchApi("/readyz");
     return (await res.json()) as ReadyResponse;
   } catch {
     return null;
@@ -27,7 +24,7 @@ export async function authedFetch<T>(
   opts?: { method?: string; body?: unknown; headers?: Record<string, string> }
 ): Promise<T> {
   const doFetch = () =>
-    fetch(`${BASE}/api/v1${path}`, {
+    fetchApi(`/api/v1${path}`, {
       method: opts?.method ?? "GET",
       headers: {
         "Content-Type": "application/json",
@@ -35,7 +32,7 @@ export async function authedFetch<T>(
         ...opts?.headers,
       },
       credentials: "include",
-      body: opts?.body != null ? JSON.stringify(opts.body) : undefined,
+      body: opts?.body != null ? (typeof opts.body === "string" ? opts.body : JSON.stringify(opts.body)) : undefined,
     });
 
   let res = await doFetch();
@@ -56,4 +53,44 @@ export async function authedFetch<T>(
     throw new Error(err.message);
   }
   return (await res.json()) as T;
+}
+
+export async function fetchPublicEvents(): Promise<any[]> {
+  try {
+    const res = await fetchApi("/api/v1/public/events");
+    if (!res.ok) return [];
+    return (await res.json()) || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchPublicEvent(idOrSlug: string): Promise<any | null> {
+  try {
+    const res = await fetchApi(`/api/v1/public/events/${encodeURIComponent(idOrSlug)}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchPublicPaymentChannels(eventId: string): Promise<any[]> {
+  try {
+    const res = await fetchApi(`/api/v1/public/events/${encodeURIComponent(eventId)}/payment-channels`);
+    if (!res.ok) return [];
+    return (await res.json()) || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchPublicForm(eventId: string): Promise<any | null> {
+  try {
+    const res = await fetchApi(`/api/v1/public/events/${encodeURIComponent(eventId)}/form`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }

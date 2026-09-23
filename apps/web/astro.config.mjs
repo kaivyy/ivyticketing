@@ -7,6 +7,20 @@ export default defineConfig({
   output: "hybrid",
   adapter: node({ mode: "standalone" }),
   server: { port: 4321 },
+  vite: {
+    server: {
+      proxy: {
+        "/api": {
+          target: "http://127.0.0.1:8081",
+          changeOrigin: true,
+        },
+        "/readyz": {
+          target: "http://127.0.0.1:8081",
+          changeOrigin: true,
+        },
+      },
+    },
+  },
   redirects: {
     "/organizations/[orgId]/events/[eventId]/queue-controls":
       "/org/[orgId]/events/[eventId]/queue-controls",

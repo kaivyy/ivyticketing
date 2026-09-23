@@ -1,0 +1,532 @@
+---
+export const prerender = false;
+import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
+const { orgId, eventId } = Astro.params;
+---
+
+<OrganizerLayout title="Formulir Kustom : ivyticketing" orgId={orgId} eventId={eventId}>
+  <div id="form-builder-root" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
+      <div>
+        <a href={`/org/${orgId}/events/${eventId}`} class="text-xs font-semibold text-slate-500 hover:text-slate-800">
+          &larr; Kembali ke Ringkasan Event
+        </a>
+        <h1 class="font-display text-2xl font-bold uppercase tracking-tight text-slate-900 mt-1">
+          Formulir Registrasi Kustom
+        </h1>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Atur pertanyaan tambahan bagi peserta lomba (opsi shuttle bus, riwayat waktu tempuh/PB, pertanyaan sponsor, dll).
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          id="btn-open-preview"
+          type="button"
+          class="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-700 hover:bg-slate-50 shadow-sm transition-colors"
+        >
+          Pratinjau Formulir
+        </button>
+        <button
+          id="btn-open-add"
+          type="button"
+          class="rounded-lg bg-orange-600 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 active:scale-95 transition-all"
+        >
+          + Tambah Pertanyaan
+        </button>
+      </div>
+    </div>
+
+    <!-- Alert / Banner Standar Atletik -->
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="flex items-start gap-3">
+        <span class="text-lg">ℹ️</span>
+        <div class="text-xs text-slate-600 space-y-1">
+          <strong class="text-slate-900 font-semibold block">Pertanyaan Standar Balap Sudah Terintegrasi Otomatis</strong>
+          <span>
+            Sistem IvyTicketing secara default telah mengumpulkan: Nama Lengkap Atlet, Nama BIB Dada (maks. 16 karakter), NIK KTP / Paspor, Jenis Kelamin, Tanggal Lahir, Golongan Darah, Kontak Darurat, dan Ukuran Finisher Jersey. Gunakan modul ini hanya untuk menambahkan pertanyaan khusus tambahan.
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Container -->
+    <div id="fields-container" class="space-y-4">
+      <div class="rounded-xl border border-slate-200 bg-white p-12 text-center">
+        <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-orange-500 mb-3"></div>
+        <p class="text-sm font-medium text-slate-500">Memuat konfigurasi formulir...</p>
+      </div>
+    </div>
+
+    <!-- Modal Tambah Pertanyaan -->
+    <div
+      id="field-modal"
+      class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 class="font-display text-lg font-bold uppercase text-slate-900">
+            Tambah Pertanyaan Kustom
+          </h2>
+          <button id="modal-close-x" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+        </div>
+
+        <form id="add-field-form" class="space-y-4 text-xs">
+          <!-- Label Pertanyaan -->
+          <div>
+            <label class="block font-bold uppercase tracking-wider text-slate-700 mb-1" for="f-label">
+              Label Pertanyaan <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="f-label"
+              name="label"
+              required
+              placeholder="Contoh: Waktu Tempuh Terbaik Sebelumnya (Personal Best)"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+
+          <!-- Field Key -->
+          <div>
+            <label class="block font-bold uppercase tracking-wider text-slate-700 mb-1" for="f-key">
+              Kunci Identifikasi (Field Key) <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="f-key"
+              name="fieldKey"
+              required
+              placeholder="contoh: personal_best_time"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono text-slate-900 focus:border-orange-500 focus:outline-none"
+            />
+            <p class="text-[10px] text-slate-400 mt-1">Gunakan huruf kecil, angka, dan underscore (_). Unik dalam satu event.</p>
+          </div>
+
+          <!-- Tipe Input -->
+          <div>
+            <label class="block font-bold uppercase tracking-wider text-slate-700 mb-1" for="f-type">
+              Tipe Input Pertanyaan <span class="text-red-500">*</span>
+            </label>
+            <select
+              id="f-type"
+              name="fieldType"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-orange-500 focus:outline-none bg-white"
+            >
+              <option value="text">Teks Singkat (Text)</option>
+              <option value="textarea">Teks Panjang (Textarea)</option>
+              <option value="number">Angka / Nilai Numerik (Number)</option>
+              <option value="date">Tanggal (Date)</option>
+              <option value="dropdown">Menu Pilihan Dropdown</option>
+              <option value="radio">Pilihan Tunggal (Radio Button)</option>
+              <option value="checkbox">Pilihan Jamak (Checkbox)</option>
+            </select>
+          </div>
+
+          <!-- Opsi Pilihan (Dropdown / Radio / Checkbox) -->
+          <div id="options-container" class="hidden">
+            <label class="block font-bold uppercase tracking-wider text-slate-700 mb-1" for="f-options">
+              Daftar Opsi Pilihan <span class="text-red-500">*</span>
+            </label>
+            <textarea
+              id="f-options"
+              name="options"
+              rows="2"
+              placeholder="Pisahkan opsi dengan tanda koma. Contoh: Pagi (05:00), Siang (12:00), Sore (16:00)"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-orange-500 focus:outline-none"
+            ></textarea>
+            <p class="text-[10px] text-slate-400 mt-1">Masukkan setiap pilihan dipisahkan dengan tanda koma.</p>
+          </div>
+
+          <!-- Petunjuk Bantuan (Help Text) -->
+          <div>
+            <label class="block font-bold uppercase tracking-wider text-slate-700 mb-1" for="f-help">
+              Teks Bantuan / Petunjuk Pengisian (Opsional)
+            </label>
+            <input
+              id="f-help"
+              name="helpText"
+              placeholder="Contoh: Masukkan format JJ:MM:DD pada event marathon berlisensi resmi"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-orange-500 focus:outline-none"
+            />
+          </div>
+
+          <!-- Wajib Diisi -->
+          <div class="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="f-required"
+              name="isRequired"
+              class="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+            />
+            <label for="f-required" class="font-bold text-slate-700 cursor-pointer">
+              Wajib Diisi oleh Peserta (Required)
+            </label>
+          </div>
+
+          <p id="modal-error" class="hidden rounded bg-red-50 p-2 text-xs font-medium text-red-700 border border-red-200"></p>
+
+          <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+            <button
+              id="btn-cancel-modal"
+              type="button"
+              class="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Batal
+            </button>
+            <button
+              id="btn-save-field"
+              type="submit"
+              class="rounded-lg bg-orange-600 px-5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-orange-500"
+            >
+              Simpan Pertanyaan
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Preview Formulir -->
+    <div
+      id="preview-modal"
+      class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 class="font-display text-lg font-bold uppercase text-slate-900">
+            Simulasi Tampilan Formulir Peserta
+          </h2>
+          <button id="preview-close-x" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+        </div>
+
+        <div id="preview-content" class="space-y-4 py-2">
+          <!-- Dinamis di-render melalui script -->
+        </div>
+
+        <div class="flex justify-end border-t border-slate-100 pt-3">
+          <button
+            id="btn-close-preview"
+            type="button"
+            class="rounded-lg bg-slate-900 px-5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-slate-800"
+          >
+            Tutup Pratinjau
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { authedFetch } from "../../../../../lib/api";
+
+    const root = document.getElementById("form-builder-root");
+    const orgId = root?.dataset.orgId || window.location.pathname.split("/")[2] || "";
+    const eventId = root?.dataset.eventId || window.location.pathname.split("/")[4] || "";
+
+    const container = document.getElementById("fields-container");
+    const modal = document.getElementById("field-modal");
+    const previewModal = document.getElementById("preview-modal");
+    const previewContent = document.getElementById("preview-content");
+    const addForm = document.getElementById("add-field-form");
+    const typeSelect = document.getElementById("f-type");
+    const optionsContainer = document.getElementById("options-container");
+    const modalErr = document.getElementById("modal-error");
+    const saveBtn = document.getElementById("btn-save-field");
+
+    let currentFields = [];
+
+    // Tampilkan opsi jika dropdown/radio/checkbox
+    typeSelect.addEventListener("change", () => {
+      const val = typeSelect.value;
+      if (val === "dropdown" || val === "radio" || val === "checkbox") {
+        optionsContainer.classList.remove("hidden");
+        document.getElementById("f-options").required = true;
+      } else {
+        optionsContainer.classList.add("hidden");
+        document.getElementById("f-options").required = false;
+      }
+    });
+
+    // Buka / Tutup Modal Tambah
+    document.getElementById("btn-open-add")?.addEventListener("click", () => {
+      addForm.reset();
+      optionsContainer.classList.add("hidden");
+      modalErr.classList.add("hidden");
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    });
+
+    function closeModal() {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    document.getElementById("modal-close-x")?.addEventListener("click", closeModal);
+    document.getElementById("btn-cancel-modal")?.addEventListener("click", closeModal);
+
+    // Buka / Tutup Modal Preview
+    document.getElementById("btn-open-preview")?.addEventListener("click", () => {
+      renderPreview();
+      previewModal.classList.remove("hidden");
+      previewModal.classList.add("flex");
+    });
+
+    function closePreview() {
+      previewModal.classList.add("hidden");
+      previewModal.classList.remove("flex");
+    }
+
+    document.getElementById("preview-close-x")?.addEventListener("click", closePreview);
+    document.getElementById("btn-close-preview")?.addEventListener("click", closePreview);
+
+    // Auto-generate key dari label
+    const labelInp = document.getElementById("f-label");
+    const keyInp = document.getElementById("f-key");
+    labelInp.addEventListener("input", () => {
+      if (!keyInp.dataset.manual) {
+        keyInp.value = labelInp.value
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "")
+          .slice(0, 30);
+      }
+    });
+    keyInp.addEventListener("input", () => {
+      keyInp.dataset.manual = "true";
+    });
+
+    // Render daftar fields
+    function renderFields(fields) {
+      currentFields = fields || [];
+      if (!currentFields.length) {
+        container.innerHTML = `
+          <div class="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center space-y-3">
+            <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-orange-50 text-orange-600 text-xl font-bold">
+              📝
+            </div>
+            <h3 class="text-base font-bold text-slate-800">Belum Ada Pertanyaan Kustom</h3>
+            <p class="text-xs text-slate-500 max-w-md mx-auto">
+              Semua peserta saat ini hanya akan mengisi data standar balap. Klik tombol di bawah jika Anda ingin menambahkan pertanyaan kustom seperti riwayat waktu, shuttle bus, atau data sponsor.
+            </p>
+            <button
+              id="btn-empty-add"
+              class="inline-block rounded-lg bg-orange-600 px-5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-orange-500"
+            >
+              + Tambah Pertanyaan Pertama
+            </button>
+          </div>`;
+
+        document.getElementById("btn-empty-add")?.addEventListener("click", () => {
+          document.getElementById("btn-open-add")?.click();
+        });
+        return;
+      }
+
+      const typeLabels = {
+        text: "Teks Singkat",
+        textarea: "Teks Panjang",
+        number: "Angka",
+        date: "Tanggal",
+        dropdown: "Dropdown",
+        radio: "Radio",
+        checkbox: "Checkbox",
+      };
+
+      container.innerHTML = `
+        <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <div class="border-b border-slate-100 bg-slate-50/70 px-6 py-3 text-xs font-bold uppercase tracking-wider text-slate-500 flex justify-between items-center">
+            <span>Daftar Pertanyaan Tambahan (${currentFields.length})</span>
+            <span class="text-[10px] text-slate-400">Diurutkan Berdasarkan Tampilan Form</span>
+          </div>
+
+          <div class="divide-y divide-slate-100">
+            ${currentFields.map((f, idx) => `
+              <div class="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 transition-colors">
+                <div class="space-y-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-white text-[10px] font-bold">
+                      ${idx + 1}
+                    </span>
+                    <h4 class="text-sm font-bold text-slate-900">${f.label}</h4>
+                    <span class="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-mono text-slate-600">
+                      [${f.fieldKey}]
+                    </span>
+                    <span class="rounded px-2 py-0.5 text-[10px] font-bold uppercase ${f.isRequired ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-slate-100 text-slate-600'}">
+                      ${f.isRequired ? 'Wajib' : 'Opsional'}
+                    </span>
+                    <span class="rounded bg-orange-50 px-2 py-0.5 text-[10px] font-bold uppercase text-orange-700 border border-orange-200">
+                      ${typeLabels[f.fieldType] || f.fieldType}
+                    </span>
+                  </div>
+
+                  ${f.helpText ? `<p class="text-xs text-slate-500">${f.helpText}</p>` : ''}
+                  ${f.options && f.options.length ? `
+                    <div class="text-[11px] text-slate-400 flex flex-wrap gap-1 mt-1">
+                      <span>Pilihan:</span>
+                      ${f.options.map(opt => `<span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">${opt}</span>`).join('')}
+                    </div>
+                  ` : ''}
+                </div>
+
+                <div class="flex items-center gap-2 self-end sm:self-center">
+                  <button
+                    data-del-id="${f.id}"
+                    class="btn-delete-field rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>`;
+
+      // Event listener tombol hapus
+      container.querySelectorAll(".btn-delete-field").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const fid = btn.getAttribute("data-del-id");
+          if (!confirm("Apakah Anda yakin ingin menghapus pertanyaan ini?")) return;
+          try {
+            await authedFetch(`/organizations/${orgId}/events/${eventId}/form/fields/${fid}`, {
+              method: "DELETE",
+            });
+            await loadForm();
+          } catch (err) {
+            alert(err.message || "Gagal menghapus pertanyaan.");
+          }
+        });
+      });
+    }
+
+    // Render Preview
+    function renderPreview() {
+      if (!currentFields.length) {
+        previewContent.innerHTML = `
+          <p class="text-center text-xs text-slate-400 py-6">
+            Belum ada pertanyaan tambahan yang dikonfigurasi.
+          </p>`;
+        return;
+      }
+
+      previewContent.innerHTML = currentFields.map((f) => {
+        const reqMark = f.isRequired ? '<span class="text-red-500">*</span>' : '';
+        const help = f.helpText ? `<p class="text-[11px] text-slate-400 mt-0.5">${f.helpText}</p>` : '';
+
+        if (f.fieldType === "textarea") {
+          return `
+            <div class="space-y-1">
+              <label class="block text-xs font-bold text-slate-700">${f.label} ${reqMark}</label>
+              ${help}
+              <textarea rows="2" placeholder="Jawaban peserta..." class="w-full rounded-lg border border-slate-300 p-2 text-xs"></textarea>
+            </div>`;
+        }
+
+        if (f.fieldType === "dropdown") {
+          return `
+            <div class="space-y-1">
+              <label class="block text-xs font-bold text-slate-700">${f.label} ${reqMark}</label>
+              ${help}
+              <select class="w-full rounded-lg border border-slate-300 p-2 text-xs bg-white">
+                <option value="">-- Pilih salah satu --</option>
+                ${(f.options || []).map(o => `<option>${o}</option>`).join("")}
+              </select>
+            </div>`;
+        }
+
+        if (f.fieldType === "radio") {
+          return `
+            <div class="space-y-1.5">
+              <label class="block text-xs font-bold text-slate-700">${f.label} ${reqMark}</label>
+              ${help}
+              <div class="space-y-1">
+                ${(f.options || []).map(o => `
+                  <label class="flex items-center gap-2 text-xs text-slate-700">
+                    <input type="radio" name="${f.fieldKey}" class="text-orange-600" />
+                    <span>${o}</span>
+                  </label>
+                `).join("")}
+              </div>
+            </div>`;
+        }
+
+        if (f.fieldType === "checkbox") {
+          return `
+            <div class="space-y-1.5">
+              <label class="block text-xs font-bold text-slate-700">${f.label} ${reqMark}</label>
+              ${help}
+              <div class="space-y-1">
+                ${(f.options || []).map(o => `
+                  <label class="flex items-center gap-2 text-xs text-slate-700">
+                    <input type="checkbox" class="text-orange-600 rounded" />
+                    <span>${o}</span>
+                  </label>
+                `).join("")}
+              </div>
+            </div>`;
+        }
+
+        return `
+          <div class="space-y-1">
+            <label class="block text-xs font-bold text-slate-700">${f.label} ${reqMark}</label>
+            ${help}
+            <input type="${f.fieldType === 'number' ? 'number' : f.fieldType === 'date' ? 'date' : 'text'}" placeholder="Jawaban peserta..." class="w-full rounded-lg border border-slate-300 p-2 text-xs" />
+          </div>`;
+      }).join("");
+    }
+
+    // Submit form tambah pertanyaan
+    addForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      modalErr.classList.add("hidden");
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Menyimpan...";
+
+      const fd = new FormData(addForm);
+      const rawOptions = String(fd.get("options") || "");
+      const options = rawOptions
+        ? rawOptions.split(",").map(s => s.trim()).filter(Boolean)
+        : [];
+
+      const payload = {
+        label: String(fd.get("label") || "").trim(),
+        fieldKey: String(fd.get("fieldKey") || "").trim(),
+        fieldType: String(fd.get("fieldType") || "text"),
+        helpText: String(fd.get("helpText") || "").trim(),
+        isRequired: fd.get("isRequired") === "on",
+        options: options,
+      };
+
+      try {
+        await authedFetch(`/organizations/${orgId}/events/${eventId}/form/fields`, {
+          method: "POST",
+          body: payload,
+        });
+        closeModal();
+        await loadForm();
+      } catch (err) {
+        modalErr.textContent = err.message || "Gagal menyimpan pertanyaan.";
+        modalErr.classList.remove("hidden");
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Simpan Pertanyaan";
+      }
+    });
+
+    // Load form schema
+    async function loadForm() {
+      try {
+        const res = await authedFetch(`/organizations/${orgId}/events/${eventId}/form`);
+        renderFields(res.fields);
+      } catch (err) {
+        container.innerHTML = `
+          <div class="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-xs text-red-700">
+            ${err.message || "Gagal memuat konfigurasi formulir."}
+          </div>`;
+      }
+    }
+
+    loadForm();
+  </script>
+</OrganizerLayout>

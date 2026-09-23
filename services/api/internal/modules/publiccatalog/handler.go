@@ -14,6 +14,25 @@ type Handler struct {
 
 func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
 
+func (h *Handler) ListAllEvents(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.ListAllEvents(r.Context())
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, out)
+}
+
+func (h *Handler) GetEventByIDOrSlug(w http.ResponseWriter, r *http.Request) {
+	identifier := chi.URLParam(r, "idOrSlug")
+	ev, err := h.svc.GetEventByIDOrSlug(r.Context(), identifier)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, ev)
+}
+
 func (h *Handler) ListEvents(w http.ResponseWriter, r *http.Request) {
 	orgSlug := chi.URLParam(r, "orgSlug")
 	out, err := h.svc.ListEvents(r.Context(), orgSlug)

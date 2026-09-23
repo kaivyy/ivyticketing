@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.PUBLIC_API_URL ?? "http://localhost:8080";
+import { getApiBaseUrl } from "./auth";
 
 export interface SecurityConfig {
   turnstileEnabled: boolean;
@@ -7,7 +7,8 @@ export interface SecurityConfig {
 
 export async function getSecurityConfig(): Promise<SecurityConfig> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/security/config`);
+    const base = getApiBaseUrl();
+    const res = await fetch(`${base}/api/v1/security/config`);
     if (!res.ok) return { turnstileEnabled: false };
     return (await res.json()) as SecurityConfig;
   } catch {

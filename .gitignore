@@ -9,3 +9,11 @@ dist/
 /services/api/bin/
 .astro/
 pnpm-debug.log
+reference/
+/reference/
+graphify-out/
+scratch/
+skills/
+test_*.py
+ecosystem.config.cjs
+

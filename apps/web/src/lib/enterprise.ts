@@ -11,7 +11,7 @@ export interface APIKey {
   lastUsedAt?: string | null;
   revokedAt?: string | null;
   createdAt: string;
-  // rawKey is present ONLY on the create response — shown once, never again.
+  // rawKey is present ONLY on the create response - shown once, never again.
   rawKey?: string;
 }
 
@@ -27,7 +27,7 @@ export interface Webhook {
   events: string[];
   isActive: boolean;
   createdAt: string;
-  // secret is present ONLY on the create response — shown once, never again.
+  // secret is present ONLY on the create response - shown once, never again.
   secret?: string;
 }
 

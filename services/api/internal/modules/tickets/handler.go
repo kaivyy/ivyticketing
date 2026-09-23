@@ -1,6 +1,7 @@
 package tickets
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -122,6 +123,35 @@ func (h *Handler) ListByOrgEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out, err := h.svc.ListEventTickets(r.Context(), orgID, eventID)
+	if err != nil {
+		apperr.WriteError(w, r, err)
+		return
+	}
+	apperr.WriteJSON(w, http.StatusOK, out)
+}
+
+func (h *Handler) UpdateParticipant(w http.ResponseWriter, r *http.Request) {
+	orgID, err := uuid.Parse(chi.URLParam(r, "orgId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_ORG_ID", "invalid org id"))
+		return
+	}
+	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		return
+	}
+	ticketID, err := uuid.Parse(chi.URLParam(r, "ticketId"))
+	if err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_TICKET_ID", "invalid ticket id"))
+		return
+	}
+	var req UpdateParticipantRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_PAYLOAD", "invalid json payload"))
+		return
+	}
+	out, err := h.svc.UpdateParticipant(r.Context(), orgID, eventID, ticketID, req)
 	if err != nil {
 		apperr.WriteError(w, r, err)
 		return

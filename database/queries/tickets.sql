@@ -1,9 +1,18 @@
 -- name: CreateTicket :one
 INSERT INTO tickets (
     organization_id, event_id, category_id, order_id, participant_id,
-    ticket_number, holder_name, holder_email, event_title, category_name, qr_version
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+    ticket_number, holder_name, holder_email, event_title, category_name, qr_version, form_answers
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 ON CONFLICT (order_id) DO NOTHING
+RETURNING *;
+
+-- name: UpdateTicketParticipant :one
+UPDATE tickets SET
+    holder_name = $2,
+    holder_email = $3,
+    form_answers = COALESCE(sqlc.narg('form_answers'), form_answers),
+    updated_at = now()
+WHERE id = $1 AND organization_id = $4 AND event_id = $5
 RETURNING *;
 
 -- name: GetTicketByID :one
@@ -54,6 +63,7 @@ WHERE event_id = $1
   AND bib_number IS NULL
   AND status = 'VALID'
 ORDER BY issued_at ASC;
+
 -- name: MarkTicketUsed :one
 -- Guarded VALID -> USED transition for event check-in. Only affects a ticket
 -- that is currently VALID (idempotent no-op returns no row when already USED or
@@ -77,3 +87,18 @@ SELECT
     status        AS ticket_status
 FROM tickets
 WHERE id = $1;
+
+-- name: LinkTicketToParticipant :one
+UPDATE tickets
+SET participant_id = $2, updated_at = now()
+WHERE order_id = $1 AND participant_id IS NULL
+RETURNING *;
+
+-- name: ListTicketsForBroadcast :many
+SELECT DISTINCT holder_name, holder_email, ticket_number, category_name
+FROM tickets
+WHERE organization_id = $1
+  AND event_id = $2
+  AND (sqlc.narg('category_id')::uuid IS NULL OR category_id = sqlc.narg('category_id'))
+  AND status = 'VALID'
+ORDER BY holder_name ASC;

@@ -3,7 +3,7 @@ export const prerender = false;
 import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
 const { orgId, eventId } = Astro.params;
 ---
-<OrganizerLayout title="Racepack Dashboard — ivyticketing">
+<OrganizerLayout title="Racepack Dashboard - ivyticketing">
   <div id="racepack-dashboard" data-org-id={orgId} data-event-id={eventId} class="space-y-6">
     <p class="text-slate-500">Memuat data dashboard…</p>
   </div>
@@ -120,7 +120,7 @@ const { orgId, eventId } = Astro.params;
                     <tr class="border-b border-slate-100">
                       <td class="py-2 pr-3 text-xs text-slate-600">${esc(new Date(r.pickupTimestamp).toLocaleTimeString("id-ID"))}</td>
                       <td class="py-2 pr-3 font-mono text-xs">${esc(r.ticketId)}</td>
-                      <td class="py-2 pr-3 font-mono">${r.bibNumber ? esc(r.bibNumber) : '<span class="text-slate-400">—</span>'}</td>
+                      <td class="py-2 pr-3 font-mono">${r.bibNumber ? esc(r.bibNumber) : '<span class="text-slate-400">-</span>'}</td>
                       <td class="py-2 pr-3">${esc(lookup.get(r.counterId) ?? r.counterId)}</td>
                       <td class="py-2 pr-3">${methodBadge(r.pickupMethod)}</td>
                       <td class="py-2 pr-3 text-xs text-slate-500">${r.notes ? esc(r.notes) : ""}</td>
@@ -137,7 +137,7 @@ const { orgId, eventId } = Astro.params;
 
       root.innerHTML = `
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h1 class="text-2xl font-bold text-slate-900">Racepack — Pickup Dashboard</h1>
+          <h1 class="text-2xl font-bold text-slate-900">Racepack - Pickup Dashboard</h1>
           <span class="text-xs text-slate-500">Auto-refresh 5 detik</span>
         </div>
 
@@ -170,7 +170,7 @@ const { orgId, eventId } = Astro.params;
                 <label class="mb-1 block text-sm font-medium text-slate-700">Counter</label>
                 <select id="pickup-counter" required
                   class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option value="">— pilih —</option>
+                  <option value="">- pilih -</option>
                   ${counterOptions}
                 </select>
               </div>

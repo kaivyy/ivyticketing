@@ -15,10 +15,19 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Get("/payments/{paymentId}", h.GetMine)
 }
 
+// RegisterPublicRoutes mounts public payment channel query endpoints.
+func (h *Handler) RegisterPublicRoutes(r chi.Router) {
+	r.Get("/public/events/{eventId}/payment-channels", h.GetPublicEventPaymentChannels)
+}
+
 // RegisterOrgRoutes mounts organizer-scoped payment endpoints under /organizations/{orgId}.
 func (h *Handler) RegisterOrgRoutes(r chi.Router, loader middleware.PermissionLoader) {
 	r.With(middleware.RequirePermission(loader, "payment.view")).
 		Get("/events/{eventId}/payments", h.ListByOrgEvent)
 	r.With(middleware.RequirePermission(loader, "payment.manage")).
 		Post("/payments/{paymentId}/reconcile", h.Reconcile)
+	r.With(middleware.RequirePermission(loader, "payment.view")).
+		Get("/events/{eventId}/payment-channels", h.ListEventPaymentChannels)
+	r.With(middleware.RequirePermission(loader, "payment.manage")).
+		Put("/events/{eventId}/payment-channels", h.UpdateEventPaymentChannels)
 }

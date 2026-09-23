@@ -1,7 +1,5 @@
 import { authedFetch } from "./api";
-import { getToken } from "./auth";
-
-const API_URL = import.meta.env.PUBLIC_API_URL ?? "http://localhost:8080";
+import { getToken, getApiBaseUrl } from "./auth";
 
 export interface CorporateAccount {
   id: string;
@@ -51,8 +49,9 @@ export async function bulkUploadMembers(
 ): Promise<BulkUploadResult> {
   const form = new FormData();
   form.append("file", file);
+  const base = getApiBaseUrl();
   const res = await fetch(
-    `${API_URL}/api/v1/organizations/${orgId}/access/pools/${poolId}/members`,
+    `${base}/api/v1/organizations/${orgId}/access/pools/${poolId}/members`,
     {
       method: "POST",
       headers: { Authorization: `Bearer ${getToken() ?? ""}` },

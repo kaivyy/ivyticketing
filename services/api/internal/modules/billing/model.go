@@ -122,3 +122,57 @@ type GenerateInvoiceRequest struct {
 	SubscriptionAmount int64  `json:"subscriptionAmount"`
 	FeeAmount          int64  `json:"feeAmount"`
 }
+
+// PayoutAccountResponse is the API view of an org payout bank account.
+type PayoutAccountResponse struct {
+	ID             string `json:"id"`
+	OrganizationID string `json:"organizationId"`
+	BankName       string `json:"bankName"`
+	BankCode       string `json:"bankCode"`
+	AccountNumber  string `json:"accountNumber"`
+	AccountName    string `json:"accountName"`
+	IsVerified     bool   `json:"isVerified"`
+	CreatedAt      string `json:"createdAt"`
+}
+
+// CreatePayoutAccountRequest registers a bank account for payouts.
+type CreatePayoutAccountRequest struct {
+	BankName      string `json:"bankName"`
+	BankCode      string `json:"bankCode"`
+	AccountNumber string `json:"accountNumber"`
+	AccountName   string `json:"accountName"`
+}
+
+// PayoutRequestResponse is the API view of a payout request.
+type PayoutRequestResponse struct {
+	ID              string  `json:"id"`
+	OrganizationID  string  `json:"organizationId"`
+	EventID         *string `json:"eventId,omitempty"`
+	PayoutAccountID *string `json:"payoutAccountId,omitempty"`
+	Amount          int64   `json:"amount"`
+	Currency        string  `json:"currency"`
+	Status          string  `json:"status"`
+	Notes           string  `json:"notes,omitempty"`
+	RejectionReason string  `json:"rejectionReason,omitempty"`
+	RequestedBy     string  `json:"requestedBy"`
+	ProcessedAt     *string `json:"processedAt,omitempty"`
+	CreatedAt       string  `json:"createdAt"`
+}
+
+// CreatePayoutRequestInput is the payload to request a payout.
+type CreatePayoutRequestInput struct {
+	EventID         *string `json:"eventId,omitempty"`
+	PayoutAccountID *string `json:"payoutAccountId,omitempty"`
+	Amount          int64   `json:"amount"`
+	Notes           string  `json:"notes,omitempty"`
+}
+
+// OrgBalanceResponse is the financial summary and available payout balance.
+type OrgBalanceResponse struct {
+	GrossOrders      int64  `json:"grossOrders"`
+	TotalFees        int64  `json:"totalFees"`
+	TotalRefunded    int64  `json:"totalRefunded"`
+	TotalPaidPayouts int64  `json:"totalPaidPayouts"`
+	AvailableBalance int64  `json:"availableBalance"`
+	Currency         string `json:"currency"`
+}

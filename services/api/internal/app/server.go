@@ -18,6 +18,7 @@ import (
 	authmod "github.com/varin/ivyticketing/services/api/internal/modules/auth"
 	ballotmod "github.com/varin/ivyticketing/services/api/internal/modules/ballot"
 	categoriesmod "github.com/varin/ivyticketing/services/api/internal/modules/categories"
+	competitionsmod "github.com/varin/ivyticketing/services/api/internal/modules/competitions"
 	enterprisemod "github.com/varin/ivyticketing/services/api/internal/modules/enterprise"
 	eventsmod "github.com/varin/ivyticketing/services/api/internal/modules/events"
 	formsmod "github.com/varin/ivyticketing/services/api/internal/modules/forms"
@@ -25,6 +26,7 @@ import (
 	membersmod "github.com/varin/ivyticketing/services/api/internal/modules/members"
 	notifmod "github.com/varin/ivyticketing/services/api/internal/modules/notifications"
 	notifemail "github.com/varin/ivyticketing/services/api/internal/modules/notifications/email"
+	notifsms "github.com/varin/ivyticketing/services/api/internal/modules/notifications/sms"
 	notiftmpl "github.com/varin/ivyticketing/services/api/internal/modules/notifications/templates"
 	ordersmod "github.com/varin/ivyticketing/services/api/internal/modules/orders"
 	billingmod "github.com/varin/ivyticketing/services/api/internal/modules/billing"
@@ -67,12 +69,19 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	appMetrics := metrics.New()
 	r.Use(appMetrics.Middleware)
 
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{cfg.WebOrigin},
+	corsOpts := cors.Options{
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-Id"},
 		AllowCredentials: true,
-	}))
+	}
+	if cfg.AppEnv == "local" {
+		corsOpts.AllowOriginFunc = func(r *http.Request, origin string) bool {
+			return true
+		}
+	} else {
+		corsOpts.AllowedOrigins = []string{cfg.WebOrigin}
+	}
+	r.Use(cors.Handler(corsOpts))
 
 	// All middleware is registered above; routes below. chi requires this order.
 	r.Handle("/metrics", promhttp.HandlerFor(appMetrics.Registry(), promhttp.HandlerOpts{}))
@@ -121,7 +130,8 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	}
 	eventHandler := eventsmod.NewHandler(eventsmod.NewService(eventsmod.NewRepository(pool), store, auditLog), cfg.StorageUploadMaxBytes)
 	categoryHandler := categoriesmod.NewHandler(categoriesmod.NewService(categoriesmod.NewRepository(pool)))
-	formHandler := formsmod.NewHandler(formsmod.NewService(formsmod.NewRepository(pool)))
+	formsSvc := formsmod.NewService(formsmod.NewRepository(pool))
+	formHandler := formsmod.NewHandler(formsSvc)
 	registrationRepo := registrationmod.NewRepository(pool)
 	registrationSvc := registrationmod.NewService(registrationRepo)
 	registrationHandler := registrationmod.NewHandler(registrationSvc)
@@ -133,6 +143,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	queueEventReader := queuemod.NewDBEventReader(db.New(pool))
 	queueSvc := queuemod.NewService(queueRepo, queueStore, auditLog, queueEventReader, int32(cfg.QueueDefaultReleaseRate), registrationSvc)
 	queueHandler := queuemod.NewHandler(queueSvc)
+	queueHandler.WithRateLimiter(ratelimit.New(redisClient))
 
 	lifecycleRepo := lifecyclemod.NewRepository(pool)
 	lifecycleSvc := lifecyclemod.NewService(lifecycleRepo)
@@ -200,11 +211,18 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	notifLookup := notifmod.NewParticipantLookup(queries)
 	notifResolver := notiftmpl.NewResolver(notifRepo)
 	notifSvc := notifmod.NewService(notifRepo, notifSender, notifLookup, notifResolver, log)
+	smsMessagingSvc := notifsms.NewMessagingService(notifsms.ServiceConfig{
+		PrimaryProvider: notifsms.NewLogProvider(log),
+		Log:             log,
+	})
+	notifSvc.WithSMS(smsMessagingSvc)
 	// Wire notifier into each service via WithNotifier (duck-typed, no circular imports).
 	// Extract orders service to call WithNotifier on it.
 	ordersSvc := ordersmod.NewService(ordersmod.NewRepository(pool), auditLog, cfg.OrderExpiration, registrationGate, queueSvc)
 	ordersSvc.WithNotifier(notifSvc)
 	ordersSvc.WithLogger(log)
+	ordersSvc.WithFormValidator(formsSvc)
+	ordersSvc.WithGrantConsumer(poolMgr)
 	ordersHandler = ordersmod.NewHandler(ordersSvc)
 	paymentsProc.WithNotifier(notifSvc)
 	queueSvc.WithNotifier(notifSvc)
@@ -214,6 +232,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 	// Notification status endpoint (mounted under /api/v1/admin/notifications/status with RequirePlatformAdmin)
 	smtpConfigured := cfg.EmailDriver == "smtp" && cfg.SMTPHost != "" && cfg.SMTPPort != ""
 	notifStatusHandler := notifmod.NewStatusHandler(cfg.EmailDriver, smtpConfigured, notifmod.MaxRetryAttempts)
+	broadcastHandler := notifmod.NewBroadcastHandler(queries, notifSender, auditLog, log)
 
 	// Racepack (Phase 14)
 	racepackRepo := racepackmod.NewRepository(pool)
@@ -299,6 +318,10 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 		return uuid.Parse(tw.EventID)
 	})
 
+	// Multi-sport generic competition engine.
+	competitionsSvc := competitionsmod.NewService(competitionsmod.NewRepository(pool), auditLog)
+	competitionsHandler := competitionsmod.NewHandler(competitionsSvc)
+
 	// Versioned public read API (Phase 23). Separate auth domain: API-key +
 	// per-key rate limit, mounted at the router root (/api/public/v1) so
 	// integrators hit a stable, versioned surface distinct from /api/v1.
@@ -313,6 +336,12 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 
 		// Public read-only (no auth).
 		publicHandler.RegisterRoutes(r)
+		paymentsHandler.RegisterPublicRoutes(r)
+		formHandler.RegisterPublicRoutes(r)
+		competitionsHandler.RegisterPublicRoutes(r)
+
+		// Public guest checkout (no auth).
+		ordersHandler.RegisterPublicRoutes(r, abuseGuard.Middleware(abusemod.CategoryQueueJoin))
 
 		// Public status page (no auth).
 		statusHandler.RegisterRoutes(r)
@@ -346,6 +375,7 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RequirePlatformAdmin())
 				r.Route("/admin", func(r chi.Router) {
+					orgHandler.RegisterAdminRoutes(r)
 					abuseHandler.RegisterAdminRoutes(r)
 					reportingHandler.RegisterAdminRoutes(r)
 					billingHandler.RegisterAdminRoutes(r)
@@ -358,9 +388,11 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 			})
 
 			// Per-org sub-resources, authz enforced per route.
-			r.Route("/organizations/{orgId}", func(r chi.Router) {
+			mountOrgRoutes := func(r chi.Router) {
+				orgHandler.RegisterOrgRoutes(r, loader)
 				memberHandler.RegisterRoutes(r, loader)
 				roleHandler.RegisterRoutes(r, loader)
+				broadcastHandler.RegisterOrgRoutes(r, loader)
 				eventHandler.RegisterRoutes(r, loader, func(r chi.Router) {
 					categoryHandler.RegisterRoutes(r, loader)
 					formHandler.RegisterRoutes(r, loader)
@@ -368,18 +400,24 @@ func NewRouter(cfg Config, log *slog.Logger, pool *pgxpool.Pool, pg, rdb system.
 					ticketsHandler.RegisterEventRoutes(r, loader)
 					registrationHandler.RegisterEventRoutes(r, loader)
 					queueHandler.RegisterOrgRoutes(r, loader)
-					ballotHandler.RegisterOrganizerRoutes(r)
-					accessHandler.RegisterOrganizerRoutes(r)
+					ballotHandler.RegisterEventRoutes(r, loader)
+					accessHandler.RegisterEventRoutes(r, loader)
 					racepackHandler.RegisterEventRoutes(r, loader)
 					scannerHandler.RegisterEventRoutes(r, loader)
 					resultsHandler.RegisterEventRoutes(r, loader)
+					competitionsHandler.RegisterEventRoutes(r, loader)
+					broadcastHandler.RegisterEventRoutes(r, loader)
 				})
 				paymentsHandler.RegisterOrgRoutes(r, loader)
 				reportingHandler.RegisterOrgRoutes(r, loader)
 				billingHandler.RegisterOrgRoutes(r, loader)
 				whitelabelHandler.RegisterOrgRoutes(r, loader)
 				enterpriseHandler.RegisterOrgRoutes(r, loader)
-			})
+				ballotHandler.RegisterOrgRoutes(r, loader)
+				accessHandler.RegisterOrgRoutes(r, loader)
+			}
+			r.Route("/organizations/{orgId}", mountOrgRoutes)
+			r.Route("/org/{orgId}", mountOrgRoutes)
 		})
 	})
 

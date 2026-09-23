@@ -23,6 +23,7 @@ const (
 type TemplateData struct {
 	ParticipantName  string
 	ParticipantEmail string
+	ParticipantPhone string
 	EventName        string
 	CategoryName     string
 	OrderID          string

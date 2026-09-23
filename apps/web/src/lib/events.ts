@@ -1,4 +1,4 @@
-const API_URL = (typeof import.meta !== "undefined" ? import.meta.env.PUBLIC_API_URL : undefined) ?? "http://localhost:8080";
+import { getApiBaseUrl } from "./auth";
 
 export interface PublicCategory {
   id: string;
@@ -32,8 +32,9 @@ export async function fetchPublicEvent(
   orgSlug: string,
   eventSlug: string
 ): Promise<PublicEvent> {
+  const base = getApiBaseUrl();
   const res = await fetch(
-    `${API_URL}/api/v1/public/organizations/${encodeURIComponent(orgSlug)}/events/${encodeURIComponent(eventSlug)}`
+    `${base}/api/v1/public/organizations/${encodeURIComponent(orgSlug)}/events/${encodeURIComponent(eventSlug)}`
   );
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -48,8 +49,9 @@ export async function fetchPublicEvent(
  * GET /public/organizations/{orgSlug}/events
  */
 export async function fetchPublicEvents(orgSlug: string): Promise<PublicEvent[]> {
+  const base = getApiBaseUrl();
   const res = await fetch(
-    `${API_URL}/api/v1/public/organizations/${encodeURIComponent(orgSlug)}/events`
+    `${base}/api/v1/public/organizations/${encodeURIComponent(orgSlug)}/events`
   );
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

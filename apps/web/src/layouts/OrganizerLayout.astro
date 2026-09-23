@@ -2,56 +2,61 @@
 import "../styles/global.css";
 const { title = "ivyticketing", orgId: orgIdProp } = Astro.props;
 
-// Derive orgId from prop or from URL segments like /organizations/{orgId}/... or /org/{orgId}/...
+// Derive orgId from prop or from URL segments like /org/{orgId}/...
 const segments = Astro.url.pathname.split("/").filter(Boolean);
-const orgIdx = segments.findIndex((s) => s === "organizations" || s === "org");
-const orgId: string = orgIdProp ?? (orgIdx !== -1 ? segments[orgIdx + 1] : "") ?? "";
+const orgIdx = segments.findIndex((s) => s === "org");
+const orgId: string = orgIdProp ?? (orgIdx !== -1 ? segments[orgIdx + 1] : "") ?? "ivy-sports";
 
 // Extract eventId from URL segments like /org/{orgId}/events/{eventId}/...
 const eventsIdx = segments.findIndex((s) => s === "events");
-const eventId: string = (eventsIdx !== -1 && segments[eventsIdx + 1] && segments[eventsIdx + 1] !== "") ? segments[eventsIdx + 1] : "";
+const rawEventId: string = (eventsIdx !== -1 && segments[eventsIdx + 1] && segments[eventsIdx + 1] !== "" && segments[eventsIdx + 1] !== "new") ? segments[eventsIdx + 1] : "";
+
+// Default fallback active event so race operations are always available even from org-level dashboard
+const defaultEventByOrg: Record<string, string> = {
+  "borobudur-heritage": "borobudur-heritage-marathon-2026",
+  "summarecon-bandung": "summarecon-bandung-runfest-2026",
+  "tokyo-marathon-fdn": "tokyo-international-marathon-2026",
+  "scc-events": "berlin-speed-marathon-2026",
+  "ivy-sports": "borobudur-heritage-marathon-2026",
+};
+const activeEventId = rawEventId || defaultEventByOrg[orgId] || "borobudur-heritage-marathon-2026";
 
 const path = Astro.url.pathname;
 function navClass(prefix: string): string {
-  return path.startsWith(prefix)
-    ? "flex items-center gap-2 rounded px-3 py-2 text-sm font-medium bg-slate-100 text-slate-900"
-    : "flex items-center gap-2 rounded px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900";
+  const isExactOrChild = path === prefix || path.startsWith(prefix + "/");
+  return isExactOrChild
+    ? "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200 shadow-xs transition-colors"
+    : "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors";
+}
+function iconColor(prefix: string): string {
+  const isExactOrChild = path === prefix || path.startsWith(prefix + "/");
+  return isExactOrChild ? "text-orange-600" : "text-slate-400 group-hover:text-slate-600";
 }
 
-const base = orgId ? `/org/${orgId}` : "#";
-const navItems = [
-  { label: "Dashboard",   href: orgId ? `${base}/dashboard`      : "#",  prefix: `${base}/dashboard`,      soon: !orgId },
-  { label: "Events",      href: orgId ? `${base}/events`         : "#",  prefix: `${base}/events`,         soon: false  },
-  { label: "Anggota",     href: orgId ? `${base}/members`        : "#",  prefix: `${base}/members`,        soon: !orgId },
-  { label: "Notifikasi",  href: orgId ? `${base}/notifications`  : "#",  prefix: `${base}/notifications`,  soon: false  },
-  { label: "Tagihan",     href: orgId ? `${base}/billing`        : "#",  prefix: `${base}/billing`,        soon: !orgId },
-  { label: "Branding",    href: orgId ? `${base}/branding`       : "#",  prefix: `${base}/branding`,       soon: !orgId },
-  { label: "API & Webhook", href: orgId ? `${base}/enterprise`   : "#",  prefix: `${base}/enterprise`,     soon: !orgId },
-  { label: "Pengaturan",  href: orgId ? `${base}/settings`       : "#",  prefix: `${base}/settings`,       soon: !orgId },
+const base = `/org/${orgId}`;
+const eventBase = `/org/${orgId}/events/${activeEventId}`;
+
+// Known organizations list for switcher
+const orgOptions = [
+  { id: "ivy-sports", name: "Ivy Sports Management" },
+  { id: "borobudur-heritage", name: "Borobudur Marathon Foundation" },
+  { id: "summarecon-bandung", name: "Summarecon Bandung Sports" },
+  { id: "tokyo-marathon-fdn", name: "Tokyo Marathon Foundation" },
+  { id: "scc-events", name: "SCC EVENTS Berlin" },
 ];
 
-// Event-scoped nav items — only shown when eventId is available
-const eventBase = orgId && eventId ? `/org/${orgId}/events/${eventId}` : "";
-const eventNavItems = eventId ? [
-  { label: "Antrean",    href: `${eventBase}/queue-controls`,     prefix: `${eventBase}/queue-controls`     },
-  { label: "Corporate",  href: `${eventBase}/corporate`,           prefix: `${eventBase}/corporate`           },
-  { label: "Tiket",      href: `${eventBase}/tickets`,             prefix: `${eventBase}/tickets`             },
-  { label: "Racepack",   href: `${eventBase}/racepack-dashboard`,  prefix: `${eventBase}/racepack-`           },
-  { label: "Laporan",    href: `${eventBase}/reports`,             prefix: `${eventBase}/reports`             },
-  { label: "Hasil",      href: `${eventBase}/results`,             prefix: `${eventBase}/results`             },
-] : [];
+// Known events list for active event selector
+const eventOptions = [
+  { id: "borobudur-heritage-marathon-2026", name: "Borobudur Heritage Marathon 2026", org: "borobudur-heritage" },
+  { id: "summarecon-bandung-runfest-2026", name: "Summarecon Bandung Run Fest 2026", org: "summarecon-bandung" },
+  { id: "ivy-trail-ultra-challenge-2026", name: "Ivy Trail Ultra Challenge 2026", org: "ivy-sports" },
+  { id: "tokyo-international-marathon-2026", name: "Tokyo International Marathon 2026", org: "tokyo-marathon-fdn" },
+  { id: "berlin-speed-marathon-2026", name: "BMW Berlin Speed Marathon 2026", org: "scc-events" },
+];
 
-// Sub-navigation for the Racepack group (shown when current page is racepack-*)
-const racepackSubItems = (orgId && eventId)
-  ? [
-      { label: "Dashboard",   href: `/org/${orgId}/events/${eventId}/racepack-dashboard`,  prefix: `/org/${orgId}/events/${eventId}/racepack-dashboard`  },
-      { label: "Counter",     href: `/org/${orgId}/events/${eventId}/racepack-counters`,   prefix: `/org/${orgId}/events/${eventId}/racepack-counters`   },
-      { label: "Slot",        href: `/org/${orgId}/events/${eventId}/racepack-slots`,      prefix: `/org/${orgId}/events/${eventId}/racepack-slots`      },
-      { label: "Problem Desk",href: `/org/${orgId}/events/${eventId}/racepack-problem-desk`, prefix: `/org/${orgId}/events/${eventId}/racepack-problem-desk` },
-    ]
-  : [];
 const showRacepackSub = path.startsWith(`${eventBase}/racepack-`);
 ---
+
 <!doctype html>
 <html lang="id">
   <head>
@@ -63,100 +68,337 @@ const showRacepackSub = path.startsWith(`${eventBase}/racepack-`);
       @media (max-width: 767px) {
         #org-sidebar.sidebar-hidden { transform: translateX(-100%); }
       }
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
     </style>
   </head>
-  <body class="min-h-screen bg-slate-50 text-slate-900">
+  <body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
 
     <!-- Top bar (mobile + desktop) -->
-    <header class="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:pl-64">
-      <div class="flex items-center gap-3">
+    <header class="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2 sm:py-3 md:pl-64">
+      <div class="flex items-center gap-2 sm:gap-3">
         <!-- Hamburger (mobile only) -->
         <button
           id="sidebar-toggle"
-          class="flex flex-col gap-1 md:hidden"
+          class="flex items-center justify-center min-h-[44px] min-w-[44px] -ml-2 rounded-lg text-slate-700 hover:bg-slate-100 md:hidden transition-colors"
           aria-label="Toggle navigasi"
           aria-expanded="false"
           aria-controls="org-sidebar"
         >
-          <span class="block h-0.5 w-5 bg-slate-700"></span>
-          <span class="block h-0.5 w-5 bg-slate-700"></span>
-          <span class="block h-0.5 w-5 bg-slate-700"></span>
+          <div class="flex flex-col gap-1.5 p-1">
+            <span class="block h-0.5 w-5 bg-slate-700 rounded-full"></span>
+            <span class="block h-0.5 w-5 bg-slate-700 rounded-full"></span>
+            <span class="block h-0.5 w-5 bg-slate-700 rounded-full"></span>
+          </div>
         </button>
-        <span class="font-semibold text-slate-900">ivyticketing</span>
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-slate-900 tracking-tight text-sm sm:text-base">IvyTicketing</span>
+          <span class="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-orange-700 border border-orange-200">Organizer Console</span>
+        </div>
       </div>
-      <button id="logout-btn" class="text-sm text-slate-500 hover:text-slate-900">Keluar</button>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <a href="/admin/dashboard" id="admin-console-link" class="items-center min-h-[44px] px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors" style="display: none;">
+          &larr; Konsol Admin
+        </a>
+        <a href="/" class="hidden sm:inline-flex items-center min-h-[44px] px-2.5 py-1 text-xs text-slate-500 hover:text-slate-800">
+          Web Publik &rarr;
+        </a>
+        <button id="logout-btn" class="min-h-[44px] inline-flex items-center px-2 text-xs font-semibold text-slate-600 hover:text-red-600 transition-colors">
+          Keluar
+        </button>
+      </div>
     </header>
 
     <!-- Sidebar overlay (mobile) -->
     <div
       id="sidebar-overlay"
-      class="fixed inset-0 z-10 hidden bg-black/30 md:hidden"
+      class="fixed inset-0 z-10 hidden bg-black/30 md:hidden backdrop-blur-xs"
       aria-hidden="true"
     ></div>
 
     <!-- Sidebar -->
     <aside
       id="org-sidebar"
-      class="sidebar-hidden fixed left-0 top-0 z-30 flex h-full w-56 flex-col border-r border-slate-200 bg-white pt-14 md:translate-x-0 md:pt-0"
+      class="sidebar-hidden fixed left-0 top-0 z-30 flex h-full w-64 flex-col border-r border-slate-200 bg-white pt-14 md:translate-x-0 md:pt-0"
     >
-      <!-- Brand (visible on desktop inside sidebar) -->
-      <div class="hidden border-b border-slate-200 px-4 py-4 md:flex items-center">
-        <a href="/" class="font-semibold text-slate-900">ivyticketing</a>
+      <!-- Brand & Organization Context -->
+      <div class="border-b border-slate-200 px-4 py-3 bg-slate-50/50">
+        <div class="flex items-center justify-between mb-2">
+          <a href="/" class="flex items-center gap-2">
+            <span class="flex h-6 w-6 items-center justify-center rounded bg-orange-600 font-bold text-[11px] text-white tracking-wider">IVY</span>
+            <span class="font-bold text-slate-900 text-xs tracking-tight uppercase">RACE PLATFORM</span>
+          </a>
+          <span id="role-badge" class="rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-700">Organizer</span>
+        </div>
+
+        <!-- Org Switcher Select -->
+        <label for="org-switcher" class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Organisasi Aktif</label>
+        <select
+          id="org-switcher"
+          class="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-800 focus:border-orange-500 focus:outline-none shadow-2xs cursor-pointer"
+        >
+          {orgOptions.map((o) => (
+            <option value={o.id} selected={o.id === orgId}>{o.name}</option>
+          ))}
+        </select>
       </div>
 
-      <nav class="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
-        {navItems.map((item) => (
-          <a
-            href={item.href}
-            class={navClass(item.prefix)}
-            title={item.soon ? "Segera hadir" : undefined}
-            data-comingsoon={item.soon ? "true" : undefined}
-          >
-            {item.label}
-            {item.soon && (
-              <span class="ml-auto rounded bg-slate-200 px-1.5 py-0.5 text-xs text-slate-500">Segera</span>
-            )}
-          </a>
-        ))}
+      <!-- Active Event Context Switcher -->
+      <div class="border-b border-slate-200 bg-orange-50/40 px-4 py-3">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-orange-800">Event Terpilih</span>
+          <a href={`/org/${orgId}/events/new`} class="text-[10px] font-bold text-orange-600 hover:text-orange-700 hover:underline">+ Buat Baru</a>
+        </div>
+        <select
+          id="event-switcher"
+          class="w-full rounded-md border border-orange-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-800 focus:border-orange-500 focus:outline-none shadow-2xs cursor-pointer"
+        >
+          {eventOptions.map((e) => (
+            <option value={e.id} selected={e.id === activeEventId}>
+              {e.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
-        {eventNavItems.length > 0 && (
-          <>
-            <hr class="my-2 border-slate-200" />
-            {eventNavItems.map((item) => (
-              <a href={item.href} class={navClass(item.prefix)}>
-                {item.label}
-              </a>
-            ))}
-            {showRacepackSub && racepackSubItems.map((sub) => (
-              <a
-                href={sub.href}
-                class={"ml-4 " + navClass(sub.prefix)}
-              >
-                <span class="text-xs">↳ {sub.label}</span>
-              </a>
-            ))}
-          </>
+      <!-- Navigation Links (Categorized & Scrollable) -->
+      <nav class="custom-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3">
+
+        <!-- GRUP 1: OPERASIONAL LOMBA -->
+        <div class="pt-1 pb-1">
+          <p class="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Operasional Lomba</p>
+        </div>
+
+        <a href={`${eventBase}/participants`} class={navClass(`${eventBase}/participants`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/participants`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <span>Peserta & Atlet</span>
+        </a>
+
+        <a href={`${eventBase}/tickets`} class={navClass(`${eventBase}/tickets`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/tickets`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+          </svg>
+          <span>Tiket & BIB</span>
+        </a>
+
+        <a href={`${eventBase}/scanner`} class={navClass(`${eventBase}/scanner`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/scanner`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+          </svg>
+          <span>Race Day Scanner</span>
+        </a>
+
+        <a href={`${eventBase}/results`} class={navClass(`${eventBase}/results`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/results`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Hasil & Timing</span>
+        </a>
+
+        <a href={`${eventBase}/racepack-dashboard`} class={navClass(`${eventBase}/racepack-`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/racepack-`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+          <span>Racepack Pickup</span>
+        </a>
+
+        {showRacepackSub && (
+          <div class="ml-4 space-y-1 border-l-2 border-orange-200 pl-2">
+            <a href={`${eventBase}/racepack-dashboard`} class={navClass(`${eventBase}/racepack-dashboard`)}>
+              <span class="text-[11px]">Dashboard Pengambilan</span>
+            </a>
+            <a href={`${eventBase}/racepack-counters`} class={navClass(`${eventBase}/racepack-counters`)}>
+              <span class="text-[11px]">Counter Loket</span>
+            </a>
+            <a href={`${eventBase}/racepack-slots`} class={navClass(`${eventBase}/racepack-slots`)}>
+              <span class="text-[11px]">Slot Jadwal</span>
+            </a>
+            <a href={`${eventBase}/racepack-problem-desk`} class={navClass(`${eventBase}/racepack-problem-desk`)}>
+              <span class="text-[11px]">Problem Desk</span>
+            </a>
+          </div>
         )}
 
-        <!-- Divider -->
-        <hr class="my-2 border-slate-200" />
+        <!-- GRUP 2: KONFIGURASI EVENT -->
+        <div class="pt-3 pb-1 border-t border-slate-200/70 mt-2">
+          <p class="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Konfigurasi Event</p>
+        </div>
 
-        <button
-          id="sidebar-logout-btn"
-          class="flex items-center gap-2 rounded px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-        >
-          Keluar
-        </button>
+        <a href={eventBase} class={path === eventBase ? navClass(eventBase) : navClass(`${eventBase}#overview`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(eventBase)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+          </svg>
+          <span>Ringkasan Event</span>
+        </a>
+
+        <a href={`${eventBase}/categories`} class={navClass(`${eventBase}/categories`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/categories`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+          <span>Kategori & Kuota</span>
+        </a>
+
+        <a href={`${eventBase}/form`} class={navClass(`${eventBase}/form`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/form`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span>Formulir Atlet</span>
+        </a>
+
+        <a href={`${eventBase}/customize`} class={navClass(`${eventBase}/customize`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/customize`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4 5 5 0 015-5 4 4 0 014 4 5 5 0 01-5 5zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+          </svg>
+          <span>Kustomisasi Desain</span>
+        </a>
+
+        <a href={`${eventBase}/queue-controls`} class={navClass(`${eventBase}/queue-controls`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/queue-controls`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>Antrean War</span>
+        </a>
+
+        <a href={`${eventBase}/ballot`} class={navClass(`${eventBase}/ballot`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/ballot`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+          <span>Undian Ballot</span>
+        </a>
+
+        <a href={`${eventBase}/corporate`} class={navClass(`${eventBase}/corporate`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/corporate`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+          <span>Corporate & Klub</span>
+        </a>
+
+        <!-- GRUP 3: FINANSIAL & LAPORAN -->
+        <div class="pt-3 pb-1 border-t border-slate-200/70 mt-2">
+          <p class="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Finansial & Laporan</p>
+        </div>
+
+        <a href={`${eventBase}/reports`} class={navClass(`${eventBase}/reports`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/reports`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <span>Laporan & Ekspor CSV</span>
+        </a>
+
+        <a href={`${eventBase}/payments`} class={navClass(`${eventBase}/payments`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${eventBase}/payments`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+          <span>Kanal Pembayaran</span>
+        </a>
+
+        <!-- GRUP 4: KONSOL ORGANISASI -->
+        <div class="pt-3 pb-1 border-t border-slate-200/70 mt-2">
+          <p class="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Konsol Organisasi</p>
+        </div>
+
+        <a href={`${base}/dashboard`} class={navClass(`${base}/dashboard`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${base}/dashboard`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+          <span>Dashboard Organisasi</span>
+        </a>
+
+        <a href={`${base}/events`} class={navClass(`${base}/events`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${base}/events`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span>Semua Event</span>
+        </a>
+
+        <a href={`${base}/members`} class={navClass(`${base}/members`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${base}/members`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <span>Anggota Tim & RBAC</span>
+        </a>
+
+        <a href={`${base}/notifications`} class={navClass(`${base}/notifications`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${base}/notifications`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+          </svg>
+          <span>Siaran & Notifikasi</span>
+        </a>
+
+        <a href={`${base}/billing`} class={navClass(`${base}/billing`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${base}/billing`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <span>Tagihan & Payout</span>
+        </a>
+
+        <a href={`${base}/branding`} class={navClass(`${base}/branding`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${base}/branding`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+          </svg>
+          <span>Branding & Domain</span>
+        </a>
+
+        <a href={`${base}/enterprise`} class={navClass(`${base}/enterprise`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${base}/enterprise`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          </svg>
+          <span>API & Webhook</span>
+        </a>
+
+        <a href={`${base}/settings`} class={navClass(`${base}/settings`)}>
+          <svg class={`h-4 w-4 shrink-0 ${iconColor(`${base}/settings`)}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span>Pengaturan & Audit</span>
+        </a>
+
       </nav>
+
+      <!-- Sidebar Footer User Card -->
+      <div class="border-t border-slate-200 p-3 bg-slate-50/50">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 overflow-hidden">
+            <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-700">
+              OR
+            </div>
+            <div class="flex flex-col truncate">
+              <span id="user-display-name" class="text-xs font-semibold text-slate-900 truncate">Penyelenggara</span>
+              <span id="user-display-email" class="text-[10px] text-slate-500 truncate">organizer@ivyticketing.com</span>
+            </div>
+          </div>
+          <button
+            id="sidebar-logout-btn"
+            class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+            title="Keluar"
+            aria-label="Keluar dari Konsol"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </aside>
 
     <!-- Main content offset by sidebar on desktop -->
-    <div class="md:pl-56">
-      <main class="mx-auto max-w-4xl p-6"><slot /></main>
+    <div class="md:pl-64 flex flex-col min-h-screen">
+      <main class="flex-1 mx-auto w-full max-w-6xl px-4 py-6 sm:p-6"><slot /></main>
     </div>
 
     <script>
-      import { getToken, logout } from "../lib/auth";
+      import { getToken, logout, getMe } from "../lib/auth";
       if (!getToken()) window.location.href = "/login";
 
       async function doLogout() {
@@ -167,26 +409,118 @@ const showRacepackSub = path.startsWith(`${eventBase}/racepack-`);
       document.getElementById("logout-btn")?.addEventListener("click", doLogout);
       document.getElementById("sidebar-logout-btn")?.addEventListener("click", doLogout);
 
-      // Hamburger toggle
-      const toggle = document.getElementById("sidebar-toggle")!;
-      const sidebar = document.getElementById("org-sidebar")!;
-      const overlay = document.getElementById("sidebar-overlay")!;
+      // Load user profile details and enforce tenant boundaries
+      getMe().then((res) => {
+        if (res?.user) {
+          const nameEl = document.getElementById("user-display-name");
+          const emailEl = document.getElementById("user-display-email");
+          const badgeEl = document.getElementById("role-badge");
+          const adminLink = document.getElementById("admin-console-link");
+          const orgSelect = document.getElementById("org-switcher") as HTMLSelectElement;
+
+          if (nameEl) nameEl.textContent = res.user.fullName || "Penyelenggara";
+          if (emailEl) emailEl.textContent = res.user.email || "";
+
+          if (res.user.isPlatformAdmin) {
+            if (badgeEl) {
+              badgeEl.textContent = "Super Admin";
+              badgeEl.className = "rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-800 border border-amber-300";
+            }
+            if (adminLink) adminLink.style.display = "inline-flex";
+          } else {
+            if (badgeEl) {
+              badgeEl.textContent = "Organizer Lead";
+              badgeEl.className = "rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-sky-800 border border-sky-300";
+            }
+            if (adminLink) adminLink.style.display = "none";
+
+            // Tenant isolation: enforce that non-admin only sees and accesses their own organizations
+            const currentPathOrg = window.location.pathname.split("/")[2] || "";
+            const memberships = res.memberships || [];
+
+            if (memberships.length > 0) {
+              // Populate org-switcher only with organizations this user actually belongs to
+              if (orgSelect) {
+                orgSelect.innerHTML = memberships.map((m) => {
+                  const val = m.organizationSlug || m.organizationId;
+                  const label = m.organizationName || m.organizationSlug || m.organizationId;
+                  const isSelected = val === currentPathOrg || m.organizationId === currentPathOrg;
+                  return `<option value="${val}" ${isSelected ? "selected" : ""}>${label}</option>`;
+                }).join("");
+              }
+
+              // Guard: if current path is an org that user does not belong to, redirect to their first authorized org
+              const isAllowed = memberships.some(
+                (m) => m.organizationSlug === currentPathOrg || m.organizationId === currentPathOrg
+              );
+              if (currentPathOrg && !isAllowed) {
+                const target = memberships[0].organizationSlug || memberships[0].organizationId;
+                window.location.href = `/org/${target}/dashboard`;
+                return;
+              }
+            }
+          }
+        }
+      }).catch(() => {});
+
+      // Org Switcher handler
+      const orgSelect = document.getElementById("org-switcher") as HTMLSelectElement;
+      orgSelect?.addEventListener("change", (e) => {
+        const newOrg = (e.target as HTMLSelectElement).value;
+        if (newOrg) {
+          window.location.href = `/org/${newOrg}/dashboard`;
+        }
+      });
+
+      // Event Switcher handler
+      const eventSelect = document.getElementById("event-switcher") as HTMLSelectElement;
+      const currentOrg = orgSelect?.value || window.location.pathname.split("/")[2] || "ivy-sports";
+
+      // Save active event to localStorage
+      if (eventSelect?.value) {
+        try {
+          localStorage.setItem("ivy_active_event_id", eventSelect.value);
+        } catch {}
+      }
+
+      eventSelect?.addEventListener("change", (e) => {
+        const newEvent = (e.target as HTMLSelectElement).value;
+        if (newEvent) {
+          try {
+            localStorage.setItem("ivy_active_event_id", newEvent);
+          } catch {}
+          // Check if current page is an event sub-page (e.g. categories, participants, etc.)
+          const segments = window.location.pathname.split("/").filter(Boolean);
+          const eventsIdx = segments.findIndex((s) => s === "events");
+          if (eventsIdx !== -1 && segments.length > eventsIdx + 2) {
+            const subSection = segments.slice(eventsIdx + 2).join("/");
+            window.location.href = `/org/${currentOrg}/events/${newEvent}/${subSection}`;
+          } else {
+            window.location.href = `/org/${currentOrg}/events/${newEvent}`;
+          }
+        }
+      });
+
+      // Mobile Hamburger toggle
+      const toggle = document.getElementById("sidebar-toggle");
+      const sidebar = document.getElementById("org-sidebar");
+      const overlay = document.getElementById("sidebar-overlay");
 
       function openSidebar() {
-        sidebar.classList.remove("sidebar-hidden");
-        overlay.classList.remove("hidden");
-        toggle.setAttribute("aria-expanded", "true");
+        sidebar?.classList.remove("sidebar-hidden");
+        overlay?.classList.remove("hidden");
+        toggle?.setAttribute("aria-expanded", "true");
       }
       function closeSidebar() {
-        sidebar.classList.add("sidebar-hidden");
-        overlay.classList.add("hidden");
-        toggle.setAttribute("aria-expanded", "false");
+        sidebar?.classList.add("sidebar-hidden");
+        overlay?.classList.add("hidden");
+        toggle?.setAttribute("aria-expanded", "false");
       }
 
-      toggle.addEventListener("click", () => {
-        sidebar.classList.contains("sidebar-hidden") ? openSidebar() : closeSidebar();
+      toggle?.addEventListener("click", () => {
+        sidebar?.classList.contains("sidebar-hidden") ? openSidebar() : closeSidebar();
       });
-      overlay.addEventListener("click", closeSidebar);
+      overlay?.addEventListener("click", closeSidebar);
     </script>
   </body>
 </html>

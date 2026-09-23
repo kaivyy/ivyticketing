@@ -1,4 +1,5 @@
 import { authedFetch } from "./api";
+import { getApiBaseUrl } from "./auth";
 
 // --- types (mirror services/api/internal/modules/status/dto.go) ---
 
@@ -62,14 +63,11 @@ export const INCIDENT_STATUS_LABELS: Record<string, string> = {
   RESOLVED: "Selesai",
 };
 
-const API_URL =
-  (import.meta.env.PUBLIC_API_URL as string | undefined) ??
-  "http://localhost:8080";
-
 // --- public endpoints (no auth) ---
 
 export async function fetchPublicStatus(): Promise<StatusPage> {
-  const res = await fetch(`${API_URL}/api/v1/public/status`);
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/v1/public/status`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as StatusPage;
 }
@@ -78,8 +76,9 @@ export async function fetchPublicIncidents(
   limit = 20,
   offset = 0,
 ): Promise<Incident[]> {
+  const base = getApiBaseUrl();
   const res = await fetch(
-    `${API_URL}/api/v1/public/status/incidents?limit=${limit}&offset=${offset}`,
+    `${base}/api/v1/public/status/incidents?limit=${limit}&offset=${offset}`,
   );
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as Incident[];

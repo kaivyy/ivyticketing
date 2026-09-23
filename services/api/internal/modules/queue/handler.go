@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -12,9 +13,18 @@ import (
 	apperr "github.com/varin/ivyticketing/services/api/internal/platform/errors"
 )
 
-type Handler struct{ svc *Service }
+type RateLimiter interface {
+	Allow(ctx context.Context, key string, limit int, window time.Duration) (bool, error)
+}
+
+type Handler struct {
+	svc     *Service
+	limiter RateLimiter
+}
 
 func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
+
+func (h *Handler) WithRateLimiter(l RateLimiter) { h.limiter = l }
 
 func caller(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 	id, ok := authctx.FromContext(r.Context())
@@ -23,6 +33,22 @@ func caller(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 		return uuid.Nil, false
 	}
 	return id.UserID, true
+}
+
+func parseQueueOrgAndEvent(r *http.Request) (uuid.UUID, uuid.UUID, error) {
+	var orgID uuid.UUID
+	if oStr := chi.URLParam(r, "orgId"); oStr != "" {
+		parsed, err := uuid.Parse(oStr)
+		if err != nil {
+			return uuid.Nil, uuid.Nil, apperr.New(http.StatusBadRequest, "INVALID_ORG_ID", "invalid organization id")
+		}
+		orgID = parsed
+	}
+	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	if err != nil {
+		return uuid.Nil, uuid.Nil, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id")
+	}
+	return orgID, eventID, nil
 }
 
 func (h *Handler) Join(w http.ResponseWriter, r *http.Request) {
@@ -53,6 +79,14 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
 		return
 	}
+	if h.limiter != nil {
+		allowed, _ := h.limiter.Allow(r.Context(), "status:"+eventID.String()+":"+uid.String(), 5, time.Second)
+		if !allowed {
+			w.Header().Set("Retry-After", "1")
+			apperr.WriteError(w, r, apperr.New(http.StatusTooManyRequests, "TOO_MANY_REQUESTS", "too many status requests, please retry shortly"))
+			return
+		}
+	}
 	resp, err := h.svc.Status(r.Context(), eventID, uid)
 	if err != nil {
 		apperr.WriteError(w, r, err)
@@ -62,12 +96,12 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Pause(w http.ResponseWriter, r *http.Request) {
-	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	orgID, eventID, err := parseQueueOrgAndEvent(r)
 	if err != nil {
-		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		apperr.WriteError(w, r, err)
 		return
 	}
-	if err := h.svc.Pause(r.Context(), eventID); err != nil {
+	if err := h.svc.Pause(r.Context(), eventID, orgID); err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}
@@ -75,12 +109,12 @@ func (h *Handler) Pause(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Resume(w http.ResponseWriter, r *http.Request) {
-	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	orgID, eventID, err := parseQueueOrgAndEvent(r)
 	if err != nil {
-		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		apperr.WriteError(w, r, err)
 		return
 	}
-	if err := h.svc.Resume(r.Context(), eventID); err != nil {
+	if err := h.svc.Resume(r.Context(), eventID, orgID); err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}
@@ -88,9 +122,9 @@ func (h *Handler) Resume(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) SetRate(w http.ResponseWriter, r *http.Request) {
-	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	orgID, eventID, err := parseQueueOrgAndEvent(r)
 	if err != nil {
-		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		apperr.WriteError(w, r, err)
 		return
 	}
 	var req struct {
@@ -100,7 +134,7 @@ func (h *Handler) SetRate(w http.ResponseWriter, r *http.Request) {
 		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_BODY", "invalid request body"))
 		return
 	}
-	if err := h.svc.SetRate(r.Context(), eventID, req.Rate); err != nil {
+	if err := h.svc.SetRate(r.Context(), eventID, req.Rate, orgID); err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}
@@ -108,12 +142,12 @@ func (h *Handler) SetRate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) QueueStats(w http.ResponseWriter, r *http.Request) {
-	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	orgID, eventID, err := parseQueueOrgAndEvent(r)
 	if err != nil {
-		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		apperr.WriteError(w, r, err)
 		return
 	}
-	stats, err := h.svc.Stats(r.Context(), eventID)
+	stats, err := h.svc.Stats(r.Context(), eventID, orgID)
 	if err != nil {
 		apperr.WriteError(w, r, err)
 		return
@@ -122,9 +156,9 @@ func (h *Handler) QueueStats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) SetSchedule(w http.ResponseWriter, r *http.Request) {
-	eventID, err := uuid.Parse(chi.URLParam(r, "eventId"))
+	orgID, eventID, err := parseQueueOrgAndEvent(r)
 	if err != nil {
-		apperr.WriteError(w, r, apperr.New(http.StatusBadRequest, "INVALID_EVENT_ID", "invalid event id"))
+		apperr.WriteError(w, r, err)
 		return
 	}
 	var req struct {
@@ -153,7 +187,7 @@ func (h *Handler) SetSchedule(w http.ResponseWriter, r *http.Request) {
 		}
 		presaleOpen = &t
 	}
-	if err := h.svc.SetSchedule(r.Context(), eventID, req.Seed, saleStart, presaleOpen); err != nil {
+	if err := h.svc.SetSchedule(r.Context(), eventID, req.Seed, saleStart, presaleOpen, orgID); err != nil {
 		apperr.WriteError(w, r, err)
 		return
 	}

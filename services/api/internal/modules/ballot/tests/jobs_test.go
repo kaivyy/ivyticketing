@@ -34,6 +34,11 @@ func (r *jobRepo) UpdateBallotEntryStatus(_ context.Context, arg db.UpdateBallot
 	return db.BallotEntry{}, nil
 }
 
+func (r *jobRepo) ExpireBallotWinner(_ context.Context, id uuid.UUID) (db.BallotEntry, error) {
+	r.lapsed = append(r.lapsed, db.BallotEntry{ID: id, Status: ballot.StatusLapsed})
+	return db.BallotEntry{ID: id, Status: ballot.StatusLapsed}, nil
+}
+
 func (r *jobRepo) GetBallotDraw(_ context.Context, _ uuid.UUID) (db.BallotDraw, error) {
 	wlID := uuid.New()
 	return db.BallotDraw{WaitlistID: &wlID}, nil

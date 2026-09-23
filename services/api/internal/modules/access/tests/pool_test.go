@@ -51,7 +51,9 @@ func (r *fakeAccessRepo) GetActiveGrantForParticipant(_ context.Context, _ db.Ge
 	return r.grant, nil
 }
 func (r *fakeAccessRepo) ExpireGrant(_ context.Context, _ uuid.UUID) error { return nil }
-func (r *fakeAccessRepo) ConsumeGrant(_ context.Context, _ db.ConsumeGrantParams) error { return nil }
+func (r *fakeAccessRepo) ConsumeGrant(_ context.Context, _ db.ConsumeGrantParams) (db.AccessGrant, error) {
+	return db.AccessGrant{}, nil
+}
 func (r *fakeAccessRepo) ListExpiredActiveGrants(_ context.Context, _ int32) ([]db.AccessGrant, error) {
 	return nil, nil
 }
@@ -148,13 +150,17 @@ func TestCheckGrant_InvalidToken_ReturnsNotFound(t *testing.T) {
 
 func TestCheckGrant_ExpiredGrant_ReturnsExpired(t *testing.T) {
 	grantID := uuid.New()
+	pID := uuid.New()
+	cID := uuid.New()
 	repo := &fakeAccessRepo{grant: db.AccessGrant{
-		ID:        grantID,
-		Status:    access.GrantStatusActive,
-		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(-time.Hour), Valid: true},
+		ID:            grantID,
+		ParticipantID: pID,
+		CategoryID:    cID,
+		Status:        access.GrantStatusActive,
+		ExpiresAt:     pgtype.Timestamptz{Time: time.Now().Add(-time.Hour), Valid: true},
 	}}
 	pm := access.NewPoolManager(repo)
-	err := pm.CheckGrant(context.Background(), uuid.New(), uuid.New(), grantID.String())
+	err := pm.CheckGrant(context.Background(), pID, cID, grantID.String())
 	if !errors.Is(err, access.ErrGrantExpired) {
 		t.Fatalf("want ErrGrantExpired, got %v", err)
 	}
@@ -162,15 +168,63 @@ func TestCheckGrant_ExpiredGrant_ReturnsExpired(t *testing.T) {
 
 func TestCheckGrant_ActiveGrant_ReturnsNil(t *testing.T) {
 	grantID := uuid.New()
+	pID := uuid.New()
+	cID := uuid.New()
 	repo := &fakeAccessRepo{grant: db.AccessGrant{
-		ID:        grantID,
-		Status:    access.GrantStatusActive,
-		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
+		ID:            grantID,
+		ParticipantID: pID,
+		CategoryID:    cID,
+		Status:        access.GrantStatusActive,
+		ExpiresAt:     pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
 	}}
 	pm := access.NewPoolManager(repo)
-	err := pm.CheckGrant(context.Background(), uuid.New(), uuid.New(), grantID.String())
+	err := pm.CheckGrant(context.Background(), pID, cID, grantID.String())
 	if err != nil {
 		t.Fatalf("active grant should pass: %v", err)
+	}
+}
+
+func TestCheckGrant_IdentityMismatch_ReturnsNotFound(t *testing.T) {
+	grantID := uuid.New()
+	pID := uuid.New()
+	cID := uuid.New()
+	repo := &fakeAccessRepo{grant: db.AccessGrant{
+		ID:            grantID,
+		ParticipantID: pID,
+		CategoryID:    cID,
+		Status:        access.GrantStatusActive,
+		ExpiresAt:     pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
+	}}
+	pm := access.NewPoolManager(repo)
+
+	// User B trying User A's grant
+	err := pm.CheckGrant(context.Background(), uuid.New(), cID, grantID.String())
+	if !errors.Is(err, access.ErrGrantNotFound) {
+		t.Fatalf("want ErrGrantNotFound for participant mismatch, got %v", err)
+	}
+
+	// User A trying User A's grant on different category
+	err = pm.CheckGrant(context.Background(), pID, uuid.New(), grantID.String())
+	if !errors.Is(err, access.ErrGrantNotFound) {
+		t.Fatalf("want ErrGrantNotFound for category mismatch, got %v", err)
+	}
+}
+
+func TestCheckGrant_ConsumedGrant_ReturnsAlreadyConsumed(t *testing.T) {
+	grantID := uuid.New()
+	pID := uuid.New()
+	cID := uuid.New()
+	repo := &fakeAccessRepo{grant: db.AccessGrant{
+		ID:            grantID,
+		ParticipantID: pID,
+		CategoryID:    cID,
+		Status:        access.GrantStatusConsumed,
+		ExpiresAt:     pgtype.Timestamptz{Time: time.Now().Add(time.Hour), Valid: true},
+	}}
+	pm := access.NewPoolManager(repo)
+	err := pm.CheckGrant(context.Background(), pID, cID, grantID.String())
+	if !errors.Is(err, access.ErrGrantAlreadyConsumed) {
+		t.Fatalf("want ErrGrantAlreadyConsumed, got %v", err)
 	}
 }
 

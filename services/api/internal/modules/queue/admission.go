@@ -55,7 +55,10 @@ func (s *Service) ConsumeOnCheckout(ctx context.Context, participantID, eventID 
 	if err := s.repo.MarkCompleted(ctx, adm.TokenID); err != nil {
 		return err
 	}
-	_ = s.store.RemoveAllowed(ctx, eventID.String(), participantID.String())
+	if s.store != nil {
+		_ = s.store.RemoveAllowed(ctx, eventID.String(), participantID.String())
+		_ = s.store.InvalidateCachedStatus(ctx, eventID.String(), participantID.String())
+	}
 	return nil
 }
 

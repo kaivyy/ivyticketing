@@ -52,6 +52,14 @@ func (f *fakeRepo) GetCategoryByID(ctx context.Context, id uuid.UUID) (db.EventC
 func (f *fakeRepo) GetOrderByID(ctx context.Context, id uuid.UUID) (db.Order, error) {
 	return f.order, nil
 }
+func (f *fakeRepo) UpdateTicketParticipant(ctx context.Context, arg db.UpdateTicketParticipantParams) (db.Ticket, error) {
+	f.ticket.HolderName = arg.HolderName
+	f.ticket.HolderEmail = arg.HolderEmail
+	if len(arg.FormAnswers) > 0 {
+		f.ticket.FormAnswers = arg.FormAnswers
+	}
+	return f.ticket, nil
+}
 
 // BIB method stubs — minimal, mostly used by the existing service tests which don't exercise BIB.
 // Returns ErrNoRows so any accidental BIB-path use fails loudly rather than silently succeeding.
@@ -71,7 +79,7 @@ func (f *fakeRepo) ListUnassignedTicketsByEvent(ctx context.Context, eventID uui
 func TestGetTicketForUser_OwnershipMismatch_404(t *testing.T) {
 	owner := uuid.New()
 	other := uuid.New()
-	repo := &fakeRepo{ticket: db.Ticket{ID: uuid.New(), ParticipantID: owner}}
+	repo := &fakeRepo{ticket: db.Ticket{ID: uuid.New(), ParticipantID: &owner}}
 	svc := tickets.NewService(repo, tickets.NewQRSigner("secret"), nil)
 
 	_, err := svc.GetTicketForUser(context.Background(), repo, other, repo.ticket.ID)
@@ -91,7 +99,7 @@ func TestGetTicketForUser_NotFound_404(t *testing.T) {
 
 func TestGetInvoice_OrderNotPaid_Conflict(t *testing.T) {
 	uid := uuid.New()
-	repo := &fakeRepo{order: db.Order{ID: uuid.New(), ParticipantID: uid, Status: "PENDING_PAYMENT"}}
+	repo := &fakeRepo{order: db.Order{ID: uuid.New(), ParticipantID: &uid, Status: "PENDING_PAYMENT"}}
 	svc := tickets.NewService(repo, tickets.NewQRSigner("secret"), nil)
 	_, err := svc.GetInvoiceForUser(context.Background(), uid, repo.order.ID)
 	if !errors.Is(err, tickets.ErrInvoiceNotAvailable) {

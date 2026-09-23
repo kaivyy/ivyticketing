@@ -7,9 +7,12 @@ const { eventId, categoryId, drawId } = Astro.props;
   data-event-id={eventId}
   data-category-id={categoryId}
   data-draw-id={drawId ?? ""}
-  class="rounded-lg border border-slate-200 bg-white p-6"
+  class="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm"
 >
-  <p class="text-slate-500 text-center">Memuat status ballot…</p>
+  <div class="py-8 text-center">
+    <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900 mb-3"></div>
+    <p class="text-sm font-medium text-slate-500">Memeriksa status undian ballot...</p>
+  </div>
 </div>
 
 <script>
@@ -22,7 +25,7 @@ const { eventId, categoryId, drawId } = Astro.props;
 
   type BallotEntry = Awaited<ReturnType<typeof getMyBallotEntry>>;
 
-  // Live countdown ticker — returns a cleanup function
+  // Live countdown ticker: returns a cleanup function
   function startCountdown(
     isoDeadline: string,
     onTick: (label: string) => void,
@@ -55,23 +58,41 @@ const { eventId, categoryId, drawId } = Astro.props;
 
     if (!entry) {
       root.innerHTML = drawId
-        ? `<div class="text-center">
-            <p class="text-slate-500 text-sm mb-4">Kamu belum mendaftar ballot ini.</p>
-            <button id="btn-apply"
-              class="rounded bg-slate-900 px-4 py-2 text-white text-sm hover:bg-slate-700">
-              Daftar Ballot
-            </button>
+        ? `
+          <div class="text-center space-y-4 py-4">
+            <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-orange-50 text-orange-600 text-3xl font-black mb-1">
+              🎟️
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">Belum Terdaftar di Pool Undian</h3>
+              <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                Pendaftaran undian slot ini bebas biaya di awal. Pembayaran hanya dilakukan jika Anda terpilih sebagai pemenang.
+              </p>
+            </div>
+
+            <div>
+              <button id="btn-apply"
+                class="w-full sm:w-auto rounded-xl bg-orange-500 hover:bg-orange-400 px-8 py-3.5 text-xs font-bold uppercase tracking-wider text-slate-950 transition-colors shadow-md hover:shadow-lg">
+                Daftar Undian Kategori Ini
+              </button>
+            </div>
           </div>`
-        : `<p class="text-slate-500 text-center text-sm">Ballot belum tersedia.</p>`;
+        : `
+          <div class="text-center py-6">
+            <p class="text-sm font-medium text-slate-500">Periode ballot untuk kategori ini belum dibuka oleh penyelenggara.</p>
+          </div>`;
 
       document.getElementById("btn-apply")?.addEventListener("click", async () => {
+        const btn = document.getElementById("btn-apply") as HTMLButtonElement | null;
+        if (btn) { btn.disabled = true; btn.textContent = "Mendaftarkan..."; }
         try {
           await applyBallot(eventId, categoryId, drawId);
           await refresh();
         } catch (e: unknown) {
+          if (btn) { btn.disabled = false; btn.textContent = "Daftar Undian Kategori Ini"; }
           const errMsg = document.createElement("p");
-          errMsg.className = "text-red-600 text-sm mt-2";
-          errMsg.textContent = (e as Error).message;
+          errMsg.className = "text-red-600 text-xs font-medium mt-3 text-center";
+          errMsg.textContent = (e as Error).message || "Gagal mendaftar undian.";
           document.getElementById("btn-apply")?.insertAdjacentElement("afterend", errMsg);
         }
       });
@@ -79,110 +100,166 @@ const { eventId, categoryId, drawId } = Astro.props;
     }
 
     const statusLabel: Record<string, string> = {
-      APPLIED:      "Terdaftar — menunggu pengundian",
-      WINNER:       "Menang!",
-      WAITLISTED:   "Waitlist",
-      NOT_SELECTED: "Tidak terpilih",
-      CONVERTED:    "Pesanan dibuat",
-      WITHDRAWN:    "Ditarik",
+      APPLIED:      "Terdaftar: Menunggu Pengundian",
+      WINNER:       "Pemenang Terpilih!",
+      WAITLISTED:   "Dalam Antrean Waitlist",
+      NOT_SELECTED: "Belum Berhasil Terpilih",
+      CONVERTED:    "Slot Dikonversi ke Pesanan",
+      WITHDRAWN:    "Pendaftaran Ditarik",
     };
 
-    const badge = (status: string) =>
-      `<span class="inline-block rounded-full px-3 py-1 text-xs font-medium ${
-        status === "WINNER"       ? "bg-green-100 text-green-700" :
-        status === "WAITLISTED"   ? "bg-amber-100 text-amber-700" :
-        status === "NOT_SELECTED" ? "bg-red-100 text-red-600" :
-        "bg-slate-100 text-slate-600"
-      }">${statusLabel[status] ?? status}</span>`;
+    if (entry.status === "WINNER") {
+      const isExpired = entry.payment_deadline ? new Date(entry.payment_deadline).getTime() <= Date.now() : false;
+      const checkoutUrl = `/events/${eventId}/checkout?categoryId=${categoryId}&grantToken=${entry.access_grant_id}`;
 
-    let extra = "";
-    if (entry.status === "WINNER" && entry.payment_deadline) {
-      const deadlinePassed = new Date(entry.payment_deadline).getTime() <= Date.now();
-      if (deadlinePassed) {
-        extra = `
-          <p class="text-red-600 text-sm mt-2">Batas waktu pembayaran telah lewat.</p>`;
-      } else {
-        const checkoutUrl = `/events/${eventId}/checkout?categoryId=${categoryId}&grantToken=${entry.access_grant_id}`;
-        extra = `
-          <p class="text-sm text-amber-700 mt-2">
-            Batas waktu: <span id="ballot-countdown" class="font-medium"></span>
-          </p>
-          <a id="btn-checkout"
-            href="${checkoutUrl}"
-            class="mt-3 inline-block rounded bg-green-700 px-4 py-2 text-white text-sm hover:bg-green-600">
-            Lanjut Checkout
-          </a>`;
+      root.innerHTML = `
+        <div class="rounded-xl border-2 border-emerald-500 bg-emerald-50/50 p-6 md:p-8 text-center space-y-4">
+          <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-white text-3xl font-black">
+            🏆
+          </div>
+          <div>
+            <span class="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-800 mb-2">
+              Status: Pemenang Ballot
+            </span>
+            <h3 class="text-2xl font-black uppercase tracking-tight text-slate-900">
+              Selamat! Anda Terpilih!
+            </h3>
+            <p class="text-xs text-slate-600 mt-1 max-w-md mx-auto">
+              Slot lomba resmi Anda telah dialokasikan. Segera lakukan checkout sebelum batas waktu pembayaran berakhir.
+            </p>
+          </div>
+
+          ${entry.payment_deadline && !isExpired ? `
+            <div class="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-5 py-2.5 shadow-sm">
+              <span class="text-xs uppercase font-bold text-slate-500">Sisa Waktu Pembayaran:</span>
+              <span id="ballot-countdown" class="font-mono text-base font-bold text-orange-600">--:--</span>
+            </div>
+          ` : ""}
+
+          ${isExpired ? `
+            <div class="rounded-lg bg-red-50 border border-red-200 p-3 text-xs font-semibold text-red-700">
+              Batas waktu pembayaran telah lewat. Slot telah dialihkan ke peserta di daftar tunggu (waitlist).
+            </div>
+          ` : `
+            <div>
+              <a id="btn-checkout"
+                href="${checkoutUrl}"
+                class="inline-block w-full sm:w-auto rounded-xl bg-orange-500 hover:bg-orange-400 px-8 py-4 text-xs font-bold uppercase tracking-wider text-slate-950 transition-colors shadow-lg hover:shadow-orange-500/25">
+                Klaim Slot & Lanjut ke Checkout →
+              </a>
+            </div>
+          `}
+        </div>`;
+
+      if (entry.payment_deadline && !isExpired) {
+        const cdEl = document.getElementById("ballot-countdown");
+        const checkoutBtn = document.getElementById("btn-checkout") as HTMLAnchorElement | null;
+        countdownTimer = startCountdown(
+          entry.payment_deadline,
+          (label) => {
+            if (cdEl) cdEl.textContent = label;
+          },
+          () => {
+            if (checkoutBtn) {
+              checkoutBtn.removeAttribute("href");
+              checkoutBtn.className = "inline-block rounded-xl bg-slate-200 px-6 py-3 text-slate-400 text-xs font-bold cursor-not-allowed";
+              checkoutBtn.textContent = "Waktu Pembayaran Habis";
+            }
+            if (cdEl) {
+              cdEl.textContent = "Waktu Habis";
+              cdEl.className = "font-medium text-red-600";
+            }
+          }
+        );
       }
+      return;
     }
-    if (entry.status === "WAITLISTED" && entry.waitlist_rank != null) {
-      extra = `<p class="text-sm text-slate-500 mt-2">Posisi waitlist: #${entry.waitlist_rank}</p>`;
+
+    if (entry.status === "WAITLISTED") {
+      root.innerHTML = `
+        <div class="rounded-xl border border-amber-200 bg-amber-50/50 p-6 md:p-8 text-center space-y-4">
+          <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-800 text-2xl font-bold">
+            ⏳
+          </div>
+          <div>
+            <span class="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-800 mb-2">
+              Status: Daftar Tunggu (Waitlist)
+            </span>
+            <h3 class="text-xl font-bold uppercase text-slate-900">
+              Posisi Waitlist: #${entry.waitlist_rank ?? "1"}
+            </h3>
+            <p class="text-xs text-slate-600 mt-2 max-w-md mx-auto">
+              Slot pemenang yang tidak dibayar dalam jendela waktu akan otomatis dialokasikan secara berurutan ke peserta di waitlist.
+            </p>
+          </div>
+          <p class="text-[11px] text-slate-400">Harap periksa email dan status ini secara berkala.</p>
+        </div>`;
+      return;
     }
+
     if (entry.status === "APPLIED") {
-      extra = `
-        <button id="btn-withdraw" class="mt-3 text-xs text-red-500 underline">
-          Tarik pendaftaran
-        </button>`;
-    }
+      root.innerHTML = `
+        <div class="rounded-xl border border-slate-200 bg-slate-50/50 p-6 md:p-8 text-center space-y-4">
+          <div class="inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white text-2xl font-bold">
+            📋
+          </div>
+          <div>
+            <span class="inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-800 mb-2">
+              Terdaftar di Pool Undian
+            </span>
+            <h3 class="text-xl font-bold uppercase text-slate-900">
+              Menunggu Pelaksanaan Undian
+            </h3>
+            <p class="text-xs text-slate-600 mt-2 max-w-md mx-auto">
+              Data pendaftaran Anda telah tercatat dengan aman. Pengundian acak akan dilakukan oleh panitia secara terverifikasi.
+            </p>
+          </div>
 
-    root.innerHTML = `<div class="text-center">${badge(entry.status)}${extra}</div>`;
+          <div class="pt-2">
+            <button id="btn-withdraw" class="text-xs font-semibold text-red-600 hover:text-red-700 underline">
+              Tarik Pendaftaran Undian
+            </button>
+          </div>
+        </div>`;
 
-    // Start live countdown for WINNER with active deadline
-    if (
-      entry.status === "WINNER" &&
-      entry.payment_deadline &&
-      new Date(entry.payment_deadline).getTime() > Date.now()
-    ) {
-      const countdownEl = document.getElementById("ballot-countdown");
-      const checkoutBtn = document.getElementById("btn-checkout") as HTMLAnchorElement | null;
-      countdownTimer = startCountdown(
-        entry.payment_deadline,
-        (label) => {
-          if (countdownEl) countdownEl.textContent = label;
-        },
-        () => {
-          // Deadline passed: disable CTA, show expired message
-          if (checkoutBtn) {
-            checkoutBtn.removeAttribute("href");
-            checkoutBtn.className = "mt-3 inline-block rounded bg-slate-300 px-4 py-2 text-slate-500 text-sm cursor-not-allowed";
-            checkoutBtn.textContent = "Waktu habis";
-          }
-          if (countdownEl) {
-            countdownEl.textContent = "Waktu habis";
-            countdownEl.className = "font-medium text-red-600";
-          }
-          const parent = countdownEl?.closest(".text-center");
-          if (parent) {
-            const msg = document.createElement("p");
-            msg.className = "text-red-600 text-sm mt-2";
-            msg.textContent = "Batas waktu pembayaran telah lewat.";
-            parent.appendChild(msg);
-          }
+      document.getElementById("btn-withdraw")?.addEventListener("click", async () => {
+        if (!confirm("Apakah Anda yakin ingin membatalkan keikutsertaan dalam undian ballot ini?")) return;
+        try {
+          await withdrawBallot(eventId, categoryId);
+          await refresh();
+        } catch (e: unknown) {
+          const existing = root.querySelector("#withdraw-error");
+          if (existing) existing.remove();
+          const errEl = document.createElement("p");
+          errEl.id = "withdraw-error";
+          errEl.className = "text-red-600 text-xs font-medium mt-2 text-center";
+          errEl.textContent = (e as Error).message || "Gagal membatalkan pendaftaran.";
+          root.querySelector(".text-center")?.appendChild(errEl);
         }
-      );
+      });
+      return;
     }
 
-    document.getElementById("btn-withdraw")?.addEventListener("click", async () => {
-      if (!confirm("Tarik pendaftaran ballot ini?")) return;
-      try {
-        await withdrawBallot(eventId, categoryId);
-        await refresh();
-      } catch (e: unknown) {
-        const existing = root.querySelector("#withdraw-error");
-        if (existing) existing.remove();
-        const errEl = document.createElement("p");
-        errEl.id = "withdraw-error";
-        errEl.className = "text-red-600 text-sm mt-2 text-center";
-        errEl.textContent = (e as Error).message;
-        root.querySelector(".text-center")?.appendChild(errEl);
-      }
-    });
+    // Other statuses: NOT_SELECTED, CONVERTED, WITHDRAWN
+    root.innerHTML = `
+      <div class="text-center py-6 space-y-3">
+        <span class="inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase text-slate-600">
+          ${statusLabel[entry.status] ?? entry.status}
+        </span>
+        <p class="text-xs text-slate-500">
+          ${entry.status === "NOT_SELECTED" ? "Terima kasih atas antusiasme Anda. Alokasi slot untuk undian kali ini telah terpenuhi." : "Status pendaftaran Anda saat ini telah ditutup."}
+        </p>
+      </div>`;
   }
 
   async function refresh() {
     try {
       render(await getMyBallotEntry(eventId, categoryId));
     } catch {
-      root.innerHTML = `<p class="text-xs text-red-500 text-center">Gagal memuat status ballot.</p>`;
+      root.innerHTML = `
+        <div class="text-center py-6">
+          <p class="text-xs font-medium text-red-500">Gagal memuat status ballot. Silakan muat ulang halaman.</p>
+        </div>`;
     }
   }
 

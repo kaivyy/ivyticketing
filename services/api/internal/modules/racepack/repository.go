@@ -213,7 +213,11 @@ func (r *sqlcRepo) GetTicketStatus(ctx context.Context, ticketID uuid.UUID) (str
 	if t.BibNumber.Valid {
 		bib = t.BibNumber.String
 	}
-	return t.Status, t.EventID, t.ParticipantID, bib, true, nil
+	var pid uuid.UUID
+	if t.ParticipantID != nil {
+		pid = *t.ParticipantID
+	}
+	return t.Status, t.EventID, pid, bib, true, nil
 }
 
 func (r *sqlcRepo) GetOrderStatusForTicket(ctx context.Context, ticketID uuid.UUID) (string, error) {

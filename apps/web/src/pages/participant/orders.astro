@@ -19,7 +19,7 @@ import ParticipantLayout from "../../layouts/ParticipantLayout.astro";
           year: "numeric",
         });
       } catch {
-        return "—";
+        return "-";
       }
     }
 
@@ -79,11 +79,11 @@ import ParticipantLayout from "../../layouts/ParticipantLayout.astro";
             meta.className = "flex items-center justify-between text-sm text-slate-500";
 
             const date = document.createElement("span");
-            date.textContent = o.createdAt ? formatDate(o.createdAt) : "—";
+            date.textContent = o.createdAt ? formatDate(o.createdAt) : "-";
 
             const total = document.createElement("span");
             total.className = "font-medium text-slate-700";
-            total.textContent = typeof o.total === "number" ? formatRupiah(o.total) : "—";
+            total.textContent = typeof o.total === "number" ? formatRupiah(o.total) : "-";
 
             meta.append(date, total);
 

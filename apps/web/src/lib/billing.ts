@@ -183,3 +183,78 @@ export function adminMarkInvoicePaid(invoiceId: string): Promise<Invoice> {
     method: "POST",
   });
 }
+
+// --- payouts & balance ---
+
+export interface PayoutAccount {
+  id: string;
+  organizationId: string;
+  bankName: string;
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+  isVerified: boolean;
+  createdAt: string;
+}
+
+export interface PayoutRequest {
+  id: string;
+  organizationId: string;
+  eventId?: string;
+  payoutAccountId?: string;
+  amount: number;
+  currency: string;
+  status: string;
+  notes?: string;
+  rejectionReason?: string;
+  requestedBy: string;
+  processedAt?: string;
+  createdAt: string;
+}
+
+export interface OrgBalance {
+  grossOrders: number;
+  totalFees: number;
+  totalRefunded: number;
+  totalPaidPayouts: number;
+  availableBalance: number;
+  currency: string;
+}
+
+export function getOrgBalance(orgId: string): Promise<OrgBalance> {
+  return authedFetch<OrgBalance>(`${orgBase(orgId)}/balance`);
+}
+
+export function listPayoutAccounts(orgId: string): Promise<PayoutAccount[]> {
+  return authedFetch<PayoutAccount[]>(`${orgBase(orgId)}/payout-accounts`);
+}
+
+export function createPayoutAccount(
+  orgId: string,
+  body: { bankName: string; bankCode?: string; accountNumber: string; accountName: string }
+): Promise<PayoutAccount> {
+  return authedFetch<PayoutAccount>(`${orgBase(orgId)}/payout-accounts`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function deletePayoutAccount(orgId: string, accountId: string): Promise<void> {
+  return authedFetch<void>(`${orgBase(orgId)}/payout-accounts/${accountId}`, {
+    method: "DELETE",
+  });
+}
+
+export function listPayoutRequests(orgId: string): Promise<PayoutRequest[]> {
+  return authedFetch<PayoutRequest[]>(`${orgBase(orgId)}/payouts`);
+}
+
+export function createPayoutRequest(
+  orgId: string,
+  body: { amount: number; eventId?: string; payoutAccountId?: string; notes?: string }
+): Promise<PayoutRequest> {
+  return authedFetch<PayoutRequest>(`${orgBase(orgId)}/payouts`, {
+    method: "POST",
+    body,
+  });
+}

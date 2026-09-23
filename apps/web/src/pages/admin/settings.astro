@@ -1,0 +1,1311 @@
+---
+export const prerender = false;
+import AdminLayout from "../../layouts/AdminLayout.astro";
+---
+
+<AdminLayout title="Pengaturan Website Utama & Desain Platform : ivyticketing">
+  <!-- Top Bar / Breadcrumb Header -->
+  <div class="border-b border-slate-800 bg-slate-900/60 px-4 py-3 sm:px-6">
+    <div class="mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3 max-w-7xl">
+      <div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <h1 class="text-sm sm:text-base font-bold uppercase tracking-wider text-white">
+            Pengaturan Website Utama & Desain Platform
+          </h1>
+          <span class="rounded bg-orange-950 px-2 py-0.5 text-[10px] font-bold uppercase text-orange-400 border border-orange-500/30">
+            Khusus Superadmin Platform
+          </span>
+        </div>
+        <p class="text-xs text-slate-400 mt-0.5 hidden sm:block">
+          Kelola identitas brand, bentuk & gaya navbar (Liquid Glass / Full Width / Floating), transparansi, navigasi mobile, tema warna website, serta carousel slider hero.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <a
+          href="/"
+          target="_blank"
+          class="min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+        >
+          <svg class="h-4 w-4 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          <span>Lihat Web Publik</span>
+        </a>
+
+        <button
+          type="button"
+          id="btn-reset-homepage"
+          class="min-h-[44px] rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-semibold text-slate-400 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+        >
+          Reset Default
+        </button>
+
+        <button
+          type="button"
+          id="btn-save-homepage"
+          class="min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-xl bg-orange-600 px-5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-orange-500 shadow-md shadow-orange-600/30 transition-colors cursor-pointer"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>Simpan Pengaturan</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Navigation Tabs: Pemisahan Jelas Event vs Website Utama -->
+  <div class="border-b border-slate-800 bg-slate-950 px-4 py-2 sm:px-6">
+    <div class="mx-auto flex items-center justify-between gap-4 max-w-7xl">
+      <div class="flex items-center gap-2 overflow-x-auto py-0.5">
+        <a
+          href="/admin/events"
+          class="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+        >
+          <svg class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span>Kelola Event & Template</span>
+        </a>
+
+        <a
+          href="/admin/settings"
+          class="flex items-center gap-2 rounded-lg bg-orange-500/20 border border-orange-500/40 px-3 py-1.5 text-xs font-bold text-orange-400"
+        >
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span>Pengaturan Website Utama</span>
+        </a>
+      </div>
+
+      <div class="hidden sm:flex items-center gap-2 text-[11px] text-slate-400">
+        <span>Peran:</span>
+        <span class="font-bold text-orange-400">Superadmin Platform</span>
+      </div>
+    </div>
+  </div>
+
+  <main class="mx-auto max-w-7xl p-4 sm:p-6 space-y-6">
+    <!-- Toast Notification -->
+    <div id="toast-msg" class="hidden rounded-xl border border-emerald-500/40 bg-emerald-950/90 p-4 text-emerald-300 text-xs font-semibold shadow-lg backdrop-blur transition-all">
+      Perubahan pengaturan website utama berhasil disimpan ke server!
+    </div>
+
+    <!-- Info Box: Pemisahan 3 Peran Pengguna (Admin, Organizer, Peserta) -->
+    <div class="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4 sm:p-5 space-y-3">
+      <div class="flex items-center gap-2">
+        <span class="flex h-2 w-2 rounded-full bg-sky-400"></span>
+        <h2 class="text-xs sm:text-sm font-bold uppercase tracking-wider text-sky-300">
+          Struktur Arsitektur & Pemisahan Peran Pengguna
+        </h2>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-xs">
+        <div class="rounded-xl border border-sky-900/60 bg-sky-950/40 p-3.5 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white uppercase tracking-wider">1. Platform Admin</span>
+            <span class="rounded bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-bold text-sky-400 uppercase">Halaman Ini</span>
+          </div>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            Mengontrol website utama publik (/), branding platform, gaya navbar, tema global, katalog template, dan sistem antrean war secara menyeluruh.
+          </p>
+        </div>
+
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-3.5 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white uppercase tracking-wider">2. Penyelenggara (Organizer)</span>
+            <a href="/org/ivy-sports/dashboard" class="text-[10px] font-bold text-orange-400 hover:underline uppercase">Buka Portal &rarr;</a>
+          </div>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            Hanya mengelola event mereka sendiri: memilih template lomba (Ironman/Marathon), mengatur kategori tiket, formulir pelari, dan loket racepack pickup.
+          </p>
+        </div>
+
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-3.5 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white uppercase tracking-wider">3. Peserta (Pelari / Pembeli)</span>
+            <a href="/participant/dashboard" class="text-[10px] font-bold text-emerald-400 hover:underline uppercase">Buka Portal &rarr;</a>
+          </div>
+          <p class="text-slate-400 text-[11px] leading-relaxed">
+            Mendaftar lomba di beranda, masuk ruang tunggu antrean (FIFO/Acak), membayar tiket, dan melihat nomor BIB, QR code tiket, serta sertifikat finisher.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Studio Pengaturan Website Utama -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Kolom Kiri: Brand, Navbar & Tema Global -->
+      <div class="lg:col-span-6 space-y-6">
+        <!-- A. Mode Tampilan Brand / Logo -->
+        <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-orange-400">
+              A. Mode Tampilan Brand & Logo Header
+            </h3>
+            <span class="text-[10px] text-slate-400">Pilih gaya header</span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
+            <label for="brand-mode-icon" class="relative flex flex-col items-center justify-center p-3 rounded-xl border border-slate-700 bg-slate-900 cursor-pointer hover:border-orange-500 transition-colors has-[:checked]:border-orange-500 has-[:checked]:bg-orange-950/30 text-center">
+              <input type="radio" name="brand-display-mode" value="icon_only" id="brand-mode-icon" class="sr-only" />
+              <span class="pointer-events-none text-xs sm:text-sm font-bold text-white">Hanya Icon</span>
+              <span class="pointer-events-none text-[10px] text-slate-400 mt-0.5">Icon IVY tanpa teks (Default)</span>
+            </label>
+
+            <label for="brand-mode-text" class="relative flex flex-col items-center justify-center p-3 rounded-xl border border-slate-700 bg-slate-900 cursor-pointer hover:border-orange-500 transition-colors has-[:checked]:border-orange-500 has-[:checked]:bg-orange-950/30 text-center">
+              <input type="radio" name="brand-display-mode" value="text_only" id="brand-mode-text" class="sr-only" />
+              <span class="pointer-events-none text-xs sm:text-sm font-bold text-white">Hanya Teks</span>
+              <span class="pointer-events-none text-[10px] text-slate-400 mt-0.5">Hanya nama brand</span>
+            </label>
+
+            <label for="brand-mode-both" class="relative flex flex-col items-center justify-center p-3 rounded-xl border border-slate-700 bg-slate-900 cursor-pointer hover:border-orange-500 transition-colors has-[:checked]:border-orange-500 has-[:checked]:bg-orange-950/30 text-center">
+              <input type="radio" name="brand-display-mode" value="both" id="brand-mode-both" class="sr-only" />
+              <span class="pointer-events-none text-xs sm:text-sm font-bold text-white">Icon + Teks</span>
+              <span class="pointer-events-none text-[10px] text-slate-400 mt-0.5">Kombinasi lengkap</span>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <div>
+              <label for="hp-brand-name" class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Nama Brand Platform</label>
+              <input
+                type="text"
+                id="hp-brand-name"
+                class="mt-1 min-h-[44px] w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none"
+                value="IvyTicketing"
+              />
+            </div>
+            <div>
+              <label for="hp-brand-tagline" class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Tagline Platform</label>
+              <input
+                type="text"
+                id="hp-brand-tagline"
+                class="mt-1 min-h-[44px] w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none"
+                value="Sports Registration Engine"
+              />
+            </div>
+          </div>
+
+          <!-- Live Brand Preview Box -->
+          <div class="rounded-lg border border-slate-800 bg-[#0a1120] p-3 flex items-center justify-between">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pratinjau Brand Header:</span>
+            <div id="hp-brand-preview" class="flex items-center gap-3 p-1.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <img id="hp-preview-icon" src="/images/ivy-icon.svg" alt="IVY" class="h-8 w-8 shrink-0" />
+              <div id="hp-preview-text" class="hidden flex-col">
+                <span id="hp-preview-title" class="font-display text-lg font-bold text-white uppercase leading-none">Ivy<span class="text-orange-500">Ticketing</span></span>
+                <span id="hp-preview-tag" class="text-[9px] font-semibold text-slate-400 uppercase tracking-wider">Sports Registration Engine</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- B. Bentuk, Gaya & Efek Navbar -->
+        <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-orange-400">
+              B. Bentuk & Efek Desain Navbar (Website Utama)
+            </h3>
+            <span class="text-[10px] text-slate-400">Liquid Glass / Full Width / Floating</span>
+          </div>
+
+          <!-- Pilihan Bentuk Navbar -->
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Bentuk & Gaya Navbar</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              <label for="hp-navbar-style-transparent" class="relative flex flex-col p-3 rounded-xl border border-slate-700 bg-slate-900 cursor-pointer hover:border-orange-500 transition-colors has-[:checked]:border-orange-500 has-[:checked]:bg-orange-950/30 text-center">
+                <input type="radio" name="hp-navbar-style" id="hp-navbar-style-transparent" value="transparent_gradient" class="sr-only" />
+                <span class="pointer-events-none text-xs font-bold text-white">Transparan Gradasi</span>
+                <span class="pointer-events-none text-[10px] text-slate-400 mt-0.5">Model Ironman Triathlon (Transparan di atas, blur saat scroll)</span>
+              </label>
+
+              <label for="hp-navbar-style-liquid" class="relative flex flex-col p-3 rounded-xl border border-slate-700 bg-slate-900 cursor-pointer hover:border-orange-500 transition-colors has-[:checked]:border-orange-500 has-[:checked]:bg-orange-950/30 text-center">
+                <input type="radio" name="hp-navbar-style" id="hp-navbar-style-liquid" value="liquid_glass" class="sr-only" />
+                <span class="pointer-events-none text-xs font-bold text-white">Liquid Glass Pill</span>
+                <span class="pointer-events-none text-[10px] text-slate-400 mt-0.5">Floating 720x72px (Vanta Refraction)</span>
+              </label>
+
+              <label for="hp-navbar-style-full" class="relative flex flex-col p-3 rounded-xl border border-slate-700 bg-slate-900 cursor-pointer hover:border-orange-500 transition-colors has-[:checked]:border-orange-500 has-[:checked]:bg-orange-950/30 text-center">
+                <input type="radio" name="hp-navbar-style" id="hp-navbar-style-full" value="full_width" checked class="sr-only" />
+                <span class="pointer-events-none text-xs font-bold text-white">Full-Width Bar</span>
+                <span class="pointer-events-none text-[10px] text-slate-400 mt-0.5">Bar Modern Tepi-ke-Tepi</span>
+              </label>
+
+              <label for="hp-navbar-style-compact" class="relative flex flex-col p-3 rounded-xl border border-slate-700 bg-slate-900 cursor-pointer hover:border-orange-500 transition-colors has-[:checked]:border-orange-500 has-[:checked]:bg-orange-950/30 text-center">
+                <input type="radio" name="hp-navbar-style" id="hp-navbar-style-compact" value="floating_compact" class="sr-only" />
+                <span class="pointer-events-none text-xs font-bold text-white">Floating Compact</span>
+                <span class="pointer-events-none text-[10px] text-slate-400 mt-0.5">Melayang Melengkung 5XL</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Pilihan Tipe Navigasi Khusus Layar Mobile -->
+          <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">
+                Navigasi Khusus Mobile
+              </label>
+              <span class="text-[10px] text-orange-400 font-bold uppercase">Bisa Diatur Admin</span>
+            </div>
+            <p class="text-[11px] text-slate-400">
+              Pilih model navigasi saat pengunjung membuka website lewat smartphone atau tablet kecil.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <label for="hp-mobnav-bottom" class="relative flex flex-col p-3 rounded-xl border border-slate-700 bg-slate-900 cursor-pointer hover:border-orange-500 transition-colors has-[:checked]:border-orange-500 has-[:checked]:bg-orange-950/30">
+                <input type="radio" name="hp-mobile-nav-type" id="hp-mobnav-bottom" value="bottom_nav" checked class="sr-only" />
+                <div class="flex items-center justify-between">
+                  <span class="pointer-events-none text-xs font-bold text-white">Mobile Bottom Navbar</span>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 font-bold uppercase">Default</span>
+                </div>
+                <span class="pointer-events-none text-[10px] text-slate-400 mt-1">4 tab navigasi di bagian bawah layar, ramah satu jempol (Beranda, Event, War, Akun)</span>
+              </label>
+
+              <label for="hp-mobnav-top" class="relative flex flex-col p-3 rounded-xl border border-slate-700 bg-slate-900 cursor-pointer hover:border-orange-500 transition-colors has-[:checked]:border-orange-500 has-[:checked]:bg-orange-950/30">
+                <input type="radio" name="hp-mobile-nav-type" id="hp-mobnav-top" value="top_bar" class="sr-only" />
+                <div class="flex items-center justify-between">
+                  <span class="pointer-events-none text-xs font-bold text-white">Top Navbar Klasik</span>
+                </div>
+                <span class="pointer-events-none text-[10px] text-slate-400 mt-1">Tombol menu hamburger di kanan atas dengan menu drawer drop-down</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Panel Parameter Khusus Liquid Glass -->
+          <div id="liquid-glass-params" class="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
+              <span class="text-[11px] font-bold text-orange-400 uppercase tracking-wider">Parameter Material Liquid Glass</span>
+              <span class="text-[10px] text-slate-500 font-mono">Refraction & Rim</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <div class="flex items-center justify-between text-xs">
+                  <label for="hp-glass-blur" class="text-[11px] font-semibold text-slate-300">Glass Blur</label>
+                  <span id="hp-glass-blur-val" class="font-mono text-[11px] font-bold text-orange-400">0px</span>
+                </div>
+                <input
+                  type="range"
+                  id="hp-glass-blur"
+                  min="0"
+                  max="24"
+                  step="1"
+                  value="0"
+                  class="mt-1 w-full accent-orange-500 cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between text-xs">
+                  <label for="hp-glass-saturate" class="text-[11px] font-semibold text-slate-300">Saturate</label>
+                  <span id="hp-glass-saturate-val" class="font-mono text-[11px] font-bold text-orange-400">1.0x</span>
+                </div>
+                <input
+                  type="range"
+                  id="hp-glass-saturate"
+                  min="0.5"
+                  max="2.0"
+                  step="0.1"
+                  value="1.0"
+                  class="mt-1 w-full accent-orange-500 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label for="hp-glass-tint" class="block text-[11px] font-semibold text-slate-300">Glass Tint (RGBA / Hex)</label>
+                <input
+                  type="text"
+                  id="hp-glass-tint"
+                  value="rgba(255, 255, 255, 0.255)"
+                  class="mt-1 min-h-[44px] w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white font-mono"
+                />
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between text-xs">
+                  <label for="hp-glass-radius" class="text-[11px] font-semibold text-slate-300">Border Radius</label>
+                  <span id="hp-glass-radius-val" class="font-mono text-[11px] font-bold text-orange-400">48px</span>
+                </div>
+                <input
+                  type="range"
+                  id="hp-glass-radius"
+                  min="12"
+                  max="60"
+                  step="2"
+                  value="48"
+                  class="mt-2 w-full accent-orange-500 cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Standard Opacity & Blur Controls -->
+          <div>
+            <div class="flex items-center justify-between text-xs">
+              <label for="hp-navbar-opacity" class="font-semibold text-slate-300">Tingkat Transparansi (Opacity)</label>
+              <span id="hp-opacity-label" class="font-mono font-bold text-orange-400">92%</span>
+            </div>
+            <input
+              type="range"
+              id="hp-navbar-opacity"
+              min="0.10"
+              max="1.00"
+              step="0.02"
+              value="0.92"
+              class="mt-2 w-full accent-orange-500 cursor-pointer"
+            />
+            <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+              <span>Transparan (10%)</span>
+              <span>Semi-Glass (50%)</span>
+              <span>Solid (100%)</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div>
+              <label for="hp-navbar-blur" class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Efek Backdrop Blur Fallback</label>
+              <select
+                id="hp-navbar-blur"
+                class="mt-1 min-h-[44px] w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
+              >
+                <option value="none">Tanpa Blur (none)</option>
+                <option value="sm">Blur Ringan (sm : 4px)</option>
+                <option value="md" selected>Blur Sedang (md : 12px)</option>
+                <option value="lg">Blur Tebal (lg : 20px)</option>
+              </select>
+            </div>
+
+            <div class="flex flex-col justify-end">
+              <label class="flex items-center gap-2 min-h-[44px] p-2 rounded-lg border border-slate-700 bg-slate-900 cursor-pointer hover:border-slate-500">
+                <input type="checkbox" id="hp-navbar-border" checked class="rounded accent-orange-500" />
+                <span class="text-xs text-slate-300 font-semibold">Tampilkan Garis Tepi Bawah</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Navbar Preview Strip -->
+          <div class="relative rounded-xl overflow-hidden border border-slate-800 h-28 flex items-center justify-center p-3" style="background-image: url('/images/events/bangkok_marathon.jpg'); background-size: cover; background-position: center;">
+            <div id="hp-navbar-sim" class="transition-all flex items-center justify-between px-4 py-2 border shadow-lg" style="background-color: rgba(255, 255, 255, 0.255); backdrop-filter: blur(0px) saturate(1); border-radius: 48px; border-color: rgba(255, 255, 255, 0.128); max-width: 480px; width: 100%;">
+              <div class="flex items-center gap-2">
+                <img src="/images/ivy-icon.svg" class="h-6 w-6" alt="IVY" />
+                <span id="hp-sim-title" class="text-xs font-bold text-white uppercase font-display">Simulasi Liquid Glass</span>
+              </div>
+              <span class="text-[10px] rounded-full bg-orange-500 px-3 py-1 text-slate-950 font-bold uppercase">Daftar</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- C. Gaya Sudut & Radius Elemen (Kotak Tegas / Rounded / Pill) -->
+        <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-orange-400">
+                C. Gaya Sudut & Radius Elemen
+              </h3>
+              <p class="text-[11px] text-slate-400 mt-0.5">
+                Tentukan kelengkungan sudut (border-radius) untuk kartu event, tombol aksi, dan badge di seluruh platform.
+              </p>
+            </div>
+            <span class="text-[10px] text-slate-400">Kotak / Rounded / Pill</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <label for="corner-square" class="relative flex flex-col p-3 rounded-xl border border-slate-700 bg-slate-900 cursor-pointer hover:border-orange-500 transition-colors has-[:checked]:border-orange-500 has-[:checked]:bg-orange-950/30 text-center">
+              <input type="radio" name="hp-corner-style" id="corner-square" value="square" checked class="sr-only" />
+              <span class="pointer-events-none text-xs font-bold text-white">Kotak Tegas (0px)</span>
+              <span class="pointer-events-none text-[10px] text-slate-400 mt-0.5">Brutalist athletic sharp corners</span>
+              <div class="mt-2 h-6 w-full border border-orange-500/40 bg-orange-500/10 flex items-center justify-center text-[9px] font-mono text-orange-300">
+                radius: 0px
+              </div>
+            </label>
+
+            <label for="corner-rounded" class="relative flex flex-col p-3 rounded-xl border border-slate-700 bg-slate-900 cursor-pointer hover:border-orange-500 transition-colors has-[:checked]:border-orange-500 has-[:checked]:bg-orange-950/30 text-center">
+              <input type="radio" name="hp-corner-style" id="corner-rounded" value="rounded" class="sr-only" />
+              <span class="pointer-events-none text-xs font-bold text-white">Modern Rounded</span>
+              <span class="pointer-events-none text-[10px] text-slate-400 mt-0.5">Kelengkungan halus (12-16px)</span>
+              <div class="mt-2 h-6 w-full rounded-xl border border-orange-500/40 bg-orange-500/10 flex items-center justify-center text-[9px] font-mono text-orange-300">
+                radius: 12px
+              </div>
+            </label>
+
+            <label for="corner-pill" class="relative flex flex-col p-3 rounded-xl border border-slate-700 bg-slate-900 cursor-pointer hover:border-orange-500 transition-colors has-[:checked]:border-orange-500 has-[:checked]:bg-orange-950/30 text-center">
+              <input type="radio" name="hp-corner-style" id="corner-pill" value="pill" class="sr-only" />
+              <span class="pointer-events-none text-xs font-bold text-white">Sporty Pill</span>
+              <span class="pointer-events-none text-[10px] text-slate-400 mt-0.5">Sudut oval kapsul (9999px)</span>
+              <div class="mt-2 h-6 w-full rounded-full border border-orange-500/40 bg-orange-500/10 flex items-center justify-center text-[9px] font-mono text-orange-300">
+                radius: 9999px
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- D. Tema Warna Global Platform -->
+        <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-orange-400">
+              D. Tema Warna Global Website Utama
+            </h3>
+            <span class="text-[10px] text-slate-400">Preset & Custom Hex</span>
+          </div>
+
+          <!-- Preset Pilihan Cepat -->
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-2">Preset Tema Cepat</label>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <button
+                type="button"
+                class="btn-theme-preset flex items-center gap-2 p-2 rounded-lg border border-slate-700 bg-slate-900 hover:border-orange-500 transition-colors text-left"
+                data-mode="athletic_dark"
+                data-bg="#0a1120"
+                data-surface="#101a2e"
+                data-text="#f8fafc"
+                data-accent="#ea580c"
+              >
+                <span class="h-4 w-4 rounded-full bg-[#ea580c] shrink-0 border border-white/20"></span>
+                <span class="text-xs font-bold text-white">Athletic Dark</span>
+              </button>
+
+              <button
+                type="button"
+                class="btn-theme-preset flex items-center gap-2 p-2 rounded-lg border border-slate-700 bg-slate-900 hover:border-orange-500 transition-colors text-left"
+                data-mode="midnight_blue"
+                data-bg="#020817"
+                data-surface="#0f172a"
+                data-text="#f8fafc"
+                data-accent="#2563eb"
+              >
+                <span class="h-4 w-4 rounded-full bg-[#2563eb] shrink-0 border border-white/20"></span>
+                <span class="text-xs font-bold text-white">Midnight Blue</span>
+              </button>
+
+              <button
+                type="button"
+                class="btn-theme-preset flex items-center gap-2 p-2 rounded-lg border border-slate-700 bg-slate-900 hover:border-orange-500 transition-colors text-left"
+                data-mode="stealth_carbon"
+                data-bg="#0f172a"
+                data-surface="#1e293b"
+                data-text="#f1f5f9"
+                data-accent="#10b981"
+              >
+                <span class="h-4 w-4 rounded-full bg-[#10b981] shrink-0 border border-white/20"></span>
+                <span class="text-xs font-bold text-white">Emerald Race</span>
+              </button>
+
+              <button
+                type="button"
+                class="btn-theme-preset flex items-center gap-2 p-2 rounded-lg border border-slate-700 bg-slate-900 hover:border-orange-500 transition-colors text-left"
+                data-mode="high_contrast_black"
+                data-bg="#000000"
+                data-surface="#121212"
+                data-text="#ffffff"
+                data-accent="#f59e0b"
+              >
+                <span class="h-4 w-4 rounded-full bg-[#f59e0b] shrink-0 border border-white/20"></span>
+                <span class="text-xs font-bold text-white">Carbon Gold</span>
+              </button>
+
+              <button
+                type="button"
+                class="btn-theme-preset flex items-center gap-2 p-2 rounded-lg border border-slate-700 bg-slate-900 hover:border-orange-500 transition-colors text-left"
+                data-mode="sunset_crimson"
+                data-bg="#180c0e"
+                data-surface="#2a1216"
+                data-text="#fdf2f2"
+                data-accent="#e11d48"
+              >
+                <span class="h-4 w-4 rounded-full bg-[#e11d48] shrink-0 border border-white/20"></span>
+                <span class="text-xs font-bold text-white">Sunset Crimson</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Custom Color Pickers -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            <div>
+              <label for="hp-theme-bg" class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Background</label>
+              <div class="mt-1 flex items-center gap-2">
+                <input type="color" id="hp-theme-bg-picker" value="#0a1120" class="h-8 w-8 rounded border border-slate-700 bg-transparent cursor-pointer" />
+                <input type="text" id="hp-theme-bg" value="#0a1120" class="min-h-[36px] w-full rounded border border-slate-700 bg-slate-900 px-2 text-[11px] text-white font-mono" />
+              </div>
+            </div>
+
+            <div>
+              <label for="hp-theme-surface" class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Surface Card</label>
+              <div class="mt-1 flex items-center gap-2">
+                <input type="color" id="hp-theme-surface-picker" value="#101a2e" class="h-8 w-8 rounded border border-slate-700 bg-transparent cursor-pointer" />
+                <input type="text" id="hp-theme-surface" value="#101a2e" class="min-h-[36px] w-full rounded border border-slate-700 bg-slate-900 px-2 text-[11px] text-white font-mono" />
+              </div>
+            </div>
+
+            <div>
+              <label for="hp-theme-text" class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Warna Teks</label>
+              <div class="mt-1 flex items-center gap-2">
+                <input type="color" id="hp-theme-text-picker" value="#f8fafc" class="h-8 w-8 rounded border border-slate-700 bg-transparent cursor-pointer" />
+                <input type="text" id="hp-theme-text" value="#f8fafc" class="min-h-[36px] w-full rounded border border-slate-700 bg-slate-900 px-2 text-[11px] text-white font-mono" />
+              </div>
+            </div>
+
+            <div>
+              <label for="hp-theme-accent" class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Warna Aksen</label>
+              <div class="mt-1 flex items-center gap-2">
+                <input type="color" id="hp-theme-accent-picker" value="#ea580c" class="h-8 w-8 rounded border border-slate-700 bg-transparent cursor-pointer" />
+                <input type="text" id="hp-theme-accent" value="#ea580c" class="min-h-[36px] w-full rounded border border-slate-700 bg-slate-900 px-2 text-[11px] text-white font-mono" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kolom Kanan: Slider Hero Beranda Utama & Fitur -->
+      <div class="lg:col-span-6 space-y-6">
+        <!-- E. Carousel Slider Hero Beranda -->
+        <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-orange-400">
+                E. Carousel Slider Hero Beranda Utama
+              </h3>
+              <p class="text-[11px] text-slate-400 mt-0.5">
+                Kelola slide beranda publik. Setiap slide menampilkan foto background, tag, judul, subtitle, tombol CTA, dan 3 poin statistik.
+              </p>
+            </div>
+            <span class="text-[10px] text-slate-400">Slider Mode</span>
+          </div>
+
+          <!-- Hero Controls -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label for="hp-hero-mode" class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Mode Hero</label>
+              <select
+                id="hp-hero-mode"
+                class="mt-1 min-h-[44px] w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
+              >
+                <option value="slider">Slider Carousel (Multi-Event)</option>
+                <option value="single">Single Hero (Slide Pertama Saja)</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="hp-hero-autoplay" class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Autoplay Slider</label>
+              <div class="mt-1 flex items-center min-h-[44px]">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="hp-hero-autoplay" checked class="rounded accent-orange-500" />
+                  <span class="text-xs text-slate-300">Ganti Slide Otomatis</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label for="hp-hero-interval" class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Interval Slide</label>
+              <div class="mt-1 flex items-center">
+                <input
+                  type="number"
+                  id="hp-hero-interval"
+                  min="2"
+                  max="30"
+                  value="5"
+                  class="min-h-[44px] w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none"
+                />
+                <span class="ml-2 text-xs text-slate-400">Detik</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Visual Hero Controls: Gelap Bayangan Foto, Format Keterangan/Jarak, Posisi Fokus Foto, Visibilitas Tag, Blur Gradien Bawah -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 pt-3 border-t border-slate-800/80">
+            <div>
+              <div class="flex items-center justify-between">
+                <label for="hp-hero-overlay" class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Bayangan Hitam Foto</label>
+                <span id="hp-hero-overlay-val" class="text-xs font-mono font-bold text-orange-400">35%</span>
+              </div>
+              <input
+                type="range"
+                id="hp-hero-overlay"
+                min="0.10"
+                max="0.85"
+                step="0.05"
+                value="0.35"
+                class="mt-2 w-full accent-orange-500 cursor-pointer min-h-[44px]"
+              />
+              <span class="text-[10px] text-slate-400 block mt-0.5">Makin kecil, foto makin terang dan tidak tertutup bayang gelap pekat.</span>
+            </div>
+
+            <div>
+              <label for="hp-hero-stats-style" class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Gaya Keterangan Info</label>
+              <select
+                id="hp-hero-stats-style"
+                class="mt-1 min-h-[44px] w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
+              >
+                <option value="transparent">Transparan Bersih (Tanpa Kotak, Tipografi Sport)</option>
+                <option value="boxed">Kotak Gelap (Chip Box Klasik)</option>
+              </select>
+              <span class="text-[10px] text-slate-400 block mt-1">Tampilan info jarak, kategori, dan status di hero.</span>
+            </div>
+
+            <div>
+              <label for="hp-hero-image-pos" class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Posisi Fokus Foto Hero</label>
+              <select
+                id="hp-hero-image-pos"
+                class="mt-1 min-h-[44px] w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white focus:border-orange-500 focus:outline-none cursor-pointer"
+              >
+                <option value="top">Atas (Foto Naik Melewati Belakang Navbar)</option>
+                <option value="center">Tengah (Center Normal)</option>
+              </select>
+              <span class="text-[10px] text-slate-400 block mt-1">Menjaga aksi pelari/lintasan di bagian atas tetap terlihat.</span>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Badge Tag Lomba</label>
+              <label class="mt-1 flex items-center gap-2 min-h-[44px] cursor-pointer select-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2">
+                <input
+                  type="checkbox"
+                  id="hp-hero-show-tags"
+                  class="h-4 w-4 rounded accent-orange-500 cursor-pointer"
+                />
+                <span class="text-xs text-slate-200 font-medium" id="hp-hero-show-tags-label">
+                  Sembunyikan Tag di Beranda
+                </span>
+              </label>
+              <span class="text-[10px] text-slate-400 block mt-1">Sembunyikan badge tag agar beranda tampil minimalis dan bersih.</span>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider">Gradasi Bawah Sinematik</label>
+              <label class="mt-1 flex items-center gap-2 min-h-[44px] cursor-pointer select-none rounded-lg border border-slate-700 bg-slate-900 px-3 py-2">
+                <input
+                  type="checkbox"
+                  id="hp-hero-bottom-blur"
+                  checked
+                  class="h-4 w-4 rounded accent-orange-500 cursor-pointer"
+                />
+                <span class="text-xs text-slate-200 font-medium" id="hp-hero-bottom-blur-label">
+                  Gradasi Bawah Aktif
+                </span>
+              </label>
+              <span class="text-[10px] text-slate-400 block mt-1">Gradasi gelap pekat di bagian bawah foto; warna foto tetap hidup dan tajam tanpa kabut abu-abu.</span>
+            </div>
+          </div>
+
+          <!-- Slides List Manager -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Daftar Slide Aktif (<span id="hp-slides-count">4</span> Slide)</span>
+              <button
+                type="button"
+                id="btn-add-slide"
+                class="min-h-[44px] inline-flex items-center gap-1 rounded-lg border border-orange-500/40 bg-orange-950/40 px-3.5 py-1 text-xs font-bold text-orange-400 hover:bg-orange-900/60 transition-colors cursor-pointer"
+              >
+                + Tambah Slide Baru
+              </button>
+            </div>
+
+            <div id="hp-slides-list" class="space-y-3 max-h-[580px] overflow-y-auto pr-1">
+              <!-- Rendered dynamically by script -->
+            </div>
+          </div>
+        </div>
+
+        <!-- F. Fitur Tambahan Beranda -->
+        <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-4 sm:p-5 space-y-3">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-orange-400 border-b border-slate-800 pb-2">
+            F. Fitur & Tampilan Tambahan Beranda
+          </h3>
+          <div class="space-y-2 pt-1">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="hp-feat-sport-filter" checked class="rounded accent-orange-500" />
+              <span class="text-xs text-slate-300 font-semibold">Tampilkan Filter Cabang Olahraga di Bagian Kategori (Running, Triathlon, Cycling, Trail, Swimming)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Script Konfigurasi Website Utama Superadmin -->
+  <script>
+    import {
+      getHomepageConfig,
+      saveHomepageConfig,
+      resetHomepageConfig,
+      DEFAULT_HOMEPAGE_CONFIG,
+      type HomepageConfig,
+      type HeroSlideConfig,
+      type NavbarStyleType,
+      type MobileNavType,
+      type ElementCornerStyle,
+      type WebsiteThemeMode,
+    } from "../../lib/events-store";
+    import { esc } from "../../lib/safe";
+
+    const toast = document.getElementById("toast-msg")!;
+    function showToast(msg: string) {
+      toast.textContent = msg;
+      toast.classList.remove("hidden");
+      setTimeout(() => {
+        toast.classList.add("hidden");
+      }, 3500);
+    }
+
+    let activeHomepageConfig: HomepageConfig = getHomepageConfig();
+    let workingSlides: HeroSlideConfig[] = JSON.parse(
+      JSON.stringify(activeHomepageConfig.hero?.slides || DEFAULT_HOMEPAGE_CONFIG.hero.slides)
+    );
+
+    // Elements
+    const brandNameInput = document.getElementById("hp-brand-name") as HTMLInputElement;
+    const brandTaglineInput = document.getElementById("hp-brand-tagline") as HTMLInputElement;
+    const brandPreviewIcon = document.getElementById("hp-preview-icon");
+    const brandPreviewText = document.getElementById("hp-preview-text");
+    const brandPreviewTitle = document.getElementById("hp-preview-title");
+    const brandPreviewTag = document.getElementById("hp-preview-tag");
+
+    const opacityInput = document.getElementById("hp-navbar-opacity") as HTMLInputElement;
+    const opacityLabel = document.getElementById("hp-opacity-label");
+    const blurSelect = document.getElementById("hp-navbar-blur") as HTMLSelectElement;
+    const borderCheck = document.getElementById("hp-navbar-border") as HTMLInputElement;
+
+    const glassBlurInput = document.getElementById("hp-glass-blur") as HTMLInputElement;
+    const glassBlurVal = document.getElementById("hp-glass-blur-val");
+    const glassSaturateInput = document.getElementById("hp-glass-saturate") as HTMLInputElement;
+    const glassSaturateVal = document.getElementById("hp-glass-saturate-val");
+    const glassTintInput = document.getElementById("hp-glass-tint") as HTMLInputElement;
+    const glassRadiusInput = document.getElementById("hp-glass-radius") as HTMLInputElement;
+    const glassRadiusVal = document.getElementById("hp-glass-radius-val");
+    const liquidGlassParamsBox = document.getElementById("liquid-glass-params");
+
+    const bgInput = document.getElementById("hp-theme-bg") as HTMLInputElement;
+    const bgPicker = document.getElementById("hp-theme-bg-picker") as HTMLInputElement;
+    const surfaceInput = document.getElementById("hp-theme-surface") as HTMLInputElement;
+    const surfacePicker = document.getElementById("hp-theme-surface-picker") as HTMLInputElement;
+    const textInput = document.getElementById("hp-theme-text") as HTMLInputElement;
+    const textPicker = document.getElementById("hp-theme-text-picker") as HTMLInputElement;
+    const accentInput = document.getElementById("hp-theme-accent") as HTMLInputElement;
+    const accentPicker = document.getElementById("hp-theme-accent-picker") as HTMLInputElement;
+
+    const heroMode = document.getElementById("hp-hero-mode") as HTMLSelectElement;
+    const heroAutoplay = document.getElementById("hp-hero-autoplay") as HTMLInputElement;
+    const heroInterval = document.getElementById("hp-hero-interval") as HTMLInputElement;
+    const heroOverlayInput = document.getElementById("hp-hero-overlay") as HTMLInputElement;
+    const heroOverlayVal = document.getElementById("hp-hero-overlay-val");
+    const heroStatsStyleSelect = document.getElementById("hp-hero-stats-style") as HTMLSelectElement;
+    const heroImagePosSelect = document.getElementById("hp-hero-image-pos") as HTMLSelectElement;
+    const heroShowTagsInput = document.getElementById("hp-hero-show-tags") as HTMLInputElement;
+    const heroShowTagsLabel = document.getElementById("hp-hero-show-tags-label");
+    const heroBottomBlurInput = document.getElementById("hp-hero-bottom-blur") as HTMLInputElement;
+    const heroBottomBlurLabel = document.getElementById("hp-hero-bottom-blur-label");
+    const slidesListContainer = document.getElementById("hp-slides-list")!;
+    const slidesCountLabel = document.getElementById("hp-slides-count")!;
+    const btnAddSlide = document.getElementById("btn-add-slide")!;
+    const showSportFilterEl = document.getElementById("hp-feat-sport-filter") as HTMLInputElement;
+
+    const navSim = document.getElementById("hp-navbar-sim");
+    const simTitle = document.getElementById("hp-sim-title");
+
+    function updateLivePreview() {
+      // 1. Brand Preview
+      const selectedBrandMode = (document.querySelector('input[name="brand-display-mode"]:checked') as HTMLInputElement)?.value || "icon_only";
+      if (brandPreviewIcon && brandPreviewText) {
+        if (selectedBrandMode === "icon_only") {
+          brandPreviewIcon.classList.remove("hidden");
+          brandPreviewText.classList.add("hidden");
+        } else if (selectedBrandMode === "text_only") {
+          brandPreviewIcon.classList.add("hidden");
+          brandPreviewText.classList.remove("hidden");
+        } else {
+          brandPreviewIcon.classList.remove("hidden");
+          brandPreviewText.classList.remove("hidden");
+        }
+      }
+      if (brandPreviewTitle && brandNameInput) {
+        brandPreviewTitle.textContent = brandNameInput.value || "IvyTicketing";
+      }
+      if (brandPreviewTag && brandTaglineInput) {
+        brandPreviewTag.textContent = brandTaglineInput.value || "Sports Registration Engine";
+      }
+
+      // 2. Navbar Sim
+      const selectedStyle = (document.querySelector('input[name="hp-navbar-style"]:checked') as HTMLInputElement)?.value || "full_width";
+      if (liquidGlassParamsBox) {
+        if (selectedStyle === "liquid_glass") {
+          liquidGlassParamsBox.classList.remove("hidden");
+        } else {
+          liquidGlassParamsBox.classList.add("hidden");
+        }
+      }
+
+      if (navSim) {
+        const op = Number(opacityInput?.value || "0.92");
+        const blurMap: Record<string, string> = { none: "none", sm: "blur(4px)", md: "blur(12px)", lg: "blur(20px)" };
+        const chosenBlur = blurMap[blurSelect?.value || "md"] || "blur(12px)";
+        const hasBorder = borderCheck?.checked;
+
+        if (selectedStyle === "transparent_gradient") {
+          navSim.style.background = "linear-gradient(180deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.45) 60%, rgba(0, 0, 0, 0) 100%)";
+          navSim.style.backgroundColor = "transparent";
+          navSim.style.backdropFilter = "none";
+          navSim.style.borderRadius = "0px";
+          navSim.style.borderColor = "transparent";
+          navSim.style.maxWidth = "100%";
+          if (simTitle) simTitle.textContent = "Transparan Gradasi (Ironman)";
+        } else if (selectedStyle === "liquid_glass") {
+          navSim.style.background = "";
+          const gBlur = glassBlurInput?.value || "0";
+          const gSat = glassSaturateInput?.value || "1";
+          const gTint = glassTintInput?.value || "rgba(255, 255, 255, 0.255)";
+          const gRad = glassRadiusInput?.value || "48";
+          navSim.style.backgroundColor = gTint;
+          navSim.style.backdropFilter = `blur(${gBlur}px) saturate(${gSat})`;
+          navSim.style.borderRadius = `${gRad}px`;
+          navSim.style.borderColor = "rgba(255, 255, 255, 0.25)";
+          navSim.style.maxWidth = "420px";
+          if (simTitle) simTitle.textContent = "Liquid Glass Pill";
+        } else if (selectedStyle === "floating_compact") {
+          navSim.style.background = "";
+          navSim.style.backgroundColor = `rgba(16, 26, 46, ${op})`;
+          navSim.style.backdropFilter = chosenBlur;
+          navSim.style.borderRadius = "16px";
+          navSim.style.borderColor = hasBorder ? "rgba(255, 255, 255, 0.2)" : "transparent";
+          navSim.style.maxWidth = "460px";
+          if (simTitle) simTitle.textContent = "Floating Compact Bar";
+        } else {
+          navSim.style.background = "";
+          navSim.style.backgroundColor = `rgba(16, 26, 46, ${op})`;
+          navSim.style.backdropFilter = chosenBlur;
+          navSim.style.borderRadius = "0px";
+          navSim.style.borderColor = hasBorder ? "rgba(255, 255, 255, 0.1)" : "transparent";
+          navSim.style.maxWidth = "100%";
+          if (simTitle) simTitle.textContent = "Full-Width Bar";
+        }
+      }
+
+      if (heroOverlayVal && heroOverlayInput) {
+        heroOverlayVal.textContent = `${Math.round(Number(heroOverlayInput.value) * 100)}%`;
+      }
+    }
+
+    function renderSlidesList() {
+      slidesCountLabel.textContent = String(workingSlides.length);
+      if (workingSlides.length === 0) {
+        slidesListContainer.innerHTML = `
+          <div class="rounded-xl border border-dashed border-slate-700 p-6 text-center text-xs text-slate-400">
+            Belum ada slide hero. Klik tombol "+ Tambah Slide Baru" di atas.
+          </div>
+        `;
+        return;
+      }
+
+      slidesListContainer.innerHTML = workingSlides.map((slide, idx) => `
+        <div class="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-3 relative group" data-slide-index="${idx}">
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="flex h-5 w-5 items-center justify-center rounded-full bg-orange-600/20 text-[10px] font-bold text-orange-400">
+                ${idx + 1}
+              </span>
+              <span class="text-xs font-bold text-white uppercase truncate max-w-[200px] sm:max-w-xs">
+                ${esc(slide.title || "Slide Tanpa Judul")}
+              </span>
+            </div>
+            <div class="flex items-center gap-1">
+              ${idx > 0 ? `
+                <button type="button" class="btn-move-slide-up rounded p-1 text-slate-400 hover:text-white" data-index="${idx}" title="Geser ke atas">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                </button>
+              ` : ""}
+              ${idx < workingSlides.length - 1 ? `
+                <button type="button" class="btn-move-slide-down rounded p-1 text-slate-400 hover:text-white" data-index="${idx}" title="Geser ke bawah">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+              ` : ""}
+              <button type="button" class="btn-remove-slide rounded p-1 text-rose-400 hover:text-rose-300" data-index="${idx}" title="Hapus slide">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-400 uppercase">Tag / Badge Atas</label>
+              <input type="text" class="slide-tag-input mt-1 w-full rounded border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-white" value="${esc(slide.tag || "")}" data-index="${idx}" placeholder="Kosongkan jika tanpa badge" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-400 uppercase">Judul Hero Utama</label>
+              <input type="text" class="slide-title-input mt-1 w-full rounded border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-white font-bold" value="${esc(slide.title || "")}" data-index="${idx}" />
+            </div>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-[10px] font-semibold text-slate-400 uppercase">Deskripsi Subtitle</label>
+              <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  class="slide-show-sub-input rounded accent-orange-500 cursor-pointer"
+                  data-index="${idx}"
+                  ${slide.showSubtitle !== false ? "checked" : ""}
+                />
+                <span class="text-[11px] font-medium ${slide.showSubtitle !== false ? "text-orange-400 font-semibold" : "text-slate-400"}">
+                  ${slide.showSubtitle !== false ? "Tampilkan Deskripsi" : "Sembunyikan (Hidden)"}
+                </span>
+              </label>
+            </div>
+            <textarea rows="2" class="slide-sub-input w-full rounded border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-white transition-opacity ${slide.showSubtitle === false ? "opacity-40" : ""}" data-index="${idx}">${esc(slide.subtitle || "")}</textarea>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-400 uppercase">URL Background Gambar</label>
+              <input type="text" class="slide-bg-input mt-1 w-full rounded border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-white font-mono text-[11px]" value="${esc(slide.bgImage || "")}" data-index="${idx}" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-400 uppercase">Teks Tombol CTA Utama</label>
+              <input type="text" class="slide-cta-text-input mt-1 w-full rounded border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-white" value="${esc(slide.primaryCtaText || "")}" data-index="${idx}" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-400 uppercase">Link Tombol CTA Utama</label>
+              <input type="text" class="slide-cta-link-input mt-1 w-full rounded border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-white font-mono text-[11px]" value="${esc(slide.primaryCtaLink || "")}" data-index="${idx}" />
+            </div>
+          </div>
+        </div>
+      `).join("");
+
+      // Bind input events to workingSlides
+      slidesListContainer.querySelectorAll(".slide-show-sub-input").forEach(input => {
+        input.addEventListener("change", (e) => {
+          const target = e.target as HTMLInputElement;
+          const idx = Number(target.getAttribute("data-index"));
+          const isChecked = target.checked;
+          workingSlides[idx].showSubtitle = isChecked;
+          const labelSpan = target.parentElement?.querySelector("span");
+          if (labelSpan) {
+            labelSpan.textContent = isChecked ? "Tampilkan Deskripsi" : "Sembunyikan (Hidden)";
+            labelSpan.className = `text-[11px] font-medium ${isChecked ? "text-orange-400 font-semibold" : "text-slate-400"}`;
+          }
+          const textarea = slidesListContainer.querySelector(`.slide-sub-input[data-index="${idx}"]`);
+          if (textarea) {
+            textarea.classList.toggle("opacity-40", !isChecked);
+          }
+        });
+      });
+      slidesListContainer.querySelectorAll(".slide-tag-input").forEach(input => {
+        input.addEventListener("input", (e) => {
+          const idx = Number((e.target as HTMLElement).getAttribute("data-index"));
+          workingSlides[idx].tag = (e.target as HTMLInputElement).value;
+        });
+      });
+      slidesListContainer.querySelectorAll(".slide-title-input").forEach(input => {
+        input.addEventListener("input", (e) => {
+          const idx = Number((e.target as HTMLElement).getAttribute("data-index"));
+          workingSlides[idx].title = (e.target as HTMLInputElement).value;
+        });
+      });
+      slidesListContainer.querySelectorAll(".slide-sub-input").forEach(input => {
+        input.addEventListener("input", (e) => {
+          const idx = Number((e.target as HTMLElement).getAttribute("data-index"));
+          workingSlides[idx].subtitle = (e.target as HTMLTextAreaElement).value;
+        });
+      });
+      slidesListContainer.querySelectorAll(".slide-bg-input").forEach(input => {
+        input.addEventListener("input", (e) => {
+          const idx = Number((e.target as HTMLElement).getAttribute("data-index"));
+          workingSlides[idx].bgImage = (e.target as HTMLInputElement).value;
+        });
+      });
+      slidesListContainer.querySelectorAll(".slide-cta-text-input").forEach(input => {
+        input.addEventListener("input", (e) => {
+          const idx = Number((e.target as HTMLElement).getAttribute("data-index"));
+          workingSlides[idx].primaryCtaText = (e.target as HTMLInputElement).value;
+        });
+      });
+      slidesListContainer.querySelectorAll(".slide-cta-link-input").forEach(input => {
+        input.addEventListener("input", (e) => {
+          const idx = Number((e.target as HTMLElement).getAttribute("data-index"));
+          workingSlides[idx].primaryCtaLink = (e.target as HTMLInputElement).value;
+        });
+      });
+
+      // Actions
+      slidesListContainer.querySelectorAll(".btn-remove-slide").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const idx = Number(btn.getAttribute("data-index"));
+          if (confirm("Hapus slide ini dari carousel hero?")) {
+            workingSlides.splice(idx, 1);
+            renderSlidesList();
+          }
+        });
+      });
+      slidesListContainer.querySelectorAll(".btn-move-slide-up").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const idx = Number(btn.getAttribute("data-index"));
+          if (idx > 0) {
+            const temp = workingSlides[idx];
+            workingSlides[idx] = workingSlides[idx - 1];
+            workingSlides[idx - 1] = temp;
+            renderSlidesList();
+          }
+        });
+      });
+      slidesListContainer.querySelectorAll(".btn-move-slide-down").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const idx = Number(btn.getAttribute("data-index"));
+          if (idx < workingSlides.length - 1) {
+            const temp = workingSlides[idx];
+            workingSlides[idx] = workingSlides[idx + 1];
+            workingSlides[idx + 1] = temp;
+            renderSlidesList();
+          }
+        });
+      });
+    }
+
+    function initForm() {
+      activeHomepageConfig = getHomepageConfig();
+      workingSlides = JSON.parse(
+        JSON.stringify(activeHomepageConfig.hero?.slides || DEFAULT_HOMEPAGE_CONFIG.hero.slides)
+      );
+
+      // Brand
+      const currentMode = activeHomepageConfig.brand?.displayMode || "icon_only";
+      const brandRadio = document.querySelector(`input[name="brand-display-mode"][value="${currentMode}"]`) as HTMLInputElement;
+      if (brandRadio) brandRadio.checked = true;
+      if (brandNameInput) brandNameInput.value = activeHomepageConfig.brand?.brandName || "IvyTicketing";
+      if (brandTaglineInput) brandTaglineInput.value = activeHomepageConfig.brand?.tagline || "Sports Registration Engine";
+
+      // Navbar
+      const currentNavStyle = activeHomepageConfig.navbar?.style || "full_width";
+      const navStyleRadio = document.querySelector(`input[name="hp-navbar-style"][value="${currentNavStyle}"]`) as HTMLInputElement;
+      if (navStyleRadio) navStyleRadio.checked = true;
+
+      // Mobile Nav Type
+      const currentMobNavType = activeHomepageConfig.navbar?.mobileNavType || "bottom_nav";
+      const mobNavRadio = document.querySelector(`input[name="hp-mobile-nav-type"][value="${currentMobNavType}"]`) as HTMLInputElement;
+      if (mobNavRadio) mobNavRadio.checked = true;
+
+      // Corners
+      const currentCornerStyle = activeHomepageConfig.corners?.style || "square";
+      const cornerRadio = document.querySelector(`input[name="hp-corner-style"][value="${currentCornerStyle}"]`) as HTMLInputElement;
+      if (cornerRadio) cornerRadio.checked = true;
+
+      // Liquid Glass params
+      if (glassBlurInput) glassBlurInput.value = String(activeHomepageConfig.navbar?.glassBlur ?? 0);
+      if (glassBlurVal) glassBlurVal.textContent = `${activeHomepageConfig.navbar?.glassBlur ?? 0}px`;
+      if (glassSaturateInput) glassSaturateInput.value = String(activeHomepageConfig.navbar?.glassSaturate ?? 1.0);
+      if (glassSaturateVal) glassSaturateVal.textContent = `${activeHomepageConfig.navbar?.glassSaturate ?? 1.0}x`;
+      if (glassTintInput) glassTintInput.value = activeHomepageConfig.navbar?.glassTint || "rgba(255, 255, 255, 0.255)";
+      if (glassRadiusInput) glassRadiusInput.value = String(activeHomepageConfig.navbar?.glassRadius ?? 48);
+      if (glassRadiusVal) glassRadiusVal.textContent = `${activeHomepageConfig.navbar?.glassRadius ?? 48}px`;
+
+      // Standard navbar
+      if (opacityInput) opacityInput.value = String(activeHomepageConfig.navbar?.opacity ?? 0.92);
+      if (opacityLabel) opacityLabel.textContent = `${Math.round((activeHomepageConfig.navbar?.opacity ?? 0.92) * 100)}%`;
+      if (blurSelect) blurSelect.value = activeHomepageConfig.navbar?.blur || "md";
+      if (borderCheck) borderCheck.checked = activeHomepageConfig.navbar?.showBorder !== false;
+
+      // Theme
+      if (bgInput) bgInput.value = activeHomepageConfig.theme?.bgColor || "#0a1120";
+      if (bgPicker) bgPicker.value = activeHomepageConfig.theme?.bgColor || "#0a1120";
+      if (surfaceInput) surfaceInput.value = activeHomepageConfig.theme?.surfaceColor || "#101a2e";
+      if (surfacePicker) surfacePicker.value = activeHomepageConfig.theme?.surfaceColor || "#101a2e";
+      if (textInput) textInput.value = activeHomepageConfig.theme?.textColor || "#f8fafc";
+      if (textPicker) textPicker.value = activeHomepageConfig.theme?.textColor || "#f8fafc";
+      if (accentInput) accentInput.value = activeHomepageConfig.theme?.accentColor || "#ea580c";
+      if (accentPicker) accentPicker.value = activeHomepageConfig.theme?.accentColor || "#ea580c";
+
+      // Hero
+      if (heroMode) heroMode.value = activeHomepageConfig.hero?.mode || "slider";
+      if (heroAutoplay) heroAutoplay.checked = activeHomepageConfig.hero?.autoplay !== false;
+      if (heroInterval) heroInterval.value = String(activeHomepageConfig.hero?.intervalSeconds || 5);
+      if (heroOverlayInput) heroOverlayInput.value = String(activeHomepageConfig.hero?.overlayDarkness ?? 0.35);
+      if (heroOverlayVal) heroOverlayVal.textContent = `${Math.round((activeHomepageConfig.hero?.overlayDarkness ?? 0.35) * 100)}%`;
+      if (heroStatsStyleSelect) heroStatsStyleSelect.value = activeHomepageConfig.hero?.statsStyle || "transparent";
+      if (heroImagePosSelect) heroImagePosSelect.value = activeHomepageConfig.hero?.imagePosition || "top";
+      if (heroShowTagsInput) {
+        heroShowTagsInput.checked = activeHomepageConfig.hero?.showTags === true;
+        if (heroShowTagsLabel) {
+          heroShowTagsLabel.textContent = heroShowTagsInput.checked ? "Tampilkan Tag di Beranda" : "Sembunyikan Tag di Beranda (Bersih)";
+        }
+      }
+      if (heroBottomBlurInput) {
+        heroBottomBlurInput.checked = activeHomepageConfig.hero?.bottomBlur !== false;
+        if (heroBottomBlurLabel) {
+          heroBottomBlurLabel.textContent = heroBottomBlurInput.checked ? "Gradasi Bawah Aktif" : "Tanpa Gradasi Bawah (Polos)";
+        }
+      }
+      if (showSportFilterEl) showSportFilterEl.checked = activeHomepageConfig.features?.showSportFilter !== false;
+
+      renderSlidesList();
+      updateLivePreview();
+    }
+
+    heroShowTagsInput?.addEventListener("change", () => {
+      if (heroShowTagsLabel) {
+        heroShowTagsLabel.textContent = heroShowTagsInput.checked ? "Tampilkan Tag di Beranda" : "Sembunyikan Tag di Beranda (Bersih)";
+      }
+    });
+
+    heroBottomBlurInput?.addEventListener("change", () => {
+      if (heroBottomBlurLabel) {
+        heroBottomBlurLabel.textContent = heroBottomBlurInput.checked ? "Gradasi Bawah Aktif" : "Tanpa Gradasi Bawah (Polos)";
+      }
+    });
+
+    // Event Listeners for Live Preview
+    document.querySelectorAll('input[name="brand-display-mode"]').forEach(r => r.addEventListener("change", updateLivePreview));
+    document.querySelectorAll('input[name="hp-navbar-style"]').forEach(r => r.addEventListener("change", updateLivePreview));
+    brandNameInput?.addEventListener("input", updateLivePreview);
+    brandTaglineInput?.addEventListener("input", updateLivePreview);
+
+    heroOverlayInput?.addEventListener("input", (e) => {
+      const val = Number((e.target as HTMLInputElement).value);
+      if (heroOverlayVal) heroOverlayVal.textContent = `${Math.round(val * 100)}%`;
+    });
+
+    opacityInput?.addEventListener("input", (e) => {
+      const val = Number((e.target as HTMLInputElement).value);
+      if (opacityLabel) opacityLabel.textContent = `${Math.round(val * 100)}%`;
+      updateLivePreview();
+    });
+
+    blurSelect?.addEventListener("change", updateLivePreview);
+    borderCheck?.addEventListener("change", updateLivePreview);
+
+    glassBlurInput?.addEventListener("input", (e) => {
+      if (glassBlurVal) glassBlurVal.textContent = `${(e.target as HTMLInputElement).value}px`;
+      updateLivePreview();
+    });
+    glassSaturateInput?.addEventListener("input", (e) => {
+      if (glassSaturateVal) glassSaturateVal.textContent = `${(e.target as HTMLInputElement).value}x`;
+      updateLivePreview();
+    });
+    glassTintInput?.addEventListener("input", updateLivePreview);
+    glassRadiusInput?.addEventListener("input", (e) => {
+      if (glassRadiusVal) glassRadiusVal.textContent = `${(e.target as HTMLInputElement).value}px`;
+      updateLivePreview();
+    });
+
+    // Theme pickers sync
+    bgPicker?.addEventListener("input", () => { bgInput.value = bgPicker.value; });
+    bgInput?.addEventListener("input", () => { bgPicker.value = bgInput.value; });
+    surfacePicker?.addEventListener("input", () => { surfaceInput.value = surfacePicker.value; });
+    surfaceInput?.addEventListener("input", () => { surfacePicker.value = surfaceInput.value; });
+    textPicker?.addEventListener("input", () => { textInput.value = textPicker.value; });
+    textInput?.addEventListener("input", () => { textPicker.value = textInput.value; });
+    accentPicker?.addEventListener("input", () => { accentInput.value = accentPicker.value; });
+    accentInput?.addEventListener("input", () => { accentPicker.value = accentInput.value; });
+
+    // Preset buttons
+    document.querySelectorAll(".btn-theme-preset").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const bg = btn.getAttribute("data-bg") || "#0a1120";
+        const surf = btn.getAttribute("data-surface") || "#101a2e";
+        const txt = btn.getAttribute("data-text") || "#f8fafc";
+        const acc = btn.getAttribute("data-accent") || "#ea580c";
+
+        if (bgInput) bgInput.value = bg;
+        if (bgPicker) bgPicker.value = bg;
+        if (surfaceInput) surfaceInput.value = surf;
+        if (surfacePicker) surfacePicker.value = surf;
+        if (textInput) textInput.value = txt;
+        if (textPicker) textPicker.value = txt;
+        if (accentInput) accentInput.value = acc;
+        if (accentPicker) accentPicker.value = acc;
+      });
+    });
+
+    // Add Slide
+    btnAddSlide?.addEventListener("click", () => {
+      const newId = `slide-${Date.now()}`;
+      workingSlides.push({
+        id: newId,
+        tag: "RACE BARU · PENDAFTARAN BUKA",
+        tagColor: "bg-orange-500 text-black font-bold",
+        title: "Nama Perlombaan Baru",
+        subtitle: "Deskripsi singkat dan keistimewaan rute resmi perlombaan.",
+        showSubtitle: true,
+        bgImage: "/images/events/bangkok_marathon.jpg",
+        primaryCtaText: "Daftar Sekarang",
+        primaryCtaLink: "/events",
+        secondaryCtaText: "Info Rute",
+        secondaryCtaLink: "/events",
+        stats: [
+          { label: "Jarak", value: "42.2 KM" },
+          { label: "Kategori", value: "Full Marathon" },
+          { label: "Status", value: "Buka" },
+        ],
+      });
+      renderSlidesList();
+    });
+
+    // Save Homepage Config
+    const btnSave = document.getElementById("btn-save-homepage");
+    btnSave?.addEventListener("click", () => {
+      const selectedBrandMode = ((document.querySelector('input[name="brand-display-mode"]:checked') as HTMLInputElement)?.value || "icon_only") as "icon_only" | "text_only" | "both";
+      const selectedNavStyle = ((document.querySelector('input[name="hp-navbar-style"]:checked') as HTMLInputElement)?.value || "full_width") as NavbarStyleType;
+      const selectedMobNavType = ((document.querySelector('input[name="hp-mobile-nav-type"]:checked') as HTMLInputElement)?.value || "bottom_nav") as MobileNavType;
+      const selectedCornerStyle = ((document.querySelector('input[name="hp-corner-style"]:checked') as HTMLInputElement)?.value || "square") as ElementCornerStyle;
+
+      const updatedConfig: HomepageConfig = {
+        brand: {
+          displayMode: selectedBrandMode,
+          brandName: brandNameInput?.value.trim() || "IvyTicketing",
+          tagline: brandTaglineInput?.value.trim() || "Sports Registration Engine",
+          iconShape: "rounded",
+        },
+        navbar: {
+          style: selectedNavStyle,
+          mobileNavType: selectedMobNavType,
+          opacity: Number(opacityInput?.value || "0.92"),
+          blur: (blurSelect?.value || "md") as "none" | "sm" | "md" | "lg",
+          showBorder: borderCheck?.checked ?? true,
+          glassBlur: Number(glassBlurInput?.value || "0"),
+          glassSaturate: Number(glassSaturateInput?.value || "1.0"),
+          glassTint: glassTintInput?.value.trim() || "rgba(255, 255, 255, 0.255)",
+          glassRadius: Number(glassRadiusInput?.value || "48"),
+        },
+        corners: {
+          style: selectedCornerStyle,
+        },
+        theme: {
+          mode: "athletic_dark",
+          bgColor: bgInput?.value.trim() || "#0a1120",
+          surfaceColor: surfaceInput?.value.trim() || "#101a2e",
+          textColor: textInput?.value.trim() || "#f8fafc",
+          accentColor: accentInput?.value.trim() || "#ea580c",
+        },
+        hero: {
+          mode: (heroMode?.value || "slider") as "slider" | "single",
+          autoplay: heroAutoplay?.checked ?? true,
+          intervalSeconds: Number(heroInterval?.value || "5"),
+          overlayDarkness: Number(heroOverlayInput?.value || "0.35"),
+          statsStyle: (heroStatsStyleSelect?.value || "transparent") as "transparent" | "boxed",
+          imagePosition: (heroImagePosSelect?.value || "top") as "top" | "center",
+          showTags: heroShowTagsInput?.checked ?? false,
+          bottomBlur: heroBottomBlurInput?.checked ?? true,
+          slides: workingSlides,
+        },
+        features: {
+          showSportFilter: showSportFilterEl?.checked ?? true,
+        },
+      };
+
+      saveHomepageConfig(updatedConfig);
+      activeHomepageConfig = updatedConfig;
+      showToast("Pengaturan Website Utama & Desain Platform berhasil disimpan!");
+    });
+
+    // Reset Default
+    const btnReset = document.getElementById("btn-reset-homepage");
+    btnReset?.addEventListener("click", () => {
+      if (confirm("Kembalikan semua pengaturan website utama dan navbar ke setelan bawaan standar?")) {
+        resetHomepageConfig();
+        initForm();
+        showToast("Pengaturan website utama telah dikembalikan ke bawaan standar.");
+      }
+    });
+
+    // Initialize
+    initForm();
+  </script>
+</AdminLayout>

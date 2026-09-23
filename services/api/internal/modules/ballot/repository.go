@@ -28,7 +28,9 @@ type Repository interface {
 	CountBallotDrawResults(ctx context.Context, arg db.CountBallotDrawResultsParams) (int64, error)
 	ListWinnerEntries(ctx context.Context, drawID uuid.UUID) ([]db.BallotEntry, error)
 	ListExpiringWinners(ctx context.Context, limit int32) ([]db.BallotEntry, error)
+	ExpireBallotWinner(ctx context.Context, id uuid.UUID) (db.BallotEntry, error)
 	GetBallotEntryByParticipant(ctx context.Context, arg db.GetBallotEntryByParticipantParams) ([]db.BallotEntry, error)
+	ListBallotDrawsByEvent(ctx context.Context, eventID uuid.UUID) ([]db.BallotDraw, error)
 }
 
 type sqlcRepo struct{ q *db.Queries }
@@ -89,6 +91,12 @@ func (r *sqlcRepo) ListWinnerEntries(ctx context.Context, drawID uuid.UUID) ([]d
 func (r *sqlcRepo) ListExpiringWinners(ctx context.Context, limit int32) ([]db.BallotEntry, error) {
 	return r.q.ListExpiringWinners(ctx, limit)
 }
+func (r *sqlcRepo) ExpireBallotWinner(ctx context.Context, id uuid.UUID) (db.BallotEntry, error) {
+	return r.q.ExpireBallotWinner(ctx, id)
+}
 func (r *sqlcRepo) GetBallotEntryByParticipant(ctx context.Context, arg db.GetBallotEntryByParticipantParams) ([]db.BallotEntry, error) {
 	return r.q.GetBallotEntryByParticipant(ctx, arg)
+}
+func (r *sqlcRepo) ListBallotDrawsByEvent(ctx context.Context, eventID uuid.UUID) ([]db.BallotDraw, error) {
+	return r.q.ListBallotDrawsByEvent(ctx, eventID)
 }

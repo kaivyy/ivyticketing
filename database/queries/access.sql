@@ -42,10 +42,11 @@ LIMIT 1;
 -- name: ExpireGrant :exec
 UPDATE access_grants SET status = 'EXPIRED' WHERE id = $1;
 
--- name: ConsumeGrant :exec
+-- name: ConsumeGrant :one
 UPDATE access_grants
 SET status = 'CONSUMED', consumed_at = now(), order_id = $2
-WHERE id = $1;
+WHERE id = $1 AND status = 'ACTIVE'
+RETURNING *;
 
 -- name: ListExpiredActiveGrants :many
 SELECT * FROM access_grants

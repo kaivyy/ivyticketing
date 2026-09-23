@@ -60,15 +60,36 @@ func TestNormalizeGender(t *testing.T) {
 }
 
 func TestNormalizeStatus(t *testing.T) {
-	cases := map[string]string{
-		"finished": StatusFinished, "FINISH": StatusFinished, "selesai": StatusFinished, "OK": StatusFinished, "done": StatusFinished,
-		"dnf": StatusDNF, "did not finish": StatusDNF,
-		"dns": StatusDNS, "did not start": StatusDNS,
-		"": "", "wat": "",
+	cases := []struct {
+		in      string
+		want    string
+		wantOk  bool
+	}{
+		{"finished", StatusFinished, true},
+		{"FINISH", StatusFinished, true},
+		{"selesai", StatusFinished, true},
+		{"OK", StatusFinished, true},
+		{"done", StatusFinished, true},
+		{"completed", StatusFinished, true},
+		{"dnf", StatusDNF, true},
+		{"did not finish", StatusDNF, true},
+		{"dns", StatusDNS, true},
+		{"did not start", StatusDNS, true},
+		{"dsq", StatusDSQ, true},
+		{"disqualified", StatusDSQ, true},
+		{"DQ", StatusDSQ, true},
+		{"otl", StatusOTL, true},
+		{"over time", StatusOTL, true},
+		{"over_cutoff", StatusOTL, true},
+		{"", "", true},
+		{"unknown_status", "", false},
+		{"invalid", "", false},
+		{"wat", "", false},
 	}
-	for in, want := range cases {
-		if got := normalizeStatus(in); got != want {
-			t.Errorf("normalizeStatus(%q) = %q, want %q", in, got, want)
+	for _, c := range cases {
+		got, ok := normalizeStatus(c.in)
+		if ok != c.wantOk || got != c.want {
+			t.Errorf("normalizeStatus(%q) = (%q, %v), want (%q, %v)", c.in, got, ok, c.want, c.wantOk)
 		}
 	}
 }

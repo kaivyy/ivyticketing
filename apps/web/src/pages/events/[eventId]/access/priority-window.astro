@@ -72,7 +72,7 @@ const categoryId = Astro.url.searchParams.get("categoryId") ?? "";
       const grant = await authedFetch<AccessGrantDTO>(
         `/events/${eventId}/access/priority-window?categoryId=${categoryId}`
       );
-      // Grant auto-issued — redirect to checkout with grant token
+      // Grant auto-issued - redirect to checkout with grant token
       const checkoutUrl =
         `/events/${eventId}/checkout?categoryId=${categoryId}&grantToken=${encodeURIComponent(grant.token)}`;
       const successWrap = document.createElement("div");

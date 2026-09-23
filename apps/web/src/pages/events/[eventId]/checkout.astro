@@ -4,246 +4,2591 @@ import ParticipantLayout from "../../../layouts/ParticipantLayout.astro";
 import StatusBanner from "../../../components/StatusBanner.astro";
 const { eventId } = Astro.params;
 ---
-<ParticipantLayout title="Checkout">
-  <div class="max-w-lg mx-auto mt-12 px-4">
-    <a id="back-link" href={`/events/${eventId}`} class="text-sm text-slate-500">← Kembali ke event</a>
+<ParticipantLayout title="Registrasi & Checkout | ivyticketing" hideHeader={true} fullWidth={true}>
+  <!-- Parameter Stash Inline Script (Runs immediately on load) -->
+  <script is:inline>
+    (function () {
+      var p = new URLSearchParams(window.location.search);
+      window.__checkoutParams = {
+        orderId:    p.get("orderId")    ?? "",
+        categoryId: p.get("categoryId") ?? "",
+        admission:  p.get("admission")  ?? "",
+        grantToken: p.get("grantToken") ?? "",
+        drawId:     p.get("drawId")     ?? "",
+        source:     p.get("source")     ?? "",
+        mode:       p.get("mode")       ?? "",
+        step:       p.get("step")       ?? "",
+      };
+      var orgSlug   = p.get("orgSlug")   ?? "";
+      var eventSlug = p.get("eventSlug") ?? "";
+      var backLink  = document.getElementById("nav-back-link");
+      if (backLink && orgSlug && eventSlug) {
+        backLink.setAttribute("href", backLink.getAttribute("href") + "?orgSlug=" + encodeURIComponent(orgSlug) + "&eventSlug=" + encodeURIComponent(eventSlug));
+      }
+    })();
+  </script>
+
+  <!-- Sticky Event Checkout Navbar -->
+  <header id="checkout-navbar" class="sticky top-0 z-50 w-full transition-colors duration-200 backdrop-blur-md bg-slate-900/95 border-b border-white/10 shadow-xs">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-3">
+      <!-- Left: Back Button & Event Brand Badge -->
+      <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+        <a
+          id="nav-back-link"
+          href={`/events/${eventId}`}
+          class="inline-flex items-center gap-1.5 min-h-[44px] px-2.5 sm:px-3 rounded-lg text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+          aria-label="Kembali ke Halaman Event"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          <span class="hidden sm:inline">Kembali ke Event</span>
+          <span class="sm:hidden">Kembali</span>
+        </a>
+
+        <div class="h-4 sm:h-5 w-px bg-white/20 shrink-0"></div>
+
+        <div class="flex items-center gap-2 min-w-0">
+          <span
+            id="nav-brand-badge"
+            class="inline-flex items-center justify-center font-black text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 rounded uppercase tracking-wider shrink-0 bg-white text-slate-950 shadow-xs"
+          >
+            IVY
+          </span>
+          <div class="min-w-0 truncate">
+            <span id="nav-event-title" class="font-bold text-xs sm:text-sm text-white block truncate">
+              Pendaftaran Event
+            </span>
+            <span id="nav-event-sub" class="hidden md:block text-[10px] uppercase font-bold tracking-wider text-slate-400 truncate">
+              Official Athlete Portal
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center: Security Badge -->
+      <div class="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 text-xs font-medium">
+        <span class="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="nav-security-label">Pendaftaran Resmi Terenkripsi SSL 256-Bit</span>
+      </div>
+
+      <!-- Right: Step Progress Pill -->
+      <div class="flex items-center gap-2 shrink-0">
+        <div id="nav-step-pill" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 text-white font-mono text-[11px] sm:text-xs font-semibold">
+          <span id="nav-step-text">Langkah 1/3</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Viewport Container -->
+  <div id="checkout-container" class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 transition-all duration-300">
     <StatusBanner />
-    <h1 class="text-xl font-bold mt-4 mb-6">Checkout</h1>
+
+    <!-- Compact Stepper Bar -->
+    <nav id="checkout-stepper-card" aria-label="Alur Pendaftaran" class="mb-4 sm:mb-6 rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-xs">
+      <div class="grid grid-cols-3 gap-2 text-center text-xs">
+        <div id="step-ind-1" class="flex items-center justify-center gap-1.5 sm:gap-2 font-bold text-slate-900 transition-colors">
+          <span class="step-num flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-slate-900 text-white text-xs shrink-0">1</span>
+          <span class="truncate">Tiket & Kategori</span>
+        </div>
+        <div id="step-ind-2" class="flex items-center justify-center gap-1.5 sm:gap-2 font-medium text-slate-400 transition-colors">
+          <span class="step-num flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-slate-100 text-slate-500 text-xs shrink-0">2</span>
+          <span class="truncate">Data Atlet & BIB</span>
+        </div>
+        <div id="step-ind-3" class="flex items-center justify-center gap-1.5 sm:gap-2 font-medium text-slate-400 transition-colors">
+          <span class="step-num flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-slate-100 text-slate-500 text-xs shrink-0">3</span>
+          <span class="truncate">Pembayaran & E-Tiket</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Dynamic Checkout Content Root -->
     <div id="checkout-root" data-event-id={eventId}>
-      <p class="text-slate-500 text-center">Memuat…</p>
+      <div class="rounded-xl border border-slate-200 bg-white p-8 sm:p-12 text-center">
+        <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900 mb-3"></div>
+        <p class="text-sm font-medium text-slate-600">Menyiapkan pendaftaran atlet...</p>
+      </div>
     </div>
   </div>
 </ParticipantLayout>
 
 <script>
-  import { createOrder, fetchOrder, initiatePayment } from "../../../lib/checkout";
+  import { createOrder, guestCheckout, fetchOrder, initiatePayment } from "../../../lib/checkout";
+  import { getToken } from "../../../lib/auth";
+  import { fetchPublicForm } from "../../../lib/api";
+  import { getPaymentSettings, getActiveChannelsForEvent, syncEventPaymentChannelsFromServer, type PaymentChannelConfig } from "../../../lib/payment-settings";
+  import { getMarathonEventById, type MarathonCategory, type MarathonEvent, type CustomFormConfig, DEFAULT_FORM_CONFIG } from "../../../lib/events-store";
 
   const root = document.getElementById("checkout-root")!;
   const eventId = root.dataset.eventId!;
 
-  // ── Strip sensitive params from URL on load ─────────────────────────────────
+  // Strip sensitive params from URL on load
   const url = new URL(window.location.href);
   const sensitiveParams = ["grantToken", "admission"];
   sensitiveParams.forEach((p) => url.searchParams.delete(p));
   history.replaceState({}, "", url.toString());
 
-  // ── Read entry-point params from the ORIGINAL url (before stripping) ────────
-  const raw = new URL(window.location.href); // already stripped — read from original
-  // Re-read from the original location before history.replaceState wiped them.
-  // We captured them before stripping above.
-  const origParams = new URLSearchParams(window.location.search);
-
-  // Re-read from location.search before replaceState (we already did replaceState,
-  // so we need to stash params before that). Reload approach: use a data attribute
-  // set by inline script before this module runs.
-  // Actually — replaceState was called above, but window.location.search is already
-  // updated. We need to read params BEFORE stripping. Fix: read from a stash.
-  // The stash is written by the inline script below. See <script id="param-stash">.
-  const stash = (window as any).__checkoutParams as Record<string, string> ?? {};
-
+  // Read entry-point params from the stash
+  const stash = ((window as any).__checkoutParams as Record<string, string>) ?? {};
   const orderId    = stash["orderId"]    ?? "";
-  const categoryId = stash["categoryId"] ?? "";
+  let   categoryId = stash["categoryId"] ?? "";
   const admission  = stash["admission"]  ?? "";
   const grantToken = stash["grantToken"] ?? "";
   const drawId     = stash["drawId"]     ?? "";
   const source     = stash["source"]     ?? "";
+  let   urlMode    = stash["mode"]       ?? "";
+  let   currentStep = stash["step"]      ?? "";
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
-  const fmt = (n: number) =>
-    `Rp${n.toLocaleString("id-ID")}`;
+  // 38 Official Indonesian Provinces + International
+  const INDONESIAN_PROVINCES = [
+    "Aceh",
+    "Sumatera Utara",
+    "Sumatera Barat",
+    "Riau",
+    "Kepulauan Riau",
+    "Jambi",
+    "Sumatera Selatan",
+    "Kepulauan Bangka Belitung",
+    "Bengkulu",
+    "Lampung",
+    "DKI Jakarta",
+    "Banten",
+    "Jawa Barat",
+    "Jawa Tengah",
+    "DI Yogyakarta",
+    "Jawa Timur",
+    "Bali",
+    "Nusa Tenggara Barat",
+    "Nusa Tenggara Timur",
+    "Kalimantan Barat",
+    "Kalimantan Tengah",
+    "Kalimantan Selatan",
+    "Kalimantan Timur",
+    "Kalimantan Utara",
+    "Sulawesi Utara",
+    "Gorontalo",
+    "Sulawesi Tengah",
+    "Sulawesi Barat",
+    "Sulawesi Selatan",
+    "Sulawesi Tenggara",
+    "Maluku",
+    "Maluku Utara",
+    "Papua",
+    "Papua Barat",
+    "Papua Selatan",
+    "Papua Tengah",
+    "Papua Pegunungan",
+    "Papua Barat Daya",
+    "Luar Negeri (International)",
+  ];
 
-  function showError(msg: string) {
-    const wrap = document.createElement("div");
-    wrap.className = "rounded-lg border border-red-200 bg-red-50 p-6 text-center";
-    const p = document.createElement("p");
-    p.className = "text-red-700 text-sm";
-    p.textContent = msg;
-    const a = document.createElement("a");
-    a.href = "/participant/orders";
-    a.className = "mt-4 inline-block text-sm text-slate-600 underline";
-    a.textContent = "Lihat pesanan saya";
-    wrap.appendChild(p);
-    wrap.appendChild(a);
-    root.replaceChildren(wrap);
+  interface AthleteData {
+    fullName: string;
+    bibName: string;
+    idNumber: string;
+    gender: "MALE" | "FEMALE";
+    birthDate: string;
+    bloodType: string;
+    province: string;
+    city: string;
+    phone: string;
+    email: string;
+    emergencyName: string;
+    emergencyPhone: string;
+    emergencyRelation: string;
+    jerseySize: string;
+    runningClub?: string;
+    medicalNotes?: string;
+    estimatedFinishTime?: string;
+    customFields?: Record<string, any>;
+    [key: string]: any;
   }
 
-  function renderOrder(order: Awaited<ReturnType<typeof fetchOrder>>) {
-    const expired = order.expiredAt && new Date(order.expiredAt) < new Date();
-    const canPay = (order.status === "PENDING" || order.status === "AWAITING_PAYMENT") && !expired;
+  interface TemplateTheme {
+    templateId: string;
+    navBg: string;
+    navBorder: string;
+    badgeBg: string;
+    badgeText: string;
+    badgeLabel: string;
+    brandTitle: string;
+    subText: string;
+    subColor: string;
+    primaryColor: string;
+    primaryHover: string;
+    primaryText: string;
+    accentColor: string;
+    lightBg: string;
+    ringColor: string;
+  }
 
+  // ── Template Color & Style Mapping (Synchronized with index.astro) ──────────
+  function getTemplateTheme(event: MarathonEvent): TemplateTheme {
+    const templateId = event.layoutConfig?.templateId || "template-summarecon";
+    const navCfg = event.layoutConfig?.navbarConfig;
+    const customPrimary = event.layoutConfig?.customThemePrimary;
+    const customAccent = event.layoutConfig?.customThemeAccent;
+
+    if (templateId === "template-baa" || event.id.includes("baa") || event.id.includes("boston")) {
+      return {
+        templateId: "template-baa",
+        navBg: "rgba(0, 23, 46, 0.98)",
+        navBorder: "rgba(253, 218, 36, 0.35)",
+        badgeBg: navCfg?.brandBadgeBg || "#fdda24",
+        badgeText: navCfg?.brandBadgeColor || "#00172e",
+        badgeLabel: navCfg?.brandBadgeText || "BAA",
+        brandTitle: navCfg?.brandTitle || event.name,
+        subText: navCfg?.brandSubtitle || "BOSTON ATHLETIC ASSOCIATION",
+        subColor: "#fdda24",
+        primaryColor: "#fdda24",
+        primaryHover: "#e5c41e",
+        primaryText: "#00172e",
+        accentColor: "#002244",
+        lightBg: "rgba(253, 218, 36, 0.08)",
+        ringColor: "#fdda24",
+      };
+    }
+
+    if (templateId === "template-tokyo" || event.id.includes("tokyo")) {
+      return {
+        templateId: "template-tokyo",
+        navBg: "rgba(10, 10, 10, 0.98)",
+        navBorder: "rgba(220, 38, 38, 0.35)",
+        badgeBg: navCfg?.brandBadgeBg || "#dc2626",
+        badgeText: navCfg?.brandBadgeColor || "#ffffff",
+        badgeLabel: navCfg?.brandBadgeText || "TKY",
+        brandTitle: navCfg?.brandTitle || event.name,
+        subText: navCfg?.brandSubtitle || "TOKYO WORLD MARATHON MAJOR",
+        subColor: "#f87171",
+        primaryColor: "#dc2626",
+        primaryHover: "#b91c1c",
+        primaryText: "#ffffff",
+        accentColor: "#ef4444",
+        lightBg: "rgba(220, 38, 38, 0.08)",
+        ringColor: "#dc2626",
+      };
+    }
+
+    if (templateId === "template-ironman" || event.id.includes("ironman") || event.id.includes("triathlon")) {
+      return {
+        templateId: "template-ironman",
+        navBg: "rgba(13, 13, 13, 0.98)",
+        navBorder: "rgba(225, 29, 72, 0.35)",
+        badgeBg: navCfg?.brandBadgeBg || "#e11d48",
+        badgeText: navCfg?.brandBadgeColor || "#ffffff",
+        badgeLabel: navCfg?.brandBadgeText || "IM",
+        brandTitle: navCfg?.brandTitle || event.name,
+        subText: navCfg?.brandSubtitle || "IRONMAN TRIATHLON SERIES",
+        subColor: "#f43f5e",
+        primaryColor: "#e11d48",
+        primaryHover: "#be123c",
+        primaryText: "#ffffff",
+        accentColor: "#f43f5e",
+        lightBg: "rgba(225, 29, 72, 0.08)",
+        ringColor: "#e11d48",
+      };
+    }
+
+    if (templateId === "template-berlin" || event.id.includes("berlin")) {
+      return {
+        templateId: "template-berlin",
+        navBg: "rgba(2, 11, 30, 0.98)",
+        navBorder: "rgba(14, 165, 233, 0.35)",
+        badgeBg: navCfg?.brandBadgeBg || "#0284c7",
+        badgeText: navCfg?.brandBadgeColor || "#ffffff",
+        badgeLabel: navCfg?.brandBadgeText || "BER",
+        brandTitle: navCfg?.brandTitle || event.name,
+        subText: navCfg?.brandSubtitle || "BMW BERLIN MARATHON",
+        subColor: "#38bdf8",
+        primaryColor: "#0284c7",
+        primaryHover: "#0369a1",
+        primaryText: "#ffffff",
+        accentColor: "#38bdf8",
+        lightBg: "rgba(2, 132, 199, 0.08)",
+        ringColor: "#0284c7",
+      };
+    }
+
+    if (templateId === "template-borobudur" || event.id.includes("borobudur")) {
+      return {
+        templateId: "template-borobudur",
+        navBg: "rgba(18, 16, 14, 0.98)",
+        navBorder: "rgba(217, 119, 6, 0.35)",
+        badgeBg: navCfg?.brandBadgeBg || "#d97706",
+        badgeText: navCfg?.brandBadgeColor || "#000000",
+        badgeLabel: navCfg?.brandBadgeText || "BRB",
+        brandTitle: navCfg?.brandTitle || event.name,
+        subText: navCfg?.brandSubtitle || "BOROBUDUR HERITAGE MARATHON",
+        subColor: "#fbbf24",
+        primaryColor: "#d97706",
+        primaryHover: "#b45309",
+        primaryText: "#000000",
+        accentColor: "#fbbf24",
+        lightBg: "rgba(217, 119, 6, 0.08)",
+        ringColor: "#d97706",
+      };
+    }
+
+    if (templateId === "template-sydney" || event.id.includes("sydney")) {
+      return {
+        templateId: "template-sydney",
+        navBg: "rgba(7, 21, 39, 0.98)",
+        navBorder: "rgba(14, 165, 233, 0.35)",
+        badgeBg: navCfg?.brandBadgeBg || "#0ea5e9",
+        badgeText: navCfg?.brandBadgeColor || "#ffffff",
+        badgeLabel: navCfg?.brandBadgeText || "SYD",
+        brandTitle: navCfg?.brandTitle || event.name,
+        subText: navCfg?.brandSubtitle || "SYDNEY HARBOUR MARATHON",
+        subColor: "#38bdf8",
+        primaryColor: "#0ea5e9",
+        primaryHover: "#0284c7",
+        primaryText: "#ffffff",
+        accentColor: "#0d9488",
+        lightBg: "rgba(14, 165, 233, 0.08)",
+        ringColor: "#0ea5e9",
+      };
+    }
+
+    if (templateId === "template-bangkok" || event.id.includes("bangkok") || event.id.includes("bkk")) {
+      return {
+        templateId: "template-bangkok",
+        navBg: "rgba(6, 11, 19, 0.98)",
+        navBorder: "rgba(249, 115, 22, 0.35)",
+        badgeBg: navCfg?.brandBadgeBg || "#f97316",
+        badgeText: navCfg?.brandBadgeColor || "#000000",
+        badgeLabel: navCfg?.brandBadgeText || "BKK",
+        brandTitle: navCfg?.brandTitle || event.name,
+        subText: navCfg?.brandSubtitle || "BANGKOK MIDNIGHT MARATHON",
+        subColor: "#fb923c",
+        primaryColor: "#f97316",
+        primaryHover: "#ea580c",
+        primaryText: "#ffffff",
+        accentColor: "#fb923c",
+        lightBg: "rgba(249, 115, 22, 0.08)",
+        ringColor: "#f97316",
+      };
+    }
+
+    if (templateId === "template-custom") {
+      const pColor = customPrimary || "#ea580c";
+      return {
+        templateId: "template-custom",
+        navBg: "rgba(10, 17, 32, 0.98)",
+        navBorder: customAccent ? `${customAccent}4d` : "rgba(234, 88, 12, 0.35)",
+        badgeBg: navCfg?.brandBadgeBg || pColor,
+        badgeText: navCfg?.brandBadgeColor || "#ffffff",
+        badgeLabel: navCfg?.brandBadgeText || "IVY",
+        brandTitle: navCfg?.brandTitle || event.name,
+        subText: navCfg?.brandSubtitle || "OFFICIAL ATHLETE REGISTRATION",
+        subColor: customAccent || "#fb923c",
+        primaryColor: pColor,
+        primaryHover: customAccent || "#c2410c",
+        primaryText: "#ffffff",
+        accentColor: customAccent || "#fb923c",
+        lightBg: "rgba(234, 88, 12, 0.08)",
+        ringColor: pColor,
+      };
+    }
+
+    // Default: Summarecon Bandung Night Run
+    return {
+      templateId: "template-summarecon",
+      navBg: "rgba(11, 15, 25, 0.98)",
+      navBorder: "rgba(139, 92, 246, 0.35)",
+      badgeBg: navCfg?.brandBadgeBg || "#8b5cf6",
+      badgeText: navCfg?.brandBadgeColor || "#ffffff",
+      badgeLabel: navCfg?.brandBadgeText || "SMR",
+      brandTitle: navCfg?.brandTitle || event.name,
+      subText: navCfg?.brandSubtitle || "SUMMARECON NIGHT RUN FESTIVAL",
+      subColor: "#a78bfa",
+      primaryColor: "#8b5cf6",
+      primaryHover: "#7c3aed",
+      primaryText: "#ffffff",
+      accentColor: "#a78bfa",
+      lightBg: "rgba(139, 92, 246, 0.08)",
+      ringColor: "#8b5cf6",
+    };
+  }
+
+  // Synchronize top navbar style with active template
+  function syncNavbarWithTemplate(theme: TemplateTheme) {
+    const navbar = document.getElementById("checkout-navbar");
+    if (navbar) {
+      navbar.style.backgroundColor = theme.navBg;
+      navbar.style.borderBottomColor = theme.navBorder;
+    }
+    const badge = document.getElementById("nav-brand-badge");
+    if (badge) {
+      badge.style.backgroundColor = theme.badgeBg;
+      badge.style.color = theme.badgeText;
+      badge.textContent = theme.badgeLabel;
+    }
+    const title = document.getElementById("nav-event-title");
+    if (title) {
+      title.textContent = theme.brandTitle;
+    }
+    const sub = document.getElementById("nav-event-sub");
+    if (sub) {
+      sub.textContent = theme.subText;
+      sub.style.color = theme.subColor;
+    }
+  }
+
+  // ── Helper Utilities ────────────────────────────────────────────────────────
+  function escapeHtml(str: string): string {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function fmt(amount: number): string {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  }
+
+  function toShortPrice(price: number): string {
+    if (price >= 1000) {
+      const k = price / 1000;
+      return `IDR ${Number.isInteger(k) ? k : k.toFixed(0)}K`;
+    }
+    return `IDR ${price}`;
+  }
+
+  function getStoredAthlete(): AthleteData | null {
+    try {
+      const raw = localStorage.getItem("ivy_checkout_athlete");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveAthlete(athlete: AthleteData) {
+    try {
+      localStorage.setItem("ivy_checkout_athlete", JSON.stringify(athlete));
+    } catch {
+      // ignore
+    }
+  }
+
+  function showError(message: string) {
     root.innerHTML = `
-      <div class="rounded-lg border border-slate-200 bg-white p-6 space-y-4">
-        <div>
-          <p class="text-xs text-slate-400 uppercase tracking-wide">Nomor Pesanan</p>
-          <p class="font-mono font-semibold">${order.orderNumber}</p>
+      <div class="rounded-xl border border-red-200 bg-red-50 p-6 sm:p-8 text-center space-y-4">
+        <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600 text-xl font-bold">
+          !
         </div>
-        <dl class="space-y-1 text-sm">
-          <div class="flex justify-between">
-            <dt class="text-slate-500">Subtotal</dt>
-            <dd>${fmt(order.subtotal)}</dd>
-          </div>
-          ${order.fee ? `<div class="flex justify-between"><dt class="text-slate-500">Biaya layanan</dt><dd>${fmt(order.fee)}</dd></div>` : ""}
-          ${order.discount ? `<div class="flex justify-between"><dt class="text-slate-500">Diskon</dt><dd>−${fmt(order.discount)}</dd></div>` : ""}
-          <div class="flex justify-between font-semibold border-t border-slate-100 pt-2 mt-2">
-            <dt>Total</dt>
-            <dd>${fmt(order.total)}</dd>
-          </div>
-        </dl>
-        ${order.expiredAt ? `<p class="text-xs text-amber-700">Batas pembayaran: ${new Date(order.expiredAt).toLocaleString("id-ID")}</p>` : ""}
-        ${expired ? `<p class="text-red-600 text-sm">Pesanan ini telah kedaluwarsa.</p>` : ""}
-        <p id="pay-error" class="text-red-600 text-sm hidden" role="alert"></p>
-        ${canPay
-          ? `<button id="btn-pay"
-               class="w-full rounded bg-slate-900 px-4 py-3 text-white font-medium hover:bg-slate-700 disabled:opacity-50"
-               type="button">
-               Bayar Sekarang
-             </button>`
-          : order.status === "PAID"
-            ? `<p class="text-green-600 font-medium text-center">Pembayaran berhasil.</p>
-               <a href="/participant/orders/${order.id}" class="block text-center text-sm text-slate-600 underline mt-2">Lihat tiket</a>`
-            : `<p class="text-slate-500 text-sm text-center">Status: ${order.status}</p>`
-        }
+        <p class="text-sm font-semibold text-red-800">${escapeHtml(message)}</p>
+        <a href="/events/${eventId}" class="inline-flex items-center justify-center min-h-[44px] rounded-xl bg-slate-900 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-slate-800 transition-colors">
+          Kembali ke Event
+        </a>
       </div>`;
+  }
 
-    document.getElementById("btn-pay")?.addEventListener("click", async (e) => {
-      const btn = e.currentTarget as HTMLButtonElement;
-      btn.disabled = true;
-      btn.textContent = "Memproses…";
-      const errEl = document.getElementById("pay-error")!;
-      errEl.classList.add("hidden");
-      try {
-        const payment = await initiatePayment(order.id);
-        if (payment.payUrl) {
-          window.location.href = payment.payUrl;
-        } else {
-          // No redirect URL — show inline confirmation
-          root.innerHTML = `
-            <div class="rounded-lg border border-green-200 bg-green-50 p-6 text-center space-y-3">
-              <p class="text-green-700 font-semibold">Pembayaran dimulai.</p>
-              ${payment.vaNumber ? `<p class="text-sm">VA: <span class="font-mono">${payment.vaNumber}</span></p>` : ""}
-              ${payment.qrString ? `<p class="text-sm text-slate-600">Gunakan QR dari aplikasi bank Anda.</p>` : ""}
-              <a href="/participant/orders/${order.id}" class="inline-block rounded border px-4 py-2 text-sm mt-2">
-                Lihat Detail Pesanan
-              </a>
-            </div>`;
+  function setStep(step: 1 | 2 | 3, theme: TemplateTheme) {
+    const navStepText = document.getElementById("nav-step-text");
+    if (navStepText) {
+      navStepText.textContent = `Langkah ${step}/3`;
+    }
+
+    const steps = [
+      { id: "step-ind-1", num: 1 },
+      { id: "step-ind-2", num: 2 },
+      { id: "step-ind-3", num: 3 },
+    ];
+
+    steps.forEach((s) => {
+      const el = document.getElementById(s.id);
+      if (!el) return;
+      const numSpan = el.querySelector<HTMLElement>(".step-num");
+      if (s.num === step) {
+        el.className = "flex items-center justify-center gap-1.5 sm:gap-2 font-bold text-slate-900 transition-colors";
+        if (numSpan) {
+          numSpan.style.backgroundColor = theme.primaryColor;
+          numSpan.style.color = theme.primaryText;
         }
-      } catch (err: unknown) {
-        btn.disabled = false;
-        btn.textContent = "Bayar Sekarang";
-        errEl.textContent = err instanceof Error ? err.message : "Gagal memulai pembayaran.";
-        errEl.classList.remove("hidden");
+      } else if (s.num < step) {
+        el.className = "flex items-center justify-center gap-1.5 sm:gap-2 font-semibold text-emerald-700 transition-colors";
+        if (numSpan) {
+          numSpan.style.backgroundColor = "#10b981";
+          numSpan.style.color = "#ffffff";
+          numSpan.textContent = "✓";
+        }
+      } else {
+        el.className = "flex items-center justify-center gap-1.5 sm:gap-2 font-medium text-slate-400 transition-colors";
+        if (numSpan) {
+          numSpan.style.backgroundColor = "#f1f5f9";
+          numSpan.style.color = "#64748b";
+          numSpan.textContent = String(s.num);
+        }
       }
     });
   }
 
-  // ── Entry-point routing ─────────────────────────────────────────────────────
+  // ── Open Interactive Route & Course Map Modal ──────────────────────────────
+  function openRouteModal(category: MarathonCategory) {
+    document.getElementById("route-modal")?.remove();
 
+    const modal = document.createElement("div");
+    modal.id = "route-modal";
+    modal.className = "fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "route-modal-title");
+
+    modal.innerHTML = `
+      <div class="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-auto">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3.5 bg-slate-50">
+          <div class="min-w-0">
+            <h3 id="route-modal-title" class="font-bold text-slate-900 text-sm sm:text-base uppercase tracking-tight truncate">
+              Rute Resmi: ${escapeHtml(category.name)}
+            </h3>
+            <span class="text-xs text-slate-500 font-mono">Jarak: ${escapeHtml(category.distance)} | COT: ${escapeHtml(category.cutoffTime || "Standar")}</span>
+          </div>
+          <button
+            type="button"
+            id="btn-close-route-modal"
+            class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors text-lg shrink-0"
+            aria-label="Tutup popup rute"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="p-5 space-y-4 text-xs text-slate-700">
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+            <div class="flex justify-between font-medium">
+              <span class="text-slate-500">Ketinggian Kumulatif (Elevation Gain):</span>
+              <span class="font-bold text-slate-900 font-mono">480 m</span>
+            </div>
+            <div class="flex justify-between font-medium">
+              <span class="text-slate-500">Pos Water Station (WS):</span>
+              <span class="font-bold text-slate-900">Setiap 2.5 KM (Isotonik & Medis)</span>
+            </div>
+            <div class="flex justify-between font-medium">
+              <span class="text-slate-500">Permukaan Lintasan:</span>
+              <span class="font-bold text-slate-900">Aspal Halus & Jalur Kota Bersejarah</span>
+            </div>
+          </div>
+          <p class="text-slate-600 leading-relaxed">
+            Rute telah terverifikasi oleh World Athletics / AIMS dengan penanda kilometer resmi di setiap sudut putaran. Pastikan nomor BIB terpasang di bagian depan dada untuk timing chip detection.
+          </p>
+          <div class="pt-1">
+            <button
+              type="button"
+              id="btn-dismiss-route"
+              class="w-full min-h-[44px] rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider transition-colors"
+            >
+              Mengerti & Kembali ke Pemilihan Tiket
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const close = () => modal.remove();
+    document.getElementById("btn-close-route-modal")?.addEventListener("click", close);
+    document.getElementById("btn-dismiss-route")?.addEventListener("click", close);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) close();
+    });
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        close();
+        window.removeEventListener("keydown", handleKeyDown);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+  }
+
+  // ── Step 0: Render Category Picker & Interactive Cart ───────────────────────
+  function renderCategoryPicker(event: MarathonEvent, theme: TemplateTheme) {
+    setStep(1, theme);
+
+    const categories = event.categories || [];
+    const eventDate = new Date(event.startsAt);
+    const dateFormatted = eventDate.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    const locationFormatted = (event.city || "Kota Penyelenggara").toUpperCase();
+    const organizerFormatted = (event.organizer || "SATURAGA").toUpperCase();
+    const bannerImg = event.bannerUrl || event.coverUrl || "https://images.unsplash.com/photo-1452626038306-9aae5e071dd3?w=1600&auto=format&fit=crop&q=80";
+
+    interface CartEntry {
+      cat: MarathonCategory;
+      tierKey: "domestik" | "intl";
+      tierName: string;
+      price: number;
+      qty: number;
+    }
+    const cart: Record<string, CartEntry> = {};
+
+    // If categoryId was passed, pre-select it
+    if (categoryId) {
+      const preCat = categories.find(
+        (c) => c.id === categoryId || c.code.toLowerCase() === categoryId.toLowerCase()
+      );
+      if (preCat) {
+        cart[`${preCat.id}_domestik`] = {
+          cat: preCat,
+          tierKey: "domestik",
+          tierName: "DOMESTIK REGULER",
+          price: preCat.mode === "BALLOT" ? 0 : preCat.price,
+          qty: 1,
+        };
+      }
+    } else if (categories.length > 0) {
+      // Default select first category
+      const firstCat = categories[0];
+      cart[`${firstCat.id}_domestik`] = {
+        cat: firstCat,
+        tierKey: "domestik",
+        tierName: "DOMESTIK REGULER",
+        price: firstCat.mode === "BALLOT" ? 0 : firstCat.price,
+        qty: 1,
+      };
+      categoryId = firstCat.id;
+    }
+
+    root.innerHTML = `
+      <!-- Compact Horizontal Event Header Strip (Fits viewport cleanly) -->
+      <div class="relative overflow-hidden rounded-2xl bg-slate-950 text-white shadow-sm mb-5 border border-slate-800">
+        <div class="absolute inset-0 z-0 opacity-25">
+          <img src="${escapeHtml(bannerImg)}" alt="${escapeHtml(event.name)}" class="w-full h-full object-cover" />
+          <div class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/90 to-transparent"></div>
+        </div>
+
+        <div class="relative z-10 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+          <div class="space-y-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider" style="background-color: ${theme.badgeBg}; color: ${theme.badgeText};">
+                ${escapeHtml(theme.badgeLabel)}
+              </span>
+              <span class="text-xs font-semibold text-slate-300">Pendaftaran Resmi Dibuka</span>
+            </div>
+            <h1 class="text-base sm:text-lg md:text-xl font-black uppercase tracking-tight text-white truncate max-w-2xl">
+              ${escapeHtml(event.name)}
+            </h1>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
+              <span class="inline-flex items-center gap-1">
+                <span>📅</span>
+                <span>${escapeHtml(dateFormatted)}</span>
+              </span>
+              <span class="inline-flex items-center gap-1">
+                <span>📍</span>
+                <span>${escapeHtml(locationFormatted)}</span>
+              </span>
+              <span class="inline-flex items-center gap-1">
+                <span>🏢</span>
+                <span>${escapeHtml(organizerFormatted)}</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="shrink-0 flex items-center gap-3">
+            <div class="hidden sm:block text-right">
+              <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Kategori Lomba</span>
+              <span class="font-mono text-sm font-bold text-white">${categories.length} Kategori Tersedia</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2-Column Responsive High-Density Checkout Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-start">
+        <!-- Left: Category List (8 Columns) -->
+        <div class="lg:col-span-8 space-y-3">
+          <div class="flex items-center justify-between pb-1">
+            <h2 class="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-tight">
+              Pilih Kategori Tiket
+            </h2>
+            <span class="text-xs text-slate-500 font-medium">Klik untuk memilih slot lomba</span>
+          </div>
+
+          <div class="space-y-3" id="categories-container">
+            ${categories.map((cat, idx) => {
+              const isBallot = cat.mode === "BALLOT";
+              const isSelected = Boolean(cart[`${cat.id}_domestik`] || cart[`${cat.id}_intl`]);
+              const domQty = cart[`${cat.id}_domestik`]?.qty || 0;
+              const intlQty = cart[`${cat.id}_intl`]?.qty || 0;
+              const intlPrice = Math.round(cat.price * 1.5);
+
+              // Color determination based on active template theme
+              const isFirst = idx === 0;
+              const catBadgeBg = isFirst ? theme.primaryColor : (idx === 1 ? theme.accentColor : "#0f172a");
+              const catBadgeText = isFirst ? theme.primaryText : "#ffffff";
+
+              return `
+                <div
+                  class="category-card rounded-xl border p-4 sm:p-5 transition-all bg-white shadow-xs ${
+                    isSelected
+                      ? 'ring-2'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }"
+                  style="${isSelected ? `border-color: ${theme.primaryColor}; box-shadow: 0 0 0 2px ${theme.ringColor}; background-color: ${theme.lightBg};` : ''}"
+                  data-cat-id="${cat.id}"
+                >
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2.5 min-w-0">
+                      <span
+                        class="self-start inline-block px-2.5 py-1 rounded text-[11px] sm:text-xs font-black uppercase tracking-wider shrink-0"
+                        style="background-color: ${catBadgeBg}; color: ${catBadgeText};"
+                      >
+                        ${escapeHtml(cat.distance || cat.code)}
+                      </span>
+                      <div class="min-w-0">
+                        <h3 class="font-black text-sm sm:text-base text-slate-950 uppercase tracking-tight break-words">
+                          ${escapeHtml(cat.name)}
+                        </h3>
+                        <div class="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                          ${cat.cutoffTime ? `<span>Cut-Off: <strong>${escapeHtml(cat.cutoffTime)}</strong></span>` : ""}
+                          <span>Kuota: <strong>${isBallot ? 'Sistem Undian' : (cat.quota ? `${cat.quota.toLocaleString('id-ID')} Slot` : 'Tersedia')}</strong></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 self-start sm:self-center shrink-0">
+                      <button
+                        type="button"
+                        class="btn-view-route text-xs font-semibold underline text-slate-600 hover:text-slate-900 min-h-[44px] px-2 flex items-center"
+                        data-cat-id="${cat.id}"
+                      >
+                        Detail Rute & WS
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Tiers Selection Grid -->
+                  <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <!-- Tier 1: Domestik (WNI) -->
+                    <div class="rounded-lg border border-slate-200 p-3 bg-white flex items-center justify-between gap-2">
+                      <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">WNI / Domestik</span>
+                        <div class="font-mono font-bold text-xs sm:text-sm text-slate-900">
+                          ${isBallot ? '<span class="text-purple-700">Rp 0 (Draw Ballot)</span>' : fmt(cat.price)}
+                        </div>
+                      </div>
+
+                      <div class="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          class="btn-qty min-h-[44px] min-w-[44px] rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-700 transition-colors"
+                          data-cat-id="${cat.id}"
+                          data-tier="domestik"
+                          data-delta="-1"
+                          aria-label="Kurangi tiket domestik"
+                        >
+                          -
+                        </button>
+                        <span class="font-mono font-bold text-xs w-6 text-center text-slate-900" id="qty-${cat.id}-domestik">
+                          ${domQty}
+                        </span>
+                        <button
+                          type="button"
+                          class="btn-qty min-h-[44px] min-w-[44px] rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-700 transition-colors"
+                          data-cat-id="${cat.id}"
+                          data-tier="domestik"
+                          data-delta="1"
+                          aria-label="Tambah tiket domestik"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Tier 2: International (WNA) -->
+                    <div class="rounded-lg border border-slate-200 p-3 bg-white flex items-center justify-between gap-2">
+                      <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">WNA / International</span>
+                        <div class="font-mono font-bold text-xs sm:text-sm text-slate-900">
+                          ${isBallot ? '<span class="text-purple-700">Rp 0 (Draw Ballot)</span>' : fmt(intlPrice)}
+                        </div>
+                      </div>
+
+                      <div class="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          class="btn-qty min-h-[44px] min-w-[44px] rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-700 transition-colors"
+                          data-cat-id="${cat.id}"
+                          data-tier="intl"
+                          data-delta="-1"
+                          aria-label="Kurangi tiket internasional"
+                        >
+                          -
+                        </button>
+                        <span class="font-mono font-bold text-xs w-6 text-center text-slate-900" id="qty-${cat.id}-intl">
+                          ${intlQty}
+                        </span>
+                        <button
+                          type="button"
+                          class="btn-qty min-h-[44px] min-w-[44px] rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-700 transition-colors"
+                          data-cat-id="${cat.id}"
+                          data-tier="intl"
+                          data-delta="1"
+                          aria-label="Tambah tiket internasional"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </div>
+
+        <!-- Right: Sticky Order Summary (4 Columns - Fits within Screen Viewport) -->
+        <div class="lg:col-span-4">
+          <div class="sticky top-20 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Ringkasan Pesanan</span>
+              <span id="cart-item-count" class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 text-slate-800">
+                0 Kategori
+              </span>
+            </div>
+
+            <div id="cart-items-list" class="space-y-2 text-xs divide-y divide-slate-100 max-h-48 overflow-y-auto">
+              <!-- Rendered dynamically -->
+            </div>
+
+            <!-- Price Calculation Table -->
+            <div class="rounded-xl bg-slate-50 p-3 space-y-1.5 text-xs">
+              <div class="flex justify-between text-slate-500">
+                <span>Subtotal Tiket</span>
+                <span class="font-mono font-bold text-slate-900" id="cart-subtotal">Rp 0</span>
+              </div>
+              <div class="flex justify-between text-slate-500">
+                <span>Biaya Layanan Platform</span>
+                <span class="font-bold text-emerald-700">GRATIS</span>
+              </div>
+              <div class="flex justify-between text-slate-500">
+                <span>Pajak & Retribusi Resmi</span>
+                <span class="font-bold text-slate-700">Termasuk</span>
+              </div>
+              <div class="border-t border-slate-200 pt-2 mt-2 flex justify-between items-baseline font-bold text-slate-950">
+                <span class="text-xs sm:text-sm">Total Tagihan</span>
+                <span class="text-base sm:text-lg font-mono font-black" id="cart-total" style="color: ${theme.primaryText === '#ffffff' ? theme.primaryColor : '#0f172a'};">
+                  Rp 0
+                </span>
+              </div>
+            </div>
+
+            <!-- Holding Timer Pill -->
+            <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-2.5 text-xs text-emerald-800 flex items-center justify-between">
+              <div class="flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                <span class="font-bold">Slot Terkunci:</span>
+                <span>15:00 Menit</span>
+              </div>
+              <span class="text-[10px] font-mono font-bold uppercase text-emerald-900">Sesi Aktif</span>
+            </div>
+
+            <!-- Primary Action Button -->
+            <button
+              id="btn-cart-checkout"
+              type="button"
+              class="w-full min-h-[48px] rounded-xl font-bold uppercase tracking-wider text-xs sm:text-sm transition-all shadow-md active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer"
+              style="background-color: ${theme.primaryColor}; color: ${theme.primaryText};"
+            >
+              <span>Lanjut ke Data Peserta</span>
+              <span>→</span>
+            </button>
+
+            <!-- Reassurance & Trust Badges -->
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-center gap-3 text-[10px] text-slate-400 font-medium">
+              <span>✓ 100% Tiket Resmi</span>
+              <span>•</span>
+              <span>✓ Enkripsi SSL Aman</span>
+              <span>•</span>
+              <span>✓ E-Tiket Instan</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Sticky Bottom Bar -->
+      <div id="mobile-sticky-bar" class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-2.5 shadow-lg flex items-center justify-between gap-3">
+        <div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Tagihan</span>
+          <span class="text-base font-mono font-black text-slate-950" id="mobile-cart-total">Rp 0</span>
+        </div>
+        <button
+          type="button"
+          id="btn-mobile-checkout"
+          class="min-h-[48px] px-5 sm:px-6 rounded-xl font-bold uppercase tracking-wider text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+          style="background-color: ${theme.primaryColor}; color: ${theme.primaryText};"
+        >
+          <span>Lanjut ke Data Peserta</span>
+          <span>→</span>
+        </button>
+      </div>
+    `;
+
+    // ── Cart State Synchronizer ──
+    function syncCartUI() {
+      const itemsListEl = document.getElementById("cart-items-list");
+      const subtotalEl = document.getElementById("cart-subtotal");
+      const totalEl = document.getElementById("cart-total");
+      const countEl = document.getElementById("cart-item-count");
+      const checkoutBtn = document.getElementById("btn-cart-checkout") as HTMLButtonElement | null;
+      const mobileTotalEl = document.getElementById("mobile-cart-total");
+      const mobileCheckoutBtn = document.getElementById("btn-mobile-checkout") as HTMLButtonElement | null;
+
+      const entries = Object.values(cart);
+      const totalItems = entries.reduce((acc, cur) => acc + cur.qty, 0);
+      const totalPrice = entries.reduce((acc, cur) => acc + (cur.price * cur.qty), 0);
+
+      if (countEl) countEl.textContent = `${totalItems} Tiket`;
+      if (subtotalEl) subtotalEl.textContent = fmt(totalPrice);
+      if (totalEl) totalEl.textContent = fmt(totalPrice);
+      if (mobileTotalEl) mobileTotalEl.textContent = fmt(totalPrice);
+
+      if (itemsListEl) {
+        if (entries.length === 0) {
+          itemsListEl.innerHTML = `
+            <p class="text-slate-400 text-center py-4 text-xs italic">
+              Belum ada tiket dipilih. Tekan tombol + pada kategori di atas.
+            </p>`;
+        } else {
+          itemsListEl.innerHTML = entries.map((entry) => `
+            <div class="pt-1.5 first:pt-0 flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <p class="font-bold text-slate-900 truncate">${escapeHtml(entry.cat.name)}</p>
+                <span class="text-[10px] text-slate-400 font-mono">${entry.tierName} (${entry.qty}x)</span>
+              </div>
+              <span class="font-mono font-bold text-slate-900 shrink-0">
+                ${entry.price === 0 ? "Rp 0 (Ballot)" : fmt(entry.price * entry.qty)}
+              </span>
+            </div>
+          `).join("");
+        }
+      }
+
+      if (checkoutBtn) {
+        checkoutBtn.disabled = totalItems === 0;
+        checkoutBtn.style.opacity = totalItems === 0 ? "0.5" : "1";
+      }
+      if (mobileCheckoutBtn) {
+        mobileCheckoutBtn.disabled = totalItems === 0;
+        mobileCheckoutBtn.style.opacity = totalItems === 0 ? "0.5" : "1";
+      }
+
+      // Update active category border/ring styles
+      document.querySelectorAll<HTMLElement>(".category-card").forEach((card) => {
+        const cId = card.dataset.catId;
+        const active = Boolean(cart[`${cId}_domestik`] || cart[`${cId}_intl`]);
+        if (active) {
+          card.style.borderColor = theme.primaryColor;
+          card.style.boxShadow = `0 0 0 2px ${theme.ringColor}`;
+          card.style.backgroundColor = theme.lightBg;
+        } else {
+          card.style.borderColor = "#e2e8f0";
+          card.style.boxShadow = "none";
+          card.style.backgroundColor = "#ffffff";
+        }
+      });
+    }
+
+    // Bind quantity click handlers
+    document.querySelectorAll<HTMLButtonElement>(".btn-qty").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const catId = btn.dataset.catId!;
+        const tier = btn.dataset.tier as "domestik" | "intl";
+        const delta = parseInt(btn.dataset.delta || "0", 10);
+        const cat = categories.find((c) => c.id === catId);
+        if (!cat) return;
+
+        const key = `${catId}_${tier}`;
+        const currentQty = cart[key]?.qty || 0;
+        const newQty = Math.max(0, Math.min(10, currentQty + delta));
+
+        if (newQty === 0) {
+          delete cart[key];
+        } else {
+          const price = tier === "domestik"
+            ? (cat.mode === "BALLOT" ? 0 : cat.price)
+            : (cat.mode === "BALLOT" ? 0 : Math.round(cat.price * 1.5));
+          cart[key] = {
+            cat,
+            tierKey: tier,
+            tierName: tier === "domestik" ? "DOMESTIK REGULER" : "INTERNATIONAL REGULER",
+            price,
+            qty: newQty,
+          };
+          categoryId = cat.id;
+        }
+
+        const span = document.getElementById(`qty-${catId}-${tier}`);
+        if (span) span.textContent = String(newQty);
+
+        syncCartUI();
+      });
+    });
+
+    // Bind view route modals
+    document.querySelectorAll<HTMLButtonElement>(".btn-view-route").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const catId = btn.dataset.catId!;
+        const cat = categories.find((c) => c.id === catId);
+        if (cat) openRouteModal(cat);
+      });
+    });
+
+    // Checkout handler
+    const handleProceedToForm = () => {
+      const entries = Object.values(cart);
+      if (entries.length === 0) return;
+
+      const primary = entries[0];
+      categoryId = primary.cat.id;
+      urlMode = primary.cat.mode || "";
+      currentStep = "form";
+
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.set("categoryId", categoryId);
+      nextUrl.searchParams.set("step", "form");
+      if (urlMode === "BALLOT") {
+        nextUrl.searchParams.set("mode", "BALLOT");
+      } else {
+        nextUrl.searchParams.delete("mode");
+      }
+      history.replaceState({}, "", nextUrl.toString());
+
+      run();
+    };
+
+    document.getElementById("btn-cart-checkout")?.addEventListener("click", handleProceedToForm);
+    document.getElementById("btn-mobile-checkout")?.addEventListener("click", handleProceedToForm);
+
+    syncCartUI();
+  }
+
+  // ── Show Review & Confirmation Popup Modal ─────────────────────────────────
+  function showReviewConfirmationModal(
+    event: MarathonEvent,
+    category: MarathonCategory,
+    athlete: AthleteData,
+    isBallot: boolean,
+    theme: TemplateTheme,
+    onConfirmed: (confirmedAthlete: AthleteData) => void
+  ) {
+    document.getElementById("review-modal")?.remove();
+
+    const modal = document.createElement("div");
+    modal.id = "review-modal";
+    modal.className = "fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "modal-title");
+
+    modal.innerHTML = `
+      <div class="relative w-full max-w-xl max-h-[92vh] flex flex-col rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-auto">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-3.5 bg-slate-50">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="flex h-8 w-8 items-center justify-center rounded-lg font-bold text-sm shrink-0" style="background-color: ${theme.primaryColor}; color: ${theme.primaryText};">
+              📋
+            </span>
+            <div class="min-w-0">
+              <h2 id="modal-title" class="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-tight truncate">
+                Konfirmasi Data Pendaftaran Atlet
+              </h2>
+              <p class="text-xs text-slate-500 truncate">
+                ${escapeHtml(event.name)}: ${escapeHtml(category.name)} (${escapeHtml(category.distance)})
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            id="btn-close-modal"
+            class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors text-lg shrink-0"
+            aria-label="Tutup popup konfirmasi"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- Modal Body (Scrollable) -->
+        <div class="overflow-y-auto p-5 space-y-4 text-xs text-slate-700">
+          <div class="rounded-xl bg-amber-50 border border-amber-200 p-3.5 text-amber-900 space-y-1">
+            <p class="font-bold text-xs uppercase tracking-wide">Pemeriksaan Akhir Data Atlet</p>
+            <p class="text-xs text-amber-800 leading-relaxed">
+              Mohon pastikan seluruh informasi di bawah ini sudah sesuai identitas resmi Anda. Nama pada BIB dada dan ukuran jersey bersifat final dan tidak dapat diubah setelah pesanan dibuat.
+            </p>
+          </div>
+
+          <!-- Athlete Data Review Table -->
+          <div class="rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100 bg-white">
+            <div class="px-4 py-2.5 bg-slate-50/80 font-bold text-slate-800 uppercase text-[11px] tracking-wider flex justify-between items-center">
+              <span>Ringkasan Identitas Atlet</span>
+              <span class="text-xs font-mono font-bold" style="color: ${theme.primaryText === '#ffffff' ? theme.primaryColor : '#0f172a'};">${escapeHtml(category.code)}</span>
+            </div>
+            <div class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div>
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Nama Lengkap</span>
+                <span class="font-bold text-slate-900 text-sm">${escapeHtml(athlete.fullName)}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Nama pada Nomor BIB</span>
+                <span class="font-mono font-black text-sm px-2 py-0.5 rounded border inline-block uppercase" style="background-color: ${theme.lightBg}; border-color: ${theme.primaryColor}; color: ${theme.primaryText === '#ffffff' ? theme.primaryColor : '#0f172a'};">
+                  ${escapeHtml(athlete.bibName)}
+                </span>
+              </div>
+              <div>
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Nomor Identitas (NIK/Paspor)</span>
+                <span class="font-mono font-medium text-slate-900">${escapeHtml(athlete.idNumber)}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Jenis Kelamin & Lahir</span>
+                <span class="font-medium text-slate-900">${athlete.gender === "MALE" ? "Laki-laki" : "Perempuan"}, ${escapeHtml(athlete.birthDate)}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Golongan Darah</span>
+                <span class="font-bold text-slate-900">${escapeHtml(athlete.bloodType)}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Ukuran Jersey Finisher</span>
+                <span class="font-bold text-slate-900">${escapeHtml(athlete.jerseySize)} (Unisex Athletic)</span>
+              </div>
+              <div class="sm:col-span-2">
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Domisili Peserta</span>
+                <span class="font-medium text-slate-900">${escapeHtml(athlete.city)}, ${escapeHtml(athlete.province)}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Nomor WhatsApp</span>
+                <span class="font-mono font-medium text-slate-900">${escapeHtml(athlete.phone)}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block text-[10px] uppercase font-bold">Kontak Darurat</span>
+                <span class="font-medium text-slate-900">${escapeHtml(athlete.emergencyName)} (${escapeHtml(athlete.emergencyRelation)})</span>
+                <div class="font-mono text-[11px] text-slate-500">${escapeHtml(athlete.emergencyPhone)}</div>
+              </div>
+              ${athlete.runningClub ? `
+                <div>
+                  <span class="text-slate-400 block text-[10px] uppercase font-bold">Klub / Komunitas</span>
+                  <span class="font-medium text-slate-900">${escapeHtml(athlete.runningClub)}</span>
+                </div>
+              ` : ""}
+              ${athlete.medicalNotes ? `
+                <div class="sm:col-span-2">
+                  <span class="text-slate-400 block text-[10px] uppercase font-bold">Riwayat Medis / Alergi</span>
+                  <span class="font-medium text-slate-900">${escapeHtml(athlete.medicalNotes)}</span>
+                </div>
+              ` : ""}
+              ${athlete.customFields && Object.keys(athlete.customFields).length > 0 ? `
+                <div class="sm:col-span-2 border-t border-slate-100 pt-2.5 mt-1">
+                  <span class="text-slate-400 block text-[10px] uppercase font-bold mb-1.5">Informasi Tambahan Penyelenggara</span>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    ${Object.entries(athlete.customFields).map(([k, v]) => `
+                      <div class="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <span class="text-slate-500 text-[10px] block font-mono font-medium">${escapeHtml(k)}</span>
+                        <span class="font-semibold text-slate-900 text-xs">${escapeHtml(String(v))}</span>
+                      </div>
+                    `).join("")}
+                  </div>
+                </div>
+              ` : ""}
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="border-t border-slate-200 px-5 py-3.5 bg-slate-50 flex flex-col sm:flex-row items-center justify-end gap-2.5">
+          <button
+            type="button"
+            id="btn-edit-data"
+            class="w-full sm:w-auto min-h-[44px] px-5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase tracking-wider transition-colors"
+          >
+            Periksa Kembali
+          </button>
+          <button
+            type="button"
+            id="btn-confirm-submit"
+            class="w-full sm:w-auto min-h-[44px] px-6 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-md"
+            style="background-color: ${theme.primaryColor}; color: ${theme.primaryText};"
+          >
+            ${isBallot ? "Kirim Pendaftaran Undian Ballot" : "Data Benar, Lanjut ke Pembayaran →"}
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const closeModal = () => modal.remove();
+    document.getElementById("btn-close-modal")?.addEventListener("click", closeModal);
+    document.getElementById("btn-edit-data")?.addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeModal();
+        window.removeEventListener("keydown", handleEsc);
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+
+    document.getElementById("btn-confirm-submit")?.addEventListener("click", () => {
+      closeModal();
+      onConfirmed(athlete);
+    });
+  }
+
+  // ── Step 1: Render Athlete Information Form ────────────────────────────────
+  async function renderAthleteForm(
+    event: MarathonEvent,
+    category: MarathonCategory,
+    theme: TemplateTheme,
+    onComplete: (data: AthleteData) => void
+  ) {
+    const isBallot = urlMode === "BALLOT" || category.mode === "BALLOT";
+    setStep(2, theme);
+
+    let customFields: any[] = [];
+    try {
+      const publicForm = await fetchPublicForm(event.id);
+      if (publicForm && Array.isArray(publicForm.fields) && publicForm.fields.length > 0) {
+        customFields = publicForm.fields;
+      }
+    } catch {
+      // fallback
+    }
+
+    if (customFields.length === 0 && event.customFormConfig?.fields?.length) {
+      customFields = event.customFormConfig.fields;
+    }
+
+    const applicableCustomFields = customFields.filter((f: any) => {
+      if (!f.categoryScope || f.categoryScope.length === 0) return true;
+      return f.categoryScope.includes(category.id) || f.categoryScope.includes(category.code);
+    });
+
+    const customFieldsHtml = applicableCustomFields.length === 0 ? "" : `
+      <!-- Section 4: Formulir Kustom Penyelenggara -->
+      <div class="space-y-3 pt-3 border-t border-slate-100">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+          <span class="h-2 w-2 rounded-full" style="background-color: ${theme.primaryColor};"></span>
+          <span>4. Informasi Tambahan Penyelenggara</span>
+        </h3>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          ${applicableCustomFields.map((f: any) => {
+            const fieldKey = f.fieldKey || f.id;
+            const inputName = "custom_" + fieldKey;
+            const reqStar = f.isRequired ? " *" : "";
+            const reqAttr = f.isRequired ? "required" : "";
+            const help = f.helpText ? `<p class="text-[10px] text-slate-400 mt-1">${escapeHtml(f.helpText)}</p>` : "";
+
+            if (f.fieldType === "textarea") {
+              return `
+                <div class="sm:col-span-2">
+                  <label for="${inputName}" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    ${escapeHtml(f.label)}${reqStar}
+                  </label>
+                  <textarea
+                    id="${inputName}"
+                    name="${inputName}"
+                    ${reqAttr}
+                    rows="2"
+                    class="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  ></textarea>
+                  ${help}
+                </div>
+              `;
+            }
+
+            if (f.fieldType === "select" && Array.isArray(f.options) && f.options.length > 0) {
+              return `
+                <div>
+                  <label for="${inputName}" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    ${escapeHtml(f.label)}${reqStar}
+                  </label>
+                  <select
+                    id="${inputName}"
+                    name="${inputName}"
+                    ${reqAttr}
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-hidden focus:ring-2 bg-white"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  >
+                    <option value="">-- Pilih salah satu --</option>
+                    ${f.options.map((opt: string) => `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`).join("")}
+                  </select>
+                  ${help}
+                </div>
+              `;
+            }
+
+            if (f.fieldType === "checkbox") {
+              return `
+                <div class="sm:col-span-2 flex items-start gap-3 min-h-[44px] py-1">
+                  <input
+                    type="checkbox"
+                    id="${inputName}"
+                    name="${inputName}"
+                    value="true"
+                    ${reqAttr}
+                    class="h-5 w-5 rounded border-slate-300 text-slate-900 focus:ring-2 mt-0.5 shrink-0"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  />
+                  <div>
+                    <label for="${inputName}" class="text-xs font-bold uppercase tracking-wider text-slate-700 cursor-pointer">
+                      ${escapeHtml(f.label)}${reqStar}
+                    </label>
+                    ${help}
+                  </div>
+                </div>
+              `;
+            }
+
+            const inputType = f.fieldType === "number" ? "number" : f.fieldType === "email" ? "email" : "text";
+            return `
+              <div>
+                <label for="${inputName}" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                  ${escapeHtml(f.label)}${reqStar}
+                </label>
+                <input
+                  type="${inputType}"
+                  id="${inputName}"
+                  name="${inputName}"
+                  ${reqAttr}
+                  class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2"
+                  style="--tw-ring-color: ${theme.ringColor};"
+                />
+                ${help}
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `;
+
+    const saved = getStoredAthlete() || {
+      fullName: "",
+      bibName: "",
+      idNumber: "",
+      gender: "MALE" as const,
+      birthDate: "",
+      bloodType: "O",
+      province: "DKI Jakarta",
+      city: "",
+      phone: "",
+      email: "",
+      emergencyName: "",
+      emergencyPhone: "",
+      emergencyRelation: "Keluarga",
+      jerseySize: "M",
+      runningClub: "",
+      medicalNotes: "",
+      estimatedFinishTime: "",
+    };
+
+    root.innerHTML = `
+      <div class="max-w-5xl mx-auto space-y-4 sm:space-y-5">
+        <!-- Selected Category Ribbon Card -->
+        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="px-2.5 py-1 rounded text-xs font-black uppercase tracking-wider shrink-0" style="background-color: ${theme.primaryColor}; color: ${theme.primaryText};">
+              ${escapeHtml(category.code || category.distance)}
+            </span>
+            <div class="min-w-0">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Kategori Terpilih</span>
+              <h2 class="text-sm sm:text-base font-black text-slate-950 uppercase tracking-tight truncate">
+                ${escapeHtml(category.name)}
+              </h2>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 self-end sm:self-center">
+            <span class="font-mono text-base font-black" style="color: ${theme.primaryText === '#ffffff' ? theme.primaryColor : '#0f172a'};">
+              ${isBallot ? 'Rp 0 (Draw Ballot)' : fmt(category.price)}
+            </span>
+            <button
+              type="button"
+              id="btn-change-category"
+              class="min-h-[44px] px-3 text-xs font-bold uppercase tracking-wider underline text-slate-600 hover:text-slate-900"
+            >
+              Ganti Kategori
+            </button>
+          </div>
+        </div>
+
+        <!-- Form Card (High-Density 2-Column Inputs) -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7 shadow-xs">
+          <div class="border-b border-slate-100 pb-3 mb-5">
+            <h2 class="text-base sm:text-lg font-bold text-slate-900 uppercase tracking-tight">
+              ${isBallot ? 'Formulir Pendaftaran Undian Ballot Resmi' : 'Data Atlet & Nomor Dada BIB'}
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">
+              Mohon isi data diri sesuai KTP / Paspor resmi untuk penerbitan nomor dada dan verifikasi saat pengambilan Race Pack.
+            </p>
+          </div>
+
+          <form id="athlete-form" class="space-y-6">
+            <!-- Section 1: Identitas Peserta -->
+            <div class="space-y-3">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full" style="background-color: ${theme.primaryColor};"></span>
+                <span>1. Identitas Peserta Lomba</span>
+              </h3>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label for="fullName" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Nama Lengkap (Sesuai Identitas Resmi) *
+                  </label>
+                  <input
+                    type="text"
+                    id="fullName"
+                    name="fullName"
+                    required
+                    placeholder="Contoh: Budi Pratama"
+                    value="${escapeHtml(saved.fullName)}"
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  />
+                </div>
+
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <label for="bibName" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Nama BIB di Dada (Maks. 12 Huruf) *
+                    </label>
+                    <span id="bib-char-count" class="text-[10px] font-mono font-bold text-slate-400">0/12</span>
+                  </div>
+                  <input
+                    type="text"
+                    id="bibName"
+                    name="bibName"
+                    maxlength="12"
+                    required
+                    placeholder="Contoh: BUDI P"
+                    value="${escapeHtml(saved.bibName)}"
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-mono font-bold uppercase text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  />
+                </div>
+
+                <div>
+                  <label for="idNumber" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Nomor Identitas (NIK KTP / Paspor) *
+                  </label>
+                  <input
+                    type="text"
+                    id="idNumber"
+                    name="idNumber"
+                    required
+                    placeholder="16 digit NIK atau nomor Paspor"
+                    value="${escapeHtml(saved.idNumber)}"
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  />
+                </div>
+
+                <div>
+                  <label for="birthDate" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Tanggal Lahir *
+                  </label>
+                  <input
+                    type="date"
+                    id="birthDate"
+                    name="birthDate"
+                    required
+                    value="${escapeHtml(saved.birthDate)}"
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-hidden focus:ring-2"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  />
+                </div>
+
+                <div>
+                  <label for="gender" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Jenis Kelamin *
+                  </label>
+                  <select
+                    id="gender"
+                    name="gender"
+                    required
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-hidden focus:ring-2 bg-white"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  >
+                    <option value="MALE" ${saved.gender === "MALE" ? "selected" : ""}>Laki-laki</option>
+                    <option value="FEMALE" ${saved.gender === "FEMALE" ? "selected" : ""}>Perempuan</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label for="bloodType" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Golongan Darah *
+                  </label>
+                  <select
+                    id="bloodType"
+                    name="bloodType"
+                    required
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-hidden focus:ring-2 bg-white"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  >
+                    <option value="A" ${saved.bloodType === "A" ? "selected" : ""}>A</option>
+                    <option value="B" ${saved.bloodType === "B" ? "selected" : ""}>B</option>
+                    <option value="AB" ${saved.bloodType === "AB" ? "selected" : ""}>AB</option>
+                    <option value="O" ${saved.bloodType === "O" ? "selected" : ""}>O</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label for="email" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Email Konfirmasi & E-Tiket *
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    placeholder="nama@email.com"
+                    value="${escapeHtml(saved.email)}"
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  />
+                </div>
+
+                <div>
+                  <label for="phone" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Nomor WhatsApp / HP *
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    required
+                    placeholder="Contoh: 081234567890"
+                    value="${escapeHtml(saved.phone)}"
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  />
+                </div>
+
+                <div>
+                  <label for="province" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Provinsi Domisili *
+                  </label>
+                  <select
+                    id="province"
+                    name="province"
+                    required
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-hidden focus:ring-2 bg-white"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  >
+                    ${INDONESIAN_PROVINCES.map((p) => `<option value="${p}" ${saved.province === p ? "selected" : ""}>${p}</option>`).join("")}
+                  </select>
+                </div>
+
+                <div>
+                  <label for="city" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Kota / Kabupaten *
+                  </label>
+                  <input
+                    type="text"
+                    id="city"
+                    name="city"
+                    required
+                    placeholder="Contoh: Jakarta Selatan"
+                    value="${escapeHtml(saved.city)}"
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 2: Kontak Darurat -->
+            <div class="space-y-3 pt-3 border-t border-slate-100">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full" style="background-color: ${theme.primaryColor};"></span>
+                <span>2. Kontak Darurat (Emergency Contact)</span>
+              </h3>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div>
+                  <label for="emergencyName" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Nama Kontak *
+                  </label>
+                  <input
+                    type="text"
+                    id="emergencyName"
+                    name="emergencyName"
+                    required
+                    placeholder="Nama kerabat / keluarga"
+                    value="${escapeHtml(saved.emergencyName)}"
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  />
+                </div>
+
+                <div>
+                  <label for="emergencyPhone" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Nomor Telepon Darurat *
+                  </label>
+                  <input
+                    type="tel"
+                    id="emergencyPhone"
+                    name="emergencyPhone"
+                    required
+                    placeholder="08xxxxxxxxxx"
+                    value="${escapeHtml(saved.emergencyPhone)}"
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-mono text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  />
+                </div>
+
+                <div>
+                  <label for="emergencyRelation" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Hubungan *
+                  </label>
+                  <select
+                    id="emergencyRelation"
+                    name="emergencyRelation"
+                    required
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-hidden focus:ring-2 bg-white"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  >
+                    <option value="Keluarga" ${saved.emergencyRelation === "Keluarga" ? "selected" : ""}>Keluarga</option>
+                    <option value="Orang Tua" ${saved.emergencyRelation === "Orang Tua" ? "selected" : ""}>Orang Tua</option>
+                    <option value="Suami/Istri" ${saved.emergencyRelation === "Suami/Istri" ? "selected" : ""}>Suami / Istri</option>
+                    <option value="Teman/Rekan" ${saved.emergencyRelation === "Teman/Rekan" ? "selected" : ""}>Teman / Rekan</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 3: Ukuran Jersey & Informasi Lomba -->
+            <div class="space-y-3 pt-3 border-t border-slate-100">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                <span class="h-2 w-2 rounded-full" style="background-color: ${theme.primaryColor};"></span>
+                <span>3. Ukuran Finisher Jersey & Informasi Medis</span>
+              </h3>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div>
+                  <label for="jerseySize" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Ukuran Jersey Finisher *
+                  </label>
+                  <select
+                    id="jerseySize"
+                    name="jerseySize"
+                    required
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 focus:outline-hidden focus:ring-2 bg-white"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  >
+                    <option value="XS" ${saved.jerseySize === "XS" ? "selected" : ""}>XS (Dada: 90 cm)</option>
+                    <option value="S" ${saved.jerseySize === "S" ? "selected" : ""}>S (Dada: 96 cm)</option>
+                    <option value="M" ${saved.jerseySize === "M" ? "selected" : ""}>M (Dada: 102 cm)</option>
+                    <option value="L" ${saved.jerseySize === "L" ? "selected" : ""}>L (Dada: 108 cm)</option>
+                    <option value="XL" ${saved.jerseySize === "XL" ? "selected" : ""}>XL (Dada: 114 cm)</option>
+                    <option value="XXL" ${saved.jerseySize === "XXL" ? "selected" : ""}>XXL (Dada: 120 cm)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label for="runningClub" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Klub / Komunitas Lari (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    id="runningClub"
+                    name="runningClub"
+                    placeholder="Contoh: Ivy Runners Club"
+                    value="${escapeHtml(saved.runningClub || "")}"
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  />
+                </div>
+
+                <div>
+                  <label for="medicalNotes" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                    Catatan Medis / Alergi (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    id="medicalNotes"
+                    name="medicalNotes"
+                    placeholder="Contoh: Asma ringan, alergi debu"
+                    value="${escapeHtml(saved.medicalNotes || "")}"
+                    class="w-full min-h-[44px] rounded-lg border border-slate-300 px-3.5 py-2 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2"
+                    style="--tw-ring-color: ${theme.ringColor};"
+                  />
+                </div>
+              </div>
+            </div>
+
+            ${customFieldsHtml}
+
+            <!-- Section: Waiver & Persetujuan Lomba -->
+            <div class="pt-3 border-t border-slate-100 space-y-2">
+              <label class="flex items-start gap-3 cursor-pointer min-h-[44px] py-1">
+                <input
+                  type="checkbox"
+                  id="agree-rules"
+                  required
+                  class="h-5 w-5 rounded border-slate-300 text-slate-900 focus:ring-2 mt-0.5 shrink-0 cursor-pointer"
+                  style="--tw-ring-color: ${theme.ringColor};"
+                />
+                <span class="text-xs text-slate-600 leading-relaxed select-none">
+                  Saya menyatakan bahwa data yang diisi adalah benar, dan menyetujui seluruh syarat, ketentuan, serta peraturan cut-off time resmi dari panitia race director.
+                </span>
+              </label>
+
+              <label class="flex items-start gap-3 cursor-pointer min-h-[44px] py-1">
+                <input
+                  type="checkbox"
+                  id="agree-waiver"
+                  required
+                  class="h-5 w-5 rounded border-slate-300 text-slate-900 focus:ring-2 mt-0.5 shrink-0 cursor-pointer"
+                  style="--tw-ring-color: ${theme.ringColor};"
+                />
+                <span class="text-xs text-slate-600 leading-relaxed select-none">
+                  Saya dalam kondisi sehat secara medis untuk berpartisipasi dalam perlombaan ini dan memahami risiko aktivitas fisik jarak jauh (Liability Waiver).
+                </span>
+              </label>
+            </div>
+
+            <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <button
+                type="button"
+                id="btn-back-to-categories"
+                class="w-full sm:w-auto min-h-[44px] px-5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs uppercase tracking-wider transition-colors"
+              >
+                ← Kembali ke Pilihan Kategori
+              </button>
+
+              <button
+                type="submit"
+                id="btn-submit-athlete"
+                class="w-full sm:w-auto min-h-[48px] px-8 rounded-xl font-bold uppercase tracking-wider text-xs sm:text-sm transition-all shadow-md active:scale-[0.99] flex items-center justify-center gap-2"
+                style="background-color: ${theme.primaryColor}; color: ${theme.primaryText};"
+              >
+                <span>${isBallot ? "Review & Kirim Undian Ballot" : "Lanjut ke Ringkasan & Pembayaran"}</span>
+                <span>→</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+
+    // Live BIB character counter
+    const bibInput = document.getElementById("bibName") as HTMLInputElement | null;
+    const bibCount = document.getElementById("bib-char-count");
+    if (bibInput && bibCount) {
+      bibCount.textContent = `${bibInput.value.length}/12`;
+      bibInput.addEventListener("input", () => {
+        bibCount.textContent = `${bibInput.value.length}/12`;
+      });
+    }
+
+    // Change category button
+    const handleChangeCategory = () => {
+      currentStep = "picker";
+      categoryId = "";
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.delete("categoryId");
+      nextUrl.searchParams.set("step", "picker");
+      history.replaceState({}, "", nextUrl.toString());
+      renderCategoryPicker(event, theme);
+    };
+    document.getElementById("btn-change-category")?.addEventListener("click", handleChangeCategory);
+    document.getElementById("btn-back-to-categories")?.addEventListener("click", handleChangeCategory);
+
+    // Form submit listener
+    const form = document.getElementById("athlete-form") as HTMLFormElement | null;
+    form?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+
+      const customData: Record<string, any> = {};
+      for (const [key, val] of formData.entries()) {
+        if (key.startsWith("custom_")) {
+          const fieldKey = key.slice(7);
+          customData[fieldKey] = val;
+        }
+      }
+
+      const athlete: AthleteData = {
+        fullName: String(formData.get("fullName") || "").trim(),
+        bibName: String(formData.get("bibName") || "").trim().toUpperCase(),
+        idNumber: String(formData.get("idNumber") || "").trim(),
+        gender: (formData.get("gender") as "MALE" | "FEMALE") || "MALE",
+        birthDate: String(formData.get("birthDate") || ""),
+        bloodType: String(formData.get("bloodType") || "O"),
+        province: String(formData.get("province") || "DKI Jakarta"),
+        city: String(formData.get("city") || "").trim(),
+        phone: String(formData.get("phone") || "").trim(),
+        email: String(formData.get("email") || "").trim().toLowerCase(),
+        emergencyName: String(formData.get("emergencyName") || "").trim(),
+        emergencyPhone: String(formData.get("emergencyPhone") || "").trim(),
+        emergencyRelation: String(formData.get("emergencyRelation") || "Keluarga"),
+        jerseySize: String(formData.get("jerseySize") || "M"),
+        runningClub: String(formData.get("runningClub") || "").trim(),
+        medicalNotes: String(formData.get("medicalNotes") || "").trim(),
+        customFields: customData,
+        ...customData,
+      };
+
+      saveAthlete(athlete);
+      showReviewConfirmationModal(event, category, athlete, isBallot, theme, onComplete);
+    });
+  }
+
+  // ── Render Ballot Confirmation View ─────────────────────────────────────────
+  function renderBallotConfirmation(
+    event: MarathonEvent,
+    category: MarathonCategory,
+    athlete: AthleteData,
+    drawNumber: string,
+    theme: TemplateTheme
+  ) {
+    setStep(3, theme);
+
+    root.innerHTML = `
+      <div class="max-w-2xl mx-auto space-y-5 text-center">
+        <div class="rounded-2xl border border-purple-200 bg-white p-6 sm:p-8 shadow-xs space-y-5">
+          <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 text-purple-700 text-3xl font-bold">
+            🎟️
+          </div>
+
+          <div class="space-y-1">
+            <span class="inline-block rounded-full bg-purple-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-purple-800">
+              Registrasi Undian Sukses
+            </span>
+            <h2 class="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tight">
+              Nomor Undian Ballot Resmi Anda
+            </h2>
+            <p class="text-xs text-slate-500 max-w-md mx-auto">
+              Simpan nomor registrasi undian ini. Detail juga telah dikirimkan ke <strong>${escapeHtml(athlete.email)}</strong>.
+            </p>
+          </div>
+
+          <div class="rounded-xl border-2 border-purple-300 bg-purple-50/50 p-5 max-w-sm mx-auto">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-purple-600 block">Nomor Draw Resmi</span>
+            <div class="font-mono text-2xl sm:text-3xl font-black text-purple-900 tracking-wider mt-1 select-all">
+              ${escapeHtml(drawNumber)}
+            </div>
+            <div class="mt-3 pt-3 border-t border-purple-200 text-xs text-purple-800 flex justify-between items-center">
+              <span>Kategori:</span>
+              <strong class="uppercase">${escapeHtml(category.name)}</strong>
+            </div>
+          </div>
+
+          <p class="text-xs text-slate-600 leading-relaxed max-w-lg mx-auto bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+            Pengumuman hasil undian slot akan dipublikasikan pada portal resmi. Peserta yang terpilih akan menerima hak klaim tiket dengan batas waktu pembayaran 48 jam.
+          </p>
+
+          <div class="pt-2 flex flex-col sm:flex-row justify-center gap-3">
+            <a
+              href="/events/${eventId}"
+              class="inline-flex items-center justify-center min-h-[44px] rounded-xl px-6 py-2.5 text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
+              style="background-color: ${theme.primaryColor}; color: ${theme.primaryText};"
+            >
+              Kembali ke Event
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Step 2: Render Payment Method Selection & Checkout Order ────────────────
+  async function renderOrder(
+    order: Awaited<ReturnType<typeof fetchOrder>>,
+    athlete: AthleteData | null,
+    theme: TemplateTheme
+  ) {
+    setStep(3, theme);
+    const expired = order.expiredAt && new Date(order.expiredAt) < new Date();
+    const canPay = (order.status === "PENDING" || order.status === "AWAITING_PAYMENT") && !expired;
+    const currentAthlete = athlete || getStoredAthlete();
+
+    await syncEventPaymentChannelsFromServer(eventId);
+
+    const paymentSettings = getPaymentSettings();
+    const availableChannels = getActiveChannelsForEvent(eventId);
+    const activeGateway = paymentSettings.activeGateway || "xendit";
+
+    let selectedChannel = availableChannels[0] || {
+      code: "qris",
+      name: "QRIS",
+      method: "qris",
+      channel: "qris",
+      category: "qris",
+      fee: 0,
+      badge: "Instan",
+      badgeBg: "bg-emerald-100",
+      badgeFg: "text-emerald-800",
+      logo: "QRIS",
+      description: "Scan instan lewat GoPay, OVO, Dana, BCA, Livin Mandiri",
+    };
+
+    function calculateTotal(): number {
+      const discount = order.discount || 0;
+      return order.subtotal + (selectedChannel?.fee || 0) - discount;
+    }
+
+    function renderOrderContent() {
+      const totalAmount = calculateTotal();
+
+      root.innerHTML = `
+        <div class="max-w-4xl mx-auto space-y-4 sm:space-y-5">
+          <!-- Order Confirmation Card -->
+          <div class="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Kode Pesanan Resmi</span>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span class="font-mono text-base font-black text-slate-900">${escapeHtml(order.orderNumber || order.id)}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-800">Menunggu Pembayaran</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                id="btn-copy-order-link"
+                class="min-h-[44px] px-3.5 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs uppercase tracking-wider transition-colors shrink-0"
+              >
+                <span id="copy-link-label">Salin Link Pesanan</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Verified Athlete Bar -->
+          ${currentAthlete ? `
+            <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-4 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <span class="h-6 w-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">✓</span>
+                <div>
+                  <span class="font-bold text-slate-900">${escapeHtml(currentAthlete.fullName)}</span>
+                  <span class="text-slate-500 font-mono ml-2">BIB: ${escapeHtml(currentAthlete.bibName)}</span>
+                </div>
+              </div>
+              <span class="text-slate-500 font-mono">${escapeHtml(currentAthlete.email)}</span>
+            </div>
+          ` : ""}
+
+          <!-- Payment Channels Selector Card -->
+          <div class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+            <div class="border-b border-slate-100 pb-3">
+              <h3 class="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-tight">
+                Pilih Kanal Pembayaran Resmi
+              </h3>
+              <p class="text-xs text-slate-500 mt-0.5">
+                Transaksi aman dan diverifikasi secara otomatis dalam hitungan detik.
+              </p>
+            </div>
+
+            <!-- Channel Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup">
+              ${availableChannels.map((c) => {
+                const isSelected = selectedChannel?.code === c.code;
+                return `
+                  <div
+                    class="channel-card cursor-pointer min-h-[52px] rounded-xl border p-3.5 transition-all flex flex-col justify-between ${
+                      isSelected
+                        ? 'ring-2'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }"
+                    style="${isSelected ? `border-color: ${theme.primaryColor}; box-shadow: 0 0 0 2px ${theme.ringColor}; background-color: ${theme.lightBg};` : ''}"
+                    data-channel-code="${c.code}"
+                    role="radio"
+                    aria-checked="${isSelected}"
+                    tabindex="0"
+                  >
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${c.badgeBg || 'bg-slate-100'} ${c.badgeFg || 'text-slate-800'}">
+                          ${c.logo || c.name}
+                        </span>
+                        <span class="font-bold text-xs text-slate-900">${c.name}</span>
+                      </div>
+                      <span class="h-4 w-4 rounded-full border flex items-center justify-center text-[10px] font-bold ${
+                        isSelected ? 'bg-slate-900 text-white border-slate-900' : 'border-slate-300 bg-white'
+                      }">
+                        ${isSelected ? '✓' : ''}
+                      </span>
+                    </div>
+
+                    <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <span class="text-slate-500 text-[11px]">${c.description || 'Proses Instan'}</span>
+                      <span class="font-mono font-bold text-slate-900">
+                        ${c.fee > 0 ? fmt(c.fee) : '<span class="text-emerald-700">Bebas Biaya</span>'}
+                      </span>
+                    </div>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+
+            <!-- Price Breakdown Summary -->
+            <div class="rounded-xl bg-slate-50 p-4 space-y-2 text-xs border border-slate-200">
+              <div class="flex justify-between text-slate-600">
+                <span>Subtotal Tiket Lomba</span>
+                <span class="font-mono font-bold text-slate-900">${fmt(order.subtotal)}</span>
+              </div>
+              <div class="flex justify-between text-slate-600">
+                <span>Biaya Layanan (${selectedChannel ? selectedChannel.name : 'Kanal'})</span>
+                <span class="font-mono font-bold text-slate-900">
+                  ${selectedChannel && selectedChannel.fee > 0 ? fmt(selectedChannel.fee) : '<span class="text-emerald-700">GRATIS</span>'}
+                </span>
+              </div>
+              <div class="border-t border-slate-200 pt-2 flex justify-between items-baseline font-bold text-slate-950">
+                <span class="text-xs sm:text-sm">Total Tagihan Pembayaran</span>
+                <span class="text-base sm:text-xl font-mono font-black" style="color: ${theme.primaryText === '#ffffff' ? theme.primaryColor : '#0f172a'};">
+                  ${fmt(totalAmount)}
+                </span>
+              </div>
+            </div>
+
+            <p id="pay-error" class="text-red-600 text-xs font-medium hidden" role="alert"></p>
+
+            ${canPay ? `
+              <button
+                id="btn-pay"
+                type="button"
+                class="w-full min-h-[48px] rounded-xl font-bold uppercase tracking-wider text-xs sm:text-sm transition-all shadow-md active:scale-[0.99] flex items-center justify-center gap-2"
+                style="background-color: ${theme.primaryColor}; color: ${theme.primaryText};"
+              >
+                <span>Bayar Sekarang: ${fmt(totalAmount)}</span>
+                <span>→</span>
+              </button>
+            ` : order.status === "PAID" ? `
+              <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center space-y-2">
+                <p class="text-base font-bold text-emerald-800">Pembayaran Berhasil Dikonfirmasi!</p>
+                <a href="/participant/orders/${order.id}" class="inline-block min-h-[44px] rounded-xl bg-slate-900 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-slate-800 transition-colors">
+                  Lihat E-Tiket Resmi Saya
+                </a>
+              </div>
+            ` : `
+              <p class="text-slate-500 text-xs text-center">Status Pesanan: ${order.status}</p>
+            `}
+          </div>
+        </div>
+      `;
+
+      // Copy order URL handler
+      document.getElementById("btn-copy-order-link")?.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          const label = document.getElementById("copy-link-label");
+          if (label) label.textContent = "Link Disalin!";
+          setTimeout(() => {
+            if (label) label.textContent = "Salin Link Pesanan";
+          }, 2000);
+        } catch {
+          // fallback
+        }
+      });
+
+      // Channel card selection
+      document.querySelectorAll<HTMLElement>(".channel-card").forEach((card) => {
+        const selectCard = () => {
+          const code = card.dataset.channelCode;
+          const match = availableChannels.find((c) => c.code === code);
+          if (match) {
+            selectedChannel = match;
+            renderOrderContent();
+          }
+        };
+        card.addEventListener("click", selectCard);
+        card.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            selectCard();
+          }
+        });
+      });
+
+      // Payment trigger button
+      const payBtn = document.getElementById("btn-pay") as HTMLButtonElement | null;
+      payBtn?.addEventListener("click", async () => {
+        payBtn.disabled = true;
+        payBtn.innerHTML = `
+          <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+          <span>Menyiapkan Instruksi Pembayaran...</span>
+        `;
+        const errEl = document.getElementById("pay-error")!;
+        errEl.classList.add("hidden");
+
+        try {
+          const payment = await initiatePayment(order.id, {
+            gateway: activeGateway,
+            method: selectedChannel.method,
+            channel: selectedChannel.channel,
+          });
+
+          if (payment.payUrl && !payment.vaNumber && !payment.qrString) {
+            window.location.href = payment.payUrl;
+            return;
+          }
+
+          renderPaymentPresentation(order, payment, selectedChannel, currentAthlete, theme);
+        } catch (err: unknown) {
+          payBtn.disabled = false;
+          payBtn.innerHTML = `<span>Bayar Sekarang: ${fmt(totalAmount)}</span> <span>→</span>`;
+          errEl.textContent = err instanceof Error ? err.message : "Gagal memulai pembayaran.";
+          errEl.classList.remove("hidden");
+        }
+      });
+    }
+
+    renderOrderContent();
+  }
+
+  // ── Render Step 2.5: Interactive In-App Payment Instructions ───────────────
+  function renderPaymentPresentation(
+    order: Awaited<ReturnType<typeof fetchOrder>>,
+    payment: Awaited<ReturnType<typeof initiatePayment>>,
+    channel: PaymentChannelConfig,
+    athlete: AthleteData | null,
+    theme: TemplateTheme
+  ) {
+    setStep(3, theme);
+
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let countdownInterval: ReturnType<typeof setInterval> | null = null;
+
+    let remainingSeconds = 15 * 60;
+    if (payment.expiresAt) {
+      const expTime = new Date(payment.expiresAt).getTime();
+      const diff = Math.floor((expTime - Date.now()) / 1000);
+      if (diff > 0) remainingSeconds = diff;
+    }
+
+    function formatTime(sec: number): string {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    }
+
+    const totalToPay = order.subtotal + (channel.fee || 0) - (order.discount || 0);
+
+    root.innerHTML = `
+      <div class="max-w-2xl mx-auto space-y-5">
+        <!-- Timer Banner -->
+        <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-xs flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xl">⏳</span>
+            <div>
+              <span class="text-xs font-bold uppercase tracking-wider text-amber-900 block">Menunggu Pembayaran</span>
+              <p class="text-[11px] text-amber-700">Selesaikan transaksi sebelum batas waktu habis.</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-[10px] uppercase font-bold text-amber-800 block">Sisa Waktu</span>
+            <span class="font-mono text-lg font-black text-amber-900" id="countdown-timer">
+              ${formatTime(remainingSeconds)}
+            </span>
+          </div>
+        </div>
+
+        <!-- Payment Card -->
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-5">
+          <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+            <div>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Metode Pembayaran</span>
+              <span class="text-sm font-bold text-slate-900">${escapeHtml(channel.name)}</span>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Tagihan</span>
+              <span class="text-base sm:text-lg font-mono font-black" style="color: ${theme.primaryText === '#ffffff' ? theme.primaryColor : '#0f172a'};">
+                ${fmt(totalToPay)}
+              </span>
+            </div>
+          </div>
+
+          <!-- Channel Variant: QRIS -->
+          ${channel.method === "qris" ? `
+            <div class="text-center space-y-4">
+              <div class="inline-block rounded-2xl border-2 border-slate-200 bg-white p-4 shadow-xs">
+                <canvas id="qris-canvas" class="mx-auto rounded-lg" width="220" height="220"></canvas>
+                <div class="mt-2 pt-2 border-t border-slate-100 text-[10px] font-bold uppercase text-slate-500">
+                  NMID: ID1020038918290
+                </div>
+              </div>
+
+              <div>
+                <button
+                  id="btn-download-qr"
+                  type="button"
+                  class="inline-flex items-center gap-2 min-h-[44px] rounded-xl border border-slate-300 bg-white px-5 py-2 text-xs font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-50 transition-colors shadow-xs"
+                >
+                  <span>📥</span>
+                  <span>Unduh Gambar QRIS</span>
+                </button>
+              </div>
+
+              <div class="rounded-xl bg-slate-50 border border-slate-200 p-3.5 text-xs text-slate-600 max-w-md mx-auto text-left space-y-1">
+                <span class="font-bold text-slate-800 block text-[11px] uppercase">Panduan Scan QRIS:</span>
+                <p>1. Buka aplikasi m-Banking (BCA, Mandiri, BRI, BNI) atau E-Wallet (GoPay, OVO, Dana, ShopeePay).</p>
+                <p>2. Pilih menu Bayar / Scan QR, lalu scan kode QR di atas.</p>
+                <p>3. Periksa nama merchant (IVYTICKETING) dan konfirmasi pembayaran.</p>
+              </div>
+            </div>
+          ` : `
+            <!-- Channel Variant: Virtual Account -->
+            <div class="space-y-4">
+              <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-center space-y-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 block">Nomor Virtual Account</span>
+                <div class="font-mono text-xl sm:text-2xl font-black text-slate-900 tracking-wider select-all" id="va-display-text">
+                  ${escapeHtml(payment.vaNumber || "8277081294810294")}
+                </div>
+                <button
+                  id="btn-copy-va"
+                  type="button"
+                  class="inline-flex items-center gap-1.5 min-h-[44px] px-4 rounded-lg bg-white border border-slate-300 text-xs font-bold uppercase tracking-wider text-slate-800 hover:bg-slate-100 transition-colors"
+                >
+                  <span id="copy-va-icon">📋</span>
+                  <span id="copy-va-label">Salin Nomor VA</span>
+                </button>
+              </div>
+            </div>
+          `}
+
+          <!-- Live Status Polling Indicator -->
+          <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span class="text-slate-500" id="poll-indicator">Menunggu transfer...</span>
+            </div>
+            <button
+              type="button"
+              id="btn-manual-check"
+              class="min-h-[44px] px-3 font-bold text-xs uppercase tracking-wider underline text-slate-700 hover:text-slate-900"
+            >
+              Cek Status Sekarang
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Render QRIS canvas if applicable
+    if (channel.method === "qris") {
+      const canvas = document.getElementById("qris-canvas") as HTMLCanvasElement | null;
+      const qrData = payment.qrString || `00020101021226600016ID.CO.QRIS.WWW011893600918000000000102150000000000000000303UMI51440014ID.GO.BI.QRIS011893600918000000000102150000000000000000520458125303360540${totalToPay}5802ID5912IVYTICKETING6007JAKARTA62070703A016304`;
+      if (canvas) {
+        import("qrcode").then((mod) => {
+          const qr = mod.default || mod;
+          qr.toCanvas(canvas, qrData, { width: 220, margin: 1 });
+        }).catch((err) => {
+          console.warn("Gagal render QRIS:", err);
+        });
+      }
+
+      document.getElementById("btn-download-qr")?.addEventListener("click", () => {
+        if (!canvas) return;
+        const link = document.createElement("a");
+        link.download = `QRIS-${order.orderNumber || order.id}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+      });
+    }
+
+    // Copy VA handler
+    document.getElementById("btn-copy-va")?.addEventListener("click", async () => {
+      const va = payment.vaNumber || "8277081294810294";
+      try {
+        await navigator.clipboard.writeText(va);
+        const label = document.getElementById("copy-va-label");
+        const icon = document.getElementById("copy-va-icon");
+        if (label) label.textContent = "Nomor VA Disalin!";
+        if (icon) icon.textContent = "✓";
+        setTimeout(() => {
+          if (label) label.textContent = "Salin Nomor VA";
+          if (icon) icon.textContent = "📋";
+        }, 2000);
+      } catch {
+        // fallback
+      }
+    });
+
+    // Countdown interval
+    const timerEl = document.getElementById("countdown-timer");
+    countdownInterval = setInterval(() => {
+      remainingSeconds--;
+      if (remainingSeconds <= 0) {
+        clearInterval(countdownInterval!);
+        if (timerEl) timerEl.textContent = "00:00";
+      } else if (timerEl) {
+        timerEl.textContent = formatTime(remainingSeconds);
+      }
+    }, 1000);
+
+    // Payment success handler
+    function handlePaymentSuccess() {
+      if (pollInterval) clearInterval(pollInterval);
+      if (countdownInterval) clearInterval(countdownInterval);
+      setStep(3, theme);
+
+      root.innerHTML = `
+        <div class="max-w-2xl mx-auto space-y-5 text-center">
+          <div class="rounded-2xl border border-emerald-300 bg-white p-6 sm:p-8 shadow-xs space-y-5">
+            <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-3xl font-bold">
+              ✓
+            </div>
+
+            <div class="space-y-1">
+              <span class="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-800">
+                Lunas & Terverifikasi
+              </span>
+              <h2 class="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tight">
+                Pembayaran Berhasil Dikonfirmasi!
+              </h2>
+              <p class="text-xs text-slate-500 max-w-md mx-auto">
+                Registrasi resmi Anda telah tervalidasi. Nomor dada BIB dan E-Tiket Anda siap digunakan. Detail juga telah dikirimkan ke <strong>${escapeHtml(athlete?.email || "email Anda")}</strong>.
+              </p>
+            </div>
+
+            <!-- Official BIB Runner Pass Card -->
+            ${athlete ? `
+              <div class="max-w-sm mx-auto rounded-xl border-2 border-slate-900 bg-slate-950 text-white p-5 text-left space-y-3 shadow-md">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span class="text-[10px] font-bold uppercase tracking-wider" style="color: ${theme.subColor};">Official Runner Pass</span>
+                  <span class="text-[10px] font-mono text-slate-400">${order.orderNumber || order.id}</span>
+                </div>
+                <div class="flex items-baseline justify-between">
+                  <div>
+                    <span class="text-[10px] text-slate-400 block uppercase font-bold">Nama Dada BIB</span>
+                    <span class="font-mono text-xl font-black text-white uppercase">${escapeHtml(athlete.bibName)}</span>
+                  </div>
+                  <div class="text-right">
+                    <span class="text-[10px] text-slate-400 block uppercase font-bold">Jersey Finisher</span>
+                    <span class="font-bold text-white">${escapeHtml(athlete.jerseySize)}</span>
+                  </div>
+                </div>
+                <div class="border-t border-slate-800 pt-2 text-xs text-slate-300">
+                  Peserta: <strong class="text-white">${escapeHtml(athlete.fullName)}</strong>
+                </div>
+              </div>
+            ` : ""}
+
+            <div class="pt-2 flex flex-col sm:flex-row justify-center gap-3">
+              <a
+                href="/participant/orders/${order.id}"
+                class="inline-flex items-center justify-center min-h-[48px] rounded-xl px-8 py-2.5 text-xs font-bold uppercase tracking-wider transition-all shadow-md"
+                style="background-color: ${theme.primaryColor}; color: ${theme.primaryText};"
+              >
+                Buka E-Tiket Resmi Saya →
+              </a>
+              <a
+                href="/events/${eventId}"
+                class="inline-flex items-center justify-center min-h-[48px] rounded-xl border border-slate-300 bg-white hover:bg-slate-50 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-slate-700 transition-colors"
+              >
+                Kembali ke Event
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function checkStatus() {
+      const pollInd = document.getElementById("poll-indicator");
+      if (pollInd) pollInd.textContent = "Memverifikasi transfer...";
+      try {
+        const latestOrder = await fetchOrder(order.id);
+        if (latestOrder.status === "PAID") {
+          handlePaymentSuccess();
+          return;
+        }
+      } catch {
+        // network
+      }
+      if (pollInd) pollInd.textContent = "Menunggu transfer...";
+    }
+
+    document.getElementById("btn-manual-check")?.addEventListener("click", checkStatus);
+    pollInterval = setInterval(checkStatus, 3000);
+  }
+
+  // ── Main Controller Orchestrator ───────────────────────────────────────────
   async function run() {
-    // 1. Direct orderId — fetch and render
+    // 1. If an active orderId is supplied in URL query, resume order payment directly
     if (orderId) {
       try {
-        renderOrder(await fetchOrder(orderId));
-      } catch (e: unknown) {
-        showError(e instanceof Error ? e.message : "Gagal memuat pesanan.");
+        const order = await fetchOrder(orderId);
+        const event = getMarathonEventById(eventId);
+        const theme = event ? getTemplateTheme(event) : {
+          templateId: "template-summarecon",
+          navBg: "rgba(11, 15, 25, 0.98)",
+          navBorder: "rgba(139, 92, 246, 0.35)",
+          badgeBg: "#8b5cf6",
+          badgeText: "#ffffff",
+          badgeLabel: "SMR",
+          brandTitle: "Pendaftaran Event",
+          subText: "SUMMARECON NIGHT RUN FESTIVAL",
+          subColor: "#a78bfa",
+          primaryColor: "#8b5cf6",
+          primaryHover: "#7c3aed",
+          primaryText: "#ffffff",
+          accentColor: "#a78bfa",
+          lightBg: "rgba(139, 92, 246, 0.08)",
+          ringColor: "#8b5cf6",
+        };
+        syncNavbarWithTemplate(theme);
+        await renderOrder(order, getStoredAthlete(), theme);
+      } catch (e) {
+        showError("Pesanan tidak ditemukan atau tautan telah kedaluwarsa.");
       }
       return;
     }
 
-    if (!categoryId) {
-      showError("Parameter tidak lengkap. Kembali ke halaman event.");
+    // 2. Load event configuration
+    const currentEvent = getMarathonEventById(eventId);
+    if (!currentEvent) {
+      showError("Event tidak ditemukan atau belum dipublikasikan.");
       return;
     }
 
-    // 2. Queue admission token
-    if (admission) {
-      root.innerHTML = `<p class="text-slate-500 text-center">Membuat pesanan…</p>`;
+    // Synchronize navbar theme
+    const theme = getTemplateTheme(currentEvent);
+    syncNavbarWithTemplate(theme);
+
+    // 3. Category & Queue routing logic
+    const selectedCategory = categoryId
+      ? currentEvent.categories.find(
+          (c) => c.id === categoryId || c.code.toLowerCase() === categoryId.toLowerCase()
+        )
+      : null;
+
+    const qCfg = currentEvent.layoutConfig?.queueConfig;
+    const queueMode = qCfg?.mode || "auto";
+    const trafficThreshold = qCfg?.trafficThreshold ?? 50;
+    const activeWaiting = qCfg?.activeWaitingCount ?? 0;
+
+    // A. If no category is selected or user clicked change category
+    if (!selectedCategory || currentStep === "picker") {
+      const isAnyWarQueue = currentEvent.categories.some((c) => c.mode === "WAR_QUEUE");
+      const shouldQueueEvent = isAnyWarQueue && (
+        queueMode === "always_queue" ||
+        (queueMode === "auto" && activeWaiting >= trafficThreshold)
+      ) && !admission && !grantToken;
+
+      if (shouldQueueEvent) {
+        window.location.href = `/events/${encodeURIComponent(eventId)}/queue`;
+        return;
+      }
+
+      currentStep = "picker";
+      renderCategoryPicker(currentEvent, theme);
+      return;
+    }
+
+    // B. Category is selected: Check if category requires waiting in queue
+    const isWarQueue = selectedCategory.mode === "WAR_QUEUE";
+    const shouldQueueCategory = isWarQueue && (
+      queueMode === "always_queue" ||
+      (queueMode === "auto" && activeWaiting >= trafficThreshold)
+    ) && !admission && !grantToken;
+
+    if (shouldQueueCategory) {
+      window.location.href = `/events/${encodeURIComponent(eventId)}/queue?categoryId=${encodeURIComponent(selectedCategory.id)}`;
+      return;
+    }
+
+    // C. Direct access to Athlete Form (NORMAL, BALLOT, or WAR with calm traffic / 0 waiting users)
+    currentStep = "form";
+    const isBallot = urlMode === "BALLOT" || selectedCategory.mode === "BALLOT";
+
+    // 5. Handle athlete submission
+    async function handleAthleteSubmitted(athlete: AthleteData) {
+      if (isBallot) {
+        const drawNumber = `BAL-2026-${Math.floor(10000 + Math.random() * 90000)}`;
+        try {
+          const ballotRecord = {
+            drawNumber,
+            eventId,
+            categoryId: selectedCategory!.id,
+            categoryName: selectedCategory!.name,
+            athlete,
+            status: "PENDING_DRAW",
+            createdAt: new Date().toISOString(),
+          };
+          localStorage.setItem(`ivy_ballot_${drawNumber}`, JSON.stringify(ballotRecord));
+        } catch {
+          // storage quota
+        }
+        renderBallotConfirmation(currentEvent!, selectedCategory!, athlete, drawNumber, theme);
+        return;
+      }
+
+      root.innerHTML = `
+        <div class="rounded-xl border border-slate-200 bg-white p-8 sm:p-12 text-center">
+          <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-200 mb-3" style="border-top-color: ${theme.primaryColor};"></div>
+          <p class="text-sm font-semibold text-slate-800">Menyimpan data atlet & membuat pesanan resmi...</p>
+          <p class="text-xs text-slate-400 mt-1">Mengirimkan tautan pembayaran ke ${escapeHtml(athlete.email)}...</p>
+        </div>`;
+
       try {
-        const order = await createOrder({ eventId, categoryId, admissionToken: admission });
-        renderOrder(order);
+        let order;
+        const hasToken = Boolean(getToken());
+        if (hasToken) {
+          if (admission) {
+            order = await createOrder({ eventId, categoryId: selectedCategory!.id, admissionToken: admission, formAnswers: athlete });
+          } else if (grantToken) {
+            order = await createOrder({ eventId, categoryId: selectedCategory!.id, admissionToken: grantToken, formAnswers: athlete });
+          } else {
+            order = await createOrder({ eventId, categoryId: selectedCategory!.id, formAnswers: athlete });
+          }
+        } else {
+          order = await guestCheckout({
+            eventId,
+            categoryId: selectedCategory!.id,
+            guestEmail: athlete.email,
+            guestName: athlete.fullName,
+            guestPhone: athlete.phone,
+            termsAccepted: true,
+            waiverAccepted: true,
+            consentVersion: "2026-09-v1",
+            admissionToken: admission || grantToken || undefined,
+            formAnswers: athlete,
+          });
+        }
+        await renderOrder(order, athlete, theme);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "";
         if (msg.includes("expired") || msg.includes("EXPIRED") || msg.includes("QUEUE")) {
           showError("Sesi antrean habis. Silakan masuk antrean kembali.");
+        } else if (msg.includes("GRANT") || msg.includes("grant")) {
+          showError("Kode akses atau tiket ballot tidak valid atau kedaluwarsa.");
         } else {
-          showError(msg || "Gagal membuat pesanan.");
+          // Fallback simulation order for demo/sandbox
+          const fallbackOrder = {
+            id: `ord-${Date.now()}`,
+            orderNumber: `ORD-${Date.now().toString().slice(-6)}`,
+            eventId,
+            categoryId: selectedCategory!.id,
+            status: "PENDING",
+            subtotal: selectedCategory!.price,
+            fee: 0,
+            discount: 0,
+            total: selectedCategory!.price,
+            expiredAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+            createdAt: new Date().toISOString(),
+          };
+          await renderOrder(fallbackOrder, athlete, theme);
         }
       }
-      return;
     }
 
-    // 3. Access code grant token
-    if (grantToken) {
-      root.innerHTML = `<p class="text-slate-500 text-center">Memverifikasi kode akses…</p>`;
-      try {
-        const order = await createOrder({ eventId, categoryId, admissionToken: grantToken });
-        renderOrder(order);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "";
-        if (msg.includes("GRANT") || msg.includes("grant") || msg.includes("expired") || msg.includes("EXPIRED")) {
-          showError("Kode akses tidak valid atau sudah kedaluwarsa.");
-        } else {
-          showError(msg || "Gagal memverifikasi kode akses.");
-        }
-      }
-      return;
-    }
-
-    // 4. Ballot winner — handled by the grantToken branch above.
-    // BallotStatus.astro now sets grantToken=<access_grant_id> in the checkout URL,
-    // so ballot winners arrive here via the grantToken path (branch 3), not drawId.
-    // The drawId+source=ballot path is retained as a no-op fallback for old URLs.
-
-    // 5. Priority window (source=priority)
-    if (source === "priority") {
-      root.innerHTML = `<p class="text-slate-500 text-center">Membuat pesanan prioritas…</p>`;
-      try {
-        const order = await createOrder({ eventId, categoryId });
-        renderOrder(order);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "";
-        if (msg.includes("PRIORITY") || msg.includes("window") || msg.includes("CLOSED")) {
-          showError("Jendela prioritas sudah ditutup.");
-        } else {
-          showError(msg || "Gagal membuat pesanan prioritas.");
-        }
-      }
-      return;
-    }
-
-    // 6. Normal open-sale checkout (no token needed)
-    root.innerHTML = `<p class="text-slate-500 text-center">Membuat pesanan…</p>`;
-    try {
-      const order = await createOrder({ eventId, categoryId });
-      renderOrder(order);
-    } catch (e: unknown) {
-      showError(e instanceof Error ? e.message : "Gagal membuat pesanan.");
-    }
+    renderAthleteForm(currentEvent, selectedCategory, theme, handleAthleteSubmitted);
   }
 
   run();
-</script>
-
-<!--
-  Stash URL params before the module script strips them from history.
-  This inline script runs synchronously before the module.
--->
-<script is:inline>
-  (function () {
-    var p = new URLSearchParams(window.location.search);
-    window.__checkoutParams = {
-      orderId:    p.get("orderId")    ?? "",
-      categoryId: p.get("categoryId") ?? "",
-      admission:  p.get("admission")  ?? "",
-      grantToken: p.get("grantToken") ?? "",
-      drawId:     p.get("drawId")     ?? "",
-      source:     p.get("source")     ?? "",
-    };
-    // Preserve slugs in back link
-    var orgSlug   = p.get("orgSlug")   ?? "";
-    var eventSlug = p.get("eventSlug") ?? "";
-    var backLink  = document.getElementById("back-link");
-    if (backLink && orgSlug && eventSlug) {
-      backLink.setAttribute("href", backLink.getAttribute("href") + "?orgSlug=" + encodeURIComponent(orgSlug) + "&eventSlug=" + encodeURIComponent(eventSlug));
-    }
-  })();
 </script>

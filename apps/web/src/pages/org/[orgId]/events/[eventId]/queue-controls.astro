@@ -3,9 +3,44 @@ export const prerender = false;
 import OrganizerLayout from "../../../../../layouts/OrganizerLayout.astro";
 const { orgId, eventId } = Astro.params;
 ---
-<OrganizerLayout title="Kontrol Antrean — ivyticketing">
-  <div id="queue-controls" data-org-id={orgId} data-event-id={eventId} class="rounded-lg border border-slate-200 bg-white p-6">
-    <p class="text-slate-500">Memuat data antrean…</p>
+
+<OrganizerLayout title="Kontrol Antrean War : ivyticketing" orgId={orgId} eventId={eventId}>
+  <div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-4">
+      <div>
+        <a href={`/org/${orgId}/events/${eventId}`} class="text-xs font-semibold text-slate-500 hover:text-slate-800">
+          &larr; Kembali ke Ringkasan Event
+        </a>
+        <div class="flex items-center gap-3 mt-1">
+          <h1 class="font-display text-2xl font-bold uppercase tracking-tight text-slate-900">
+            Kontrol Antrean War Ticket
+          </h1>
+          <span id="header-status-badge" class="rounded-full bg-slate-100 px-3 py-0.5 text-xs font-bold uppercase text-slate-600">
+            Memuat...
+          </span>
+        </div>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Pusat kendali kapasitas lalu lintas pendaftaran, pengaturan laju alokasi peserta per menit, dan tombol darurat jeda antrean.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="relative flex h-3 w-3">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+        </span>
+        <span class="text-xs font-semibold text-slate-600" id="live-poll-indicator">Live Polling Aktif</span>
+      </div>
+    </div>
+
+    <!-- Dynamic Container -->
+    <div id="queue-controls" data-org-id={orgId} data-event-id={eventId}>
+      <div class="rounded-xl border border-slate-200 bg-white p-12 text-center">
+        <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-orange-500 mb-3"></div>
+        <p class="text-sm font-medium text-slate-500">Menghubungkan ke node engine antrean...</p>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -19,12 +54,11 @@ const { orgId, eventId } = Astro.params;
     }
 
     const root = document.getElementById("queue-controls")!;
+    const headerBadge = document.getElementById("header-status-badge")!;
     const orgId = root.dataset.orgId!;
     const eventId = root.dataset.eventId!;
     let timer: ReturnType<typeof setInterval> | undefined;
 
-    // Org queue controls are mounted under /organizations/{orgId}/events/{eventId}/queue
-    // via queueHandler.RegisterOrgRoutes — see server.go r.Route("/organizations/{orgId}", ...)
     const base = `/organizations/${orgId}/events/${eventId}/queue`;
 
     async function fetchStats(): Promise<QueueStats> {
@@ -32,9 +66,10 @@ const { orgId, eventId } = Astro.params;
     }
 
     async function pauseQueue() {
+      if (!confirm("Jeda antrean war tiket sekarang? Peserta di ruang tunggu akan diberitahu bahwa sistem sedang dijeda sementara.")) return;
       try {
         await authedFetch(`${base}/pause`, { method: "POST" });
-        await render();
+        await poll();
       } catch (e) {
         showError((e as Error).message);
       }
@@ -43,26 +78,24 @@ const { orgId, eventId } = Astro.params;
     async function resumeQueue() {
       try {
         await authedFetch(`${base}/resume`, { method: "POST" });
-        await render();
+        await poll();
       } catch (e) {
         showError((e as Error).message);
       }
     }
 
-    async function saveRate() {
-      const input = document.getElementById("rate-input") as HTMLInputElement;
-      const rate = parseInt(input.value, 10);
-      if (isNaN(rate) || rate < 0) {
+    async function updateRate(newRate: number) {
+      if (isNaN(newRate) || newRate < 0) {
         showError("Nilai release rate tidak valid.");
         return;
       }
       try {
         await authedFetch(`${base}/release-rate`, {
           method: "PUT",
-          body: { rate },
+          body: { rate: newRate },
         });
         clearError();
-        await render();
+        await poll();
       } catch (e) {
         showError((e as Error).message);
       }
@@ -81,81 +114,167 @@ const { orgId, eventId } = Astro.params;
       if (el) el.classList.add("hidden");
     }
 
-    function stateLabel(state: string): string {
-      switch (state) {
-        case "RUNNING": return "Berjalan";
-        case "PAUSED": return "Dijeda";
-        case "STOPPED": return "Dihentikan";
-        default: return state;
-      }
-    }
-
-    function stateColor(state: string): string {
-      switch (state) {
-        case "RUNNING": return "text-green-600";
-        case "PAUSED": return "text-amber-600";
-        case "STOPPED": return "text-red-600";
-        default: return "text-slate-600";
-      }
-    }
-
     function render(stats?: QueueStats) {
-      const s = stats;
-      if (!s) {
-        root.innerHTML = `<p class="text-slate-500">Gagal memuat data antrean.</p>`;
+      if (!stats) {
+        root.innerHTML = `
+          <div class="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-sm font-medium text-red-700">
+            Gagal mengambil data antrean dari server.
+          </div>`;
         return;
+      }
+
+      const isRunning = stats.state === "RUNNING";
+      const isPaused = stats.state === "PAUSED";
+
+      // Update header badge
+      if (isRunning) {
+        headerBadge.className = "rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-bold uppercase text-emerald-800 border border-emerald-200";
+        headerBadge.textContent = "Antrean Berjalan Normal";
+      } else if (isPaused) {
+        headerBadge.className = "rounded-full bg-amber-100 px-3 py-0.5 text-xs font-bold uppercase text-amber-800 border border-amber-200";
+        headerBadge.textContent = "Antrean Dijeda";
+      } else {
+        headerBadge.className = "rounded-full bg-slate-100 px-3 py-0.5 text-xs font-bold uppercase text-slate-700 border border-slate-200";
+        headerBadge.textContent = stats.state;
       }
 
       root.innerHTML = `
         <div class="space-y-6">
-          <div class="flex items-center justify-between">
-            <h1 class="text-xl font-bold">Kontrol Antrean</h1>
-            <span class="${stateColor(s.state)} font-semibold">${stateLabel(s.state)}</span>
-          </div>
+          <div id="error-msg" class="hidden rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-semibold text-red-700"></div>
 
-          <div id="error-msg" class="hidden rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700"></div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div class="rounded border border-slate-200 bg-slate-50 p-4 text-center">
-              <p class="text-2xl font-bold">${s.waiting}</p>
-              <p class="text-sm text-slate-500">Menunggu</p>
+          <!-- 4 Stat Cards Grid (Mobile to Desktop Responsive) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Card 1: Status Sistem -->
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Status Antrean</span>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="h-3 w-3 rounded-full ${isRunning ? 'bg-emerald-500' : isPaused ? 'bg-amber-500' : 'bg-red-500'}"></span>
+                <span class="text-xl font-black uppercase text-slate-900">${stats.state === 'RUNNING' ? 'Aktif' : stats.state === 'PAUSED' ? 'Dijeda' : stats.state}</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-2">Mesin antrean virtual FIFO</p>
             </div>
-            <div class="rounded border border-slate-200 bg-slate-50 p-4 text-center">
-              <p class="text-2xl font-bold">${s.allowed}</p>
-              <p class="text-sm text-slate-500">Diizinkan</p>
+
+            <!-- Card 2: Peserta Menunggu -->
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Peserta Menunggu</span>
+              <div class="text-3xl font-black font-mono text-orange-600 mt-1">${(stats.waiting || 0).toLocaleString("id-ID")}</div>
+              <p class="text-[11px] text-slate-500 mt-2">Sedang berada di waiting room</p>
+            </div>
+
+            <!-- Card 3: Peserta Lolos / Checkout -->
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Diizinkan Checkout</span>
+              <div class="text-3xl font-black font-mono text-emerald-600 mt-1">${(stats.allowed || 0).toLocaleString("id-ID")}</div>
+              <p class="text-[11px] text-slate-500 mt-2">Diberikan admission token</p>
+            </div>
+
+            <!-- Card 4: Kecepatan Rilis -->
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Kecepatan Alir Kuota</span>
+              <div class="text-3xl font-black font-mono text-slate-900 mt-1">${stats.releaseRate} <span class="text-xs font-normal text-slate-500">/ menit</span></div>
+              <p class="text-[11px] text-slate-500 mt-2">Kapasitas pemrosesan server</p>
             </div>
           </div>
 
-          <div class="flex items-center gap-3">
-            <span class="text-sm text-slate-600">Release Rate:</span>
-            <span class="font-mono font-semibold">${s.releaseRate} per menit</span>
+          <!-- Control Action Panel -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left: Kecepatan Alir (Throttle Control) -->
+            <div class="lg:col-span-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+              <div class="border-b border-slate-100 pb-3">
+                <h3 class="text-sm font-bold uppercase tracking-wider text-slate-900">
+                  Atur Laju Rilis Peserta (Release Rate)
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">
+                  Tentukan jumlah peserta yang dialirkan masuk ke tahap formulir checkout per menit untuk mencegah kelebihan beban server database & payment gateway.
+                </p>
+              </div>
+
+              <!-- Input & Simpan -->
+              <div class="flex flex-wrap items-center gap-3">
+                <div class="relative w-40">
+                  <input
+                    id="rate-input"
+                    type="number"
+                    min="0"
+                    step="10"
+                    value="${stats.releaseRate}"
+                    class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base font-mono font-bold text-slate-900 focus:border-orange-500 focus:outline-none"
+                  />
+                  <span class="absolute right-3 top-3 text-xs text-slate-400">/ menit</span>
+                </div>
+                <button
+                  id="save-rate-btn"
+                  class="rounded-xl bg-slate-900 hover:bg-slate-800 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-colors shadow-sm"
+                >
+                  Terapkan Laju
+                </button>
+              </div>
+
+              <!-- Preset Tombol Cepat -->
+              <div>
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wide block mb-2">Preset Kecepatan Cepat:</span>
+                <div class="flex flex-wrap gap-2">
+                  ${[50, 100, 250, 500, 1000].map(val => `
+                    <button
+                      type="button"
+                      data-rate="${val}"
+                      class="btn-preset rounded-lg border ${stats.releaseRate === val ? 'border-orange-500 bg-orange-50 text-orange-700 font-bold' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'} px-3 py-1.5 text-xs transition-colors"
+                    >
+                      ${val} / mnt
+                    </button>
+                  `).join("")}
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Saklar Darurat & Status Mesin -->
+            <div class="lg:col-span-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col justify-between space-y-4">
+              <div>
+                <h3 class="text-sm font-bold uppercase tracking-wider text-slate-900 border-b border-slate-100 pb-3">
+                  Saklar Kontrol Darurat
+                </h3>
+                <p class="text-xs text-slate-500 mt-2 leading-relaxed">
+                  Jika terjadi lonjakan tak terduga, kendala perbankan, atau verifikasi kuota mendadak oleh Race Director, Anda dapat menghentikan aliran peserta secara instan tanpa membatalkan urutan posisi antrean mereka.
+                </p>
+              </div>
+
+              <div>
+                ${isPaused ? `
+                  <button
+                    id="resume-btn"
+                    class="w-full rounded-xl bg-emerald-600 hover:bg-emerald-500 py-3.5 px-6 text-sm font-bold uppercase tracking-wider text-white transition-colors shadow-md flex items-center justify-center gap-2"
+                  >
+                    <span>▶ Lanjutkan Antrean War</span>
+                  </button>
+                ` : `
+                  <button
+                    id="pause-btn"
+                    class="w-full rounded-xl bg-amber-500 hover:bg-amber-600 py-3.5 px-6 text-sm font-bold uppercase tracking-wider text-slate-950 transition-colors shadow-md flex items-center justify-center gap-2"
+                  >
+                    <span>⏸ Jeda Antrean Sementara</span>
+                  </button>
+                `}
+                <p class="text-[11px] text-slate-400 text-center mt-2">
+                  Status sinkronisasi terakhir: ${new Date().toLocaleTimeString("id-ID")}
+                </p>
+              </div>
+            </div>
           </div>
+        </div>`;
 
-          <div class="flex items-center gap-3">
-            <input
-              id="rate-input"
-              type="number"
-              min="0"
-              value="${s.releaseRate}"
-              class="w-24 rounded border border-slate-300 px-3 py-1.5 text-sm"
-            />
-            <button id="save-rate-btn" class="rounded bg-slate-700 px-3 py-1.5 text-sm text-white hover:bg-slate-800">
-              Simpan
-            </button>
-          </div>
+      // Event listeners
+      document.getElementById("save-rate-btn")?.addEventListener("click", () => {
+        const inp = document.getElementById("rate-input") as HTMLInputElement;
+        updateRate(parseInt(inp.value, 10));
+      });
 
-          <div class="flex gap-3">
-            ${s.state === "PAUSED"
-              ? `<button id="resume-btn" class="rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700">Lanjutkan Antrean</button>`
-              : `<button id="pause-btn" class="rounded bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700">Jeda Antrean</button>`
-            }
-          </div>
+      document.querySelectorAll(".btn-preset").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const val = parseInt(btn.getAttribute("data-rate") || "100", 10);
+          updateRate(val);
+        });
+      });
 
-          <p id="updated-at" class="text-xs text-slate-400">Terakhir diperbarui: ${new Date().toLocaleTimeString("id-ID")}</p>
-        </div>
-      `;
-
-      document.getElementById("save-rate-btn")?.addEventListener("click", saveRate);
       document.getElementById("pause-btn")?.addEventListener("click", pauseQueue);
       document.getElementById("resume-btn")?.addEventListener("click", resumeQueue);
     }
@@ -165,7 +284,11 @@ const { orgId, eventId } = Astro.params;
         clearError();
         render(await fetchStats());
       } catch {
-        root.innerHTML = `<p class="text-slate-500">Gagal memuat data antrean. Mencoba lagi…</p>`;
+        const errEl = document.getElementById("error-msg");
+        if (errEl) {
+          errEl.textContent = "Gagal memuat status antrean terbaru. Menghubungkan ulang...";
+          errEl.classList.remove("hidden");
+        }
       }
     }
 
@@ -174,6 +297,6 @@ const { orgId, eventId } = Astro.params;
     });
 
     poll();
-    timer = setInterval(poll, 5000);
+    timer = setInterval(poll, 4000);
   </script>
 </OrganizerLayout>

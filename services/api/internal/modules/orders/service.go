@@ -2,6 +2,7 @@ package orders
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -32,15 +33,25 @@ type MetricsSink interface {
 	IncCheckoutStarted()
 }
 
+type FormValidator interface {
+	ValidateEventAnswers(ctx context.Context, eventID, categoryID uuid.UUID, answers map[string]any) error
+}
+
+type GrantConsumer interface {
+	ConsumeGrant(ctx context.Context, grantID, orderID uuid.UUID) error
+}
+
 type Service struct {
-	repo     Repository
-	audit    AuditRecorder
-	notifier Notifier
-	metrics  MetricsSink
-	ttl      time.Duration
-	gate     RegistrationGate
-	hook     CheckoutHook
-	log      *slog.Logger
+	repo          Repository
+	audit         AuditRecorder
+	notifier      Notifier
+	metrics       MetricsSink
+	ttl           time.Duration
+	gate          RegistrationGate
+	hook          CheckoutHook
+	formValidator FormValidator
+	grantConsumer GrantConsumer
+	log           *slog.Logger
 }
 
 func NewService(repo Repository, recorder AuditRecorder, ttl time.Duration, gate RegistrationGate, hook CheckoutHook) *Service {
@@ -53,16 +64,32 @@ func NewService(repo Repository, recorder AuditRecorder, ttl time.Duration, gate
 // WithNotifier attaches a Notifier to the service. Called from server.go after construction.
 func (s *Service) WithNotifier(n Notifier) { s.notifier = n }
 
-// WithLogger attaches a structured logger to the service. Optional — when unset,
+// WithLogger attaches a structured logger to the service. Optional - when unset,
 // warnings from notification enqueue helpers are dropped.
 func (s *Service) WithLogger(l *slog.Logger) { s.log = l }
 
 // WithMetrics attaches a MetricsSink to the service. Called from server.go after construction.
 func (s *Service) WithMetrics(m MetricsSink) { s.metrics = m }
 
-func (s *Service) Checkout(ctx context.Context, participantID, eventID, categoryID uuid.UUID, admissionToken string) (OrderResponse, error) {
+// WithFormValidator attaches a FormValidator to validate answers against event form schemas.
+func (s *Service) WithFormValidator(v FormValidator) { s.formValidator = v }
+
+// WithGrantConsumer attaches a GrantConsumer to consume access grants upon successful checkout.
+func (s *Service) WithGrantConsumer(g GrantConsumer) { s.grantConsumer = g }
+
+func (s *Service) Checkout(ctx context.Context, participantID, eventID, categoryID uuid.UUID, admissionToken string, formAnswers ...map[string]any) (OrderResponse, error) {
 	if err := s.gate.Admit(ctx, participantID, eventID, categoryID, admissionToken); err != nil {
 		return OrderResponse{}, err
+	}
+
+	if s.formValidator != nil {
+		var answers map[string]any
+		if len(formAnswers) > 0 && formAnswers[0] != nil {
+			answers = formAnswers[0]
+		}
+		if err := s.formValidator.ValidateEventAnswers(ctx, eventID, categoryID, answers); err != nil {
+			return OrderResponse{}, err
+		}
 	}
 
 	var created db.Order
@@ -91,7 +118,7 @@ func (s *Service) Checkout(ctx context.Context, participantID, eventID, category
 		}
 
 		activeCount, err := tx.CountActiveOrdersForUserCategory(ctx, db.CountActiveOrdersForUserCategoryParams{
-			CategoryID: categoryID, ParticipantID: participantID,
+			CategoryID: categoryID, ParticipantID: &participantID,
 		})
 		if err != nil {
 			return err
@@ -106,11 +133,19 @@ func (s *Service) Checkout(ctx context.Context, participantID, eventID, category
 		}
 
 		expiresAt := now.Add(s.ttl)
+		answersJSON := []byte("{}")
+		if len(formAnswers) > 0 && formAnswers[0] != nil {
+			if b, err := json.Marshal(formAnswers[0]); err == nil {
+				answersJSON = b
+			}
+		}
+
 		order, err := tx.CreateOrder(ctx, db.CreateOrderParams{
 			OrganizationID: cat.OrganizationID, EventID: eventID, CategoryID: categoryID,
-			ParticipantID: participantID, OrderNumber: number, Status: StatusPendingPayment,
+			ParticipantID: &participantID, OrderNumber: number, Status: StatusPendingPayment,
 			Subtotal: cat.Price, Fee: 0, Discount: 0, Total: cat.Price,
 			ExpiredAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
+			FormAnswers: answersJSON,
 		})
 		if err != nil {
 			return err
@@ -123,6 +158,34 @@ func (s *Service) Checkout(ctx context.Context, participantID, eventID, category
 			ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
 		}); err != nil {
 			return err
+		}
+
+		// Transactional access-grant consumption:
+		// If an admissionToken is supplied and corresponds to an AccessGrant, validate and
+		// consume it within this exact database transaction before commit.
+		if admissionToken != "" {
+			if gID, err := uuid.Parse(admissionToken); err == nil {
+				grant, err := tx.GetAccessGrant(ctx, gID)
+				if err == nil {
+					if grant.ParticipantID != participantID || grant.CategoryID != categoryID {
+						return ErrGrantNotFound
+					}
+					if grant.Status == "CONSUMED" {
+						return ErrGrantAlreadyConsumed
+					}
+					if grant.Status != "ACTIVE" {
+						return ErrGrantExpired
+					}
+					if grant.ExpiresAt.Valid && now.After(grant.ExpiresAt.Time) {
+						return ErrGrantExpired
+					}
+					if err := tx.ConsumeAccessGrant(ctx, gID, order.ID); err != nil {
+						return err
+					}
+				} else if !errors.Is(err, pgx.ErrNoRows) {
+					return err
+				}
+			}
 		}
 		return nil
 	})
@@ -151,7 +214,7 @@ func (s *Service) Cancel(ctx context.Context, participantID, orderID uuid.UUID) 
 		} else if err != nil {
 			return err
 		}
-		if order.ParticipantID != participantID {
+		if order.ParticipantID == nil || *order.ParticipantID != participantID {
 			return ErrOrderNotFound
 		}
 		if order.Status != StatusPendingPayment {
@@ -180,7 +243,7 @@ func (s *Service) GetForParticipant(ctx context.Context, participantID, orderID 
 	} else if err != nil {
 		return OrderResponse{}, err
 	}
-	if order.ParticipantID != participantID {
+	if order.ParticipantID == nil || *order.ParticipantID != participantID {
 		return OrderResponse{}, ErrOrderNotFound
 	}
 	return toResponse(order), nil
@@ -202,6 +265,172 @@ func (s *Service) ListForOrgEvent(ctx context.Context, orgID, eventID uuid.UUID)
 		return nil, err
 	}
 	return toResponses(rows), nil
+}
+
+func (s *Service) GuestCheckout(ctx context.Context, req GuestCheckoutRequest, eventID, categoryID uuid.UUID) (OrderResponse, error) {
+	if req.GuestEmail == "" {
+		return OrderResponse{}, ErrGuestEmailRequired
+	}
+	if !req.TermsAccepted {
+		return OrderResponse{}, ErrTermsRequired
+	}
+	if err := s.gate.Admit(ctx, uuid.Nil, eventID, categoryID, req.AdmissionToken); err != nil {
+		return OrderResponse{}, err
+	}
+
+	if s.formValidator != nil {
+		answers := req.FormAnswers
+		if answers == nil && req.Answers != nil {
+			answers = req.Answers
+		}
+		if err := s.formValidator.ValidateEventAnswers(ctx, eventID, categoryID, answers); err != nil {
+			return OrderResponse{}, err
+		}
+	}
+
+	var created db.Order
+	err := s.repo.ExecTx(ctx, func(tx Repository) error {
+		event, err := tx.GetEventByID(ctx, eventID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrCategoryNotFound
+		} else if err != nil {
+			return err
+		}
+
+		check, err := inv.CheckAndLock(ctx, tx.Inventory(), categoryID)
+		if errors.Is(err, inv.ErrCategory) {
+			return ErrCategoryNotFound
+		} else if err != nil {
+			return err
+		}
+		cat := check.Category
+		if cat.EventID != eventID {
+			return ErrCategoryNotFound
+		}
+
+		now := time.Now()
+		if err := checkoutEligible(event, cat, now); err != nil {
+			return err
+		}
+
+		activeCount, err := tx.CountActiveOrdersForGuestCategory(ctx, db.CountActiveOrdersForGuestCategoryParams{
+			CategoryID: categoryID,
+			GuestEmail: pgtype.Text{String: req.GuestEmail, Valid: true},
+		})
+		if err != nil {
+			return err
+		}
+		if activeCount >= int64(cat.MaxOrderPerUser) {
+			return ErrMaxOrderExceeded
+		}
+
+		number, err := s.uniqueOrderNumber(ctx, tx, now)
+		if err != nil {
+			return err
+		}
+
+		expiresAt := now.Add(s.ttl)
+		var waiverAcceptedAt pgtype.Timestamptz
+		if req.WaiverAccepted {
+			waiverAcceptedAt = pgtype.Timestamptz{Time: now, Valid: true}
+		}
+
+		if req.FormAnswers == nil && req.Answers != nil {
+			req.FormAnswers = req.Answers
+		}
+		answersJSON := []byte("{}")
+		if len(req.FormAnswers) > 0 {
+			if b, err := json.Marshal(req.FormAnswers); err == nil {
+				answersJSON = b
+			}
+		}
+
+		order, err := tx.CreateGuestOrder(ctx, db.CreateGuestOrderParams{
+			OrganizationID:   cat.OrganizationID,
+			EventID:          eventID,
+			CategoryID:       categoryID,
+			ParticipantID:    nil,
+			OrderNumber:      number,
+			Status:           StatusPendingPayment,
+			Subtotal:         cat.Price,
+			Fee:              0,
+			Discount:         0,
+			Total:            cat.Price,
+			ExpiredAt:        pgtype.Timestamptz{Time: expiresAt, Valid: true},
+			GuestEmail:       pgtype.Text{String: req.GuestEmail, Valid: true},
+			GuestName:        pgtype.Text{String: req.GuestName, Valid: req.GuestName != ""},
+			GuestPhone:       pgtype.Text{String: req.GuestPhone, Valid: req.GuestPhone != ""},
+			TermsAcceptedAt:  pgtype.Timestamptz{Time: now, Valid: true},
+			TermsVersion:     pgtype.Text{String: req.TermsVersion, Valid: req.TermsVersion != ""},
+			WaiverAcceptedAt: waiverAcceptedAt,
+			WaiverVersion:    pgtype.Text{String: req.WaiverVersion, Valid: req.WaiverVersion != ""},
+			FormAnswers:      answersJSON,
+		})
+		if err != nil {
+			return err
+		}
+		created = order
+
+		if _, err := inv.Reserve(ctx, tx.Inventory(), db.CreateReservationParams{
+			OrganizationID: cat.OrganizationID,
+			EventID:        eventID,
+			CategoryID:     categoryID,
+			OrderID:        order.ID,
+			ParticipantID:  uuid.Nil,
+			ExpiresAt:      pgtype.Timestamptz{Time: expiresAt, Valid: true},
+		}); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return OrderResponse{}, err
+	}
+
+	s.record(ctx, created, "GUEST_ORDER_CREATED")
+	s.recordReservation(ctx, created, "RESERVATION_CREATED")
+	if s.metrics != nil {
+		s.metrics.IncCheckoutStarted()
+	}
+	return toResponse(created), nil
+}
+
+func (s *Service) ClaimOrder(ctx context.Context, userID, orderID uuid.UUID) (OrderResponse, error) {
+	var claimed db.Order
+	err := s.repo.ExecTx(ctx, func(tx Repository) error {
+		order, err := tx.GetOrderByID(ctx, orderID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrOrderNotFound
+		} else if err != nil {
+			return err
+		}
+		if order.ParticipantID != nil {
+			return ErrOrderAlreadyClaimed
+		}
+
+		updatedOrder, err := tx.LinkOrderToParticipant(ctx, db.LinkOrderToParticipantParams{
+			ID:            orderID,
+			ParticipantID: &userID,
+		})
+		if err != nil {
+			return err
+		}
+
+		// Also link ticket if already issued (e.g. if order was paid before claim)
+		_, _ = tx.LinkTicketToParticipant(ctx, db.LinkTicketToParticipantParams{
+			OrderID:       orderID,
+			ParticipantID: &userID,
+		})
+
+		claimed = updatedOrder
+		return nil
+	})
+	if err != nil {
+		return OrderResponse{}, err
+	}
+
+	s.record(ctx, claimed, "ORDER_CLAIMED")
+	return toResponse(claimed), nil
 }
 
 func (s *Service) uniqueOrderNumber(ctx context.Context, tx Repository, now time.Time) (string, error) {
@@ -227,7 +456,7 @@ func (s *Service) record(ctx context.Context, order db.Order, action string) {
 	oid := order.OrganizationID
 	uid := order.ParticipantID
 	s.audit.Record(ctx, audit.Entry{
-		OrganizationID: &oid, ActorUserID: &uid, Action: action,
+		OrganizationID: &oid, ActorUserID: uid, Action: action,
 		TargetType: "order", TargetID: order.ID.String(),
 	})
 }
@@ -239,7 +468,7 @@ func (s *Service) recordReservation(ctx context.Context, order db.Order, action 
 	oid := order.OrganizationID
 	uid := order.ParticipantID
 	s.audit.Record(ctx, audit.Entry{
-		OrganizationID: &oid, ActorUserID: &uid, Action: action,
+		OrganizationID: &oid, ActorUserID: uid, Action: action,
 		TargetType: "reservation", TargetID: order.ID.String(),
 	})
 }
@@ -254,8 +483,11 @@ func (s *Service) notifyOrderCreated(ctx context.Context, order db.Order) {
 		deadline = order.ExpiredAt.Time.Format("02 Jan 2006 15:04")
 	}
 	pid := order.ParticipantID
+	if pid == nil {
+		return
+	}
 	go func() {
-		if err := s.notifier.Enqueue(ctx, pid, "order.created", notifmod.TemplateData{
+		if err := s.notifier.Enqueue(ctx, *pid, "order.created", notifmod.TemplateData{
 			OrderID:         order.ID.String(),
 			OrderNumber:     order.OrderNumber,
 			TotalAmount:     total,
@@ -266,15 +498,76 @@ func (s *Service) notifyOrderCreated(ctx context.Context, order db.Order) {
 	}()
 }
 
+func (s *Service) RefundOrder(ctx context.Context, orgID, eventID, orderID uuid.UUID, req RefundOrderRequest) (OrderResponse, error) {
+	var refunded db.Order
+	err := s.repo.ExecTx(ctx, func(tx Repository) error {
+		order, err := tx.GetOrderByID(ctx, orderID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrOrderNotFound
+		} else if err != nil {
+			return err
+		}
+		if order.OrganizationID != orgID || order.EventID != eventID {
+			return ErrOrderNotFound
+		}
+		if order.Status != StatusPaid {
+			return ErrInvalidState
+		}
+		refundAmount := req.Amount
+		if refundAmount <= 0 || refundAmount > order.Total {
+			refundAmount = order.Total
+		}
+		updated, err := tx.RecordOrderRefund(ctx, db.RecordOrderRefundParams{
+			ID:             orderID,
+			RefundedAmount: refundAmount,
+			RefundReason:   pgtype.Text{String: req.Reason, Valid: req.Reason != ""},
+		})
+		if err != nil {
+			return err
+		}
+		refunded = updated
+		return nil
+	})
+	if err != nil {
+		return OrderResponse{}, err
+	}
+	s.record(ctx, refunded, "ORDER_REFUNDED")
+	return toResponse(refunded), nil
+}
+
 func toResponse(o db.Order) OrderResponse {
 	r := OrderResponse{
 		ID: o.ID, OrderNumber: o.OrderNumber, EventID: o.EventID, CategoryID: o.CategoryID,
-		Status: o.Status, Subtotal: o.Subtotal, Fee: o.Fee, Discount: o.Discount, Total: o.Total,
-		CreatedAt: o.CreatedAt.Time,
+		ParticipantID: o.ParticipantID,
+		Status:        o.Status, Subtotal: o.Subtotal, Fee: o.Fee, Discount: o.Discount, Total: o.Total,
+		RefundedAmount: o.RefundedAmount,
+		CreatedAt:     o.CreatedAt.Time,
 	}
 	if o.ExpiredAt.Valid {
 		v := o.ExpiredAt.Time
 		r.ExpiredAt = &v
+	}
+	if o.GuestEmail.Valid {
+		v := o.GuestEmail.String
+		r.GuestEmail = &v
+	}
+	if o.GuestName.Valid {
+		v := o.GuestName.String
+		r.GuestName = &v
+	}
+	if o.RefundReason.Valid {
+		v := o.RefundReason.String
+		r.RefundReason = &v
+	}
+	if o.RefundedAt.Valid {
+		v := o.RefundedAt.Time
+		r.RefundedAt = &v
+	}
+	if len(o.FormAnswers) > 0 {
+		var ans map[string]any
+		if err := json.Unmarshal(o.FormAnswers, &ans); err == nil {
+			r.FormAnswers = ans
+		}
 	}
 	return r
 }

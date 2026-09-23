@@ -1,6 +1,18 @@
 ---
 import "../styles/global.css";
-const { title = "ivyticketing" } = Astro.props;
+interface Props {
+  title?: string;
+  hideHeader?: boolean;
+  maxWidthClass?: string;
+  fullWidth?: boolean;
+}
+
+const {
+  title = "ivyticketing",
+  hideHeader = false,
+  maxWidthClass = "max-w-3xl",
+  fullWidth = false,
+} = Astro.props as Props;
 const path = Astro.url.pathname;
 
 function navClass(prefix: string): string {
@@ -16,23 +28,27 @@ function navClass(prefix: string): string {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
   </head>
-  <body class="min-h-screen bg-slate-50 text-slate-900">
-    <header class="border-b border-slate-200 bg-white">
-      <nav class="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-y-2 p-4">
-        <a href="/participant/dashboard" class="font-semibold">ivyticketing</a>
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-          <a href="/events" class={navClass("/events")}>Jelajahi Event</a>
-          <a href="/participant/orders" class={navClass("/participant/orders")}>Pesanan</a>
-          <a href="/participant/tickets" class={navClass("/participant/tickets")}>Tiket</a>
-          <button id="logout-btn" class="text-slate-500 hover:text-slate-900">Keluar</button>
-        </div>
-      </nav>
-    </header>
-    <main class="mx-auto max-w-3xl p-6"><slot /></main>
+  <body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+    {!hideHeader && (
+      <header class="border-b border-slate-200 bg-white">
+        <nav class={`mx-auto flex ${maxWidthClass} flex-wrap items-center justify-between gap-y-2 px-4 py-2 sm:py-3`}>
+          <a href="/participant/dashboard" class="font-semibold text-slate-900 min-h-[44px] inline-flex items-center">ivyticketing</a>
+          <div class="flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1 text-sm">
+            <a href="/events" class={`min-h-[44px] inline-flex items-center px-1 ${navClass("/events")}`}>Jelajahi Event</a>
+            <a href="/participant/orders" class={`min-h-[44px] inline-flex items-center px-1 ${navClass("/participant/orders")}`}>Pesanan</a>
+            <a href="/participant/tickets" class={`min-h-[44px] inline-flex items-center px-1 ${navClass("/participant/tickets")}`}>Tiket</a>
+            <button id="logout-btn" class="min-h-[44px] inline-flex items-center px-1 text-slate-500 hover:text-slate-900 transition-colors">Keluar</button>
+          </div>
+        </nav>
+      </header>
+    )}
+    <main class={fullWidth ? "w-full" : `mx-auto ${maxWidthClass} px-4 py-6 sm:p-6`}><slot /></main>
 
     <script>
       import { getToken, logout } from "../lib/auth";
-      if (!getToken()) window.location.href = "/login";
+      if (window.location.pathname.startsWith("/participant") && !getToken()) {
+        window.location.href = "/login";
+      }
       document.getElementById("logout-btn")?.addEventListener("click", async () => {
         await logout();
         window.location.href = "/login";

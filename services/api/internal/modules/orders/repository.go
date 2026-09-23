@@ -2,8 +2,10 @@ package orders
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/varin/ivyticketing/services/api/internal/db"
@@ -17,15 +19,26 @@ type Repository interface {
 	GetOrderByID(ctx context.Context, id uuid.UUID) (db.Order, error)
 	GetOrderByNumber(ctx context.Context, number string) (db.Order, error)
 	CreateOrder(ctx context.Context, arg db.CreateOrderParams) (db.Order, error)
+	CreateGuestOrder(ctx context.Context, arg db.CreateGuestOrderParams) (db.Order, error)
+	LinkOrderToParticipant(ctx context.Context, arg db.LinkOrderToParticipantParams) (db.Order, error)
+	LinkTicketToParticipant(ctx context.Context, arg db.LinkTicketToParticipantParams) (db.Ticket, error)
 	UpdateOrderStatus(ctx context.Context, arg db.UpdateOrderStatusParams) (db.Order, error)
+	RecordOrderRefund(ctx context.Context, arg db.RecordOrderRefundParams) (db.Order, error)
 	ListOrdersByParticipant(ctx context.Context, participantID uuid.UUID) ([]db.Order, error)
 	ListOrdersByOrgEvent(ctx context.Context, arg db.ListOrdersByOrgEventParams) ([]db.Order, error)
 	CountActiveOrdersForUserCategory(ctx context.Context, arg db.CountActiveOrdersForUserCategoryParams) (int64, error)
+	CountActiveOrdersForGuestCategory(ctx context.Context, arg db.CountActiveOrdersForGuestCategoryParams) (int64, error)
 	ListExpiredPendingOrders(ctx context.Context, limit int32) ([]uuid.UUID, error)
 
 	// Inventory returns an inventory.Repository bound to this repo's queries (pool or tx).
 	// When called within ExecTx, both order and reservation writes use the same transaction.
 	Inventory() inv.Repository
+
+	// GetAccessGrant returns the grant by ID within the current transaction context.
+	GetAccessGrant(ctx context.Context, id uuid.UUID) (db.AccessGrant, error)
+	// ConsumeAccessGrant atomically updates an ACTIVE grant to CONSUMED linked to orderID.
+	// Returns ErrGrantAlreadyConsumed if 0 rows are updated.
+	ConsumeAccessGrant(ctx context.Context, grantID, orderID uuid.UUID) error
 }
 
 type sqlcRepo struct {
@@ -67,12 +80,28 @@ func (r *sqlcRepo) CreateOrder(ctx context.Context, arg db.CreateOrderParams) (d
 	return r.q.CreateOrder(ctx, arg)
 }
 
+func (r *sqlcRepo) CreateGuestOrder(ctx context.Context, arg db.CreateGuestOrderParams) (db.Order, error) {
+	return r.q.CreateGuestOrder(ctx, arg)
+}
+
+func (r *sqlcRepo) LinkOrderToParticipant(ctx context.Context, arg db.LinkOrderToParticipantParams) (db.Order, error) {
+	return r.q.LinkOrderToParticipant(ctx, arg)
+}
+
+func (r *sqlcRepo) LinkTicketToParticipant(ctx context.Context, arg db.LinkTicketToParticipantParams) (db.Ticket, error) {
+	return r.q.LinkTicketToParticipant(ctx, arg)
+}
+
 func (r *sqlcRepo) UpdateOrderStatus(ctx context.Context, arg db.UpdateOrderStatusParams) (db.Order, error) {
 	return r.q.UpdateOrderStatus(ctx, arg)
 }
 
+func (r *sqlcRepo) RecordOrderRefund(ctx context.Context, arg db.RecordOrderRefundParams) (db.Order, error) {
+	return r.q.RecordOrderRefund(ctx, arg)
+}
+
 func (r *sqlcRepo) ListOrdersByParticipant(ctx context.Context, participantID uuid.UUID) ([]db.Order, error) {
-	return r.q.ListOrdersByParticipant(ctx, participantID)
+	return r.q.ListOrdersByParticipant(ctx, &participantID)
 }
 
 func (r *sqlcRepo) ListOrdersByOrgEvent(ctx context.Context, arg db.ListOrdersByOrgEventParams) ([]db.Order, error) {
@@ -83,6 +112,29 @@ func (r *sqlcRepo) CountActiveOrdersForUserCategory(ctx context.Context, arg db.
 	return r.q.CountActiveOrdersForUserCategory(ctx, arg)
 }
 
+func (r *sqlcRepo) CountActiveOrdersForGuestCategory(ctx context.Context, arg db.CountActiveOrdersForGuestCategoryParams) (int64, error) {
+	return r.q.CountActiveOrdersForGuestCategory(ctx, arg)
+}
+
 func (r *sqlcRepo) ListExpiredPendingOrders(ctx context.Context, limit int32) ([]uuid.UUID, error) {
 	return r.q.ListExpiredPendingOrders(ctx, limit)
+}
+
+func (r *sqlcRepo) GetAccessGrant(ctx context.Context, id uuid.UUID) (db.AccessGrant, error) {
+	return r.q.GetAccessGrant(ctx, id)
+}
+
+func (r *sqlcRepo) ConsumeAccessGrant(ctx context.Context, grantID, orderID uuid.UUID) error {
+	var ordID *uuid.UUID
+	if orderID != uuid.Nil {
+		ordID = &orderID
+	}
+	_, err := r.q.ConsumeGrant(ctx, db.ConsumeGrantParams{
+		ID:      grantID,
+		OrderID: ordID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrGrantAlreadyConsumed
+	}
+	return err
 }

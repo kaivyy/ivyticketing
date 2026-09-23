@@ -26,7 +26,7 @@ func TestExpireOrders_Idempotent(t *testing.T) {
 		OrganizationID: orgID,
 		EventID:        eventID,
 		CategoryID:     catID,
-		ParticipantID:  userID,
+		ParticipantID:  &userID,
 		OrderNumber:    "ORD-20260607-AAAAAA",
 		Status:         StatusPendingPayment,
 		ExpiredAt:      pgtype.Timestamptz{Time: time.Now().Add(-time.Minute), Valid: true},

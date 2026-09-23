@@ -2,7 +2,7 @@ import { authedFetch } from "./api";
 
 const base = (orgId: string) => `/organizations/${orgId}/reports`;
 
-// Report type identifiers — mirror the backend export_jobs.report_type CHECK.
+// Report type identifiers - mirror the backend export_jobs.report_type CHECK.
 export type ReportType =
   | "participant"
   | "sales"

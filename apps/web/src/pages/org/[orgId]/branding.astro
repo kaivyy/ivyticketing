@@ -3,7 +3,7 @@ export const prerender = false;
 import OrganizerLayout from "../../../layouts/OrganizerLayout.astro";
 const { orgId } = Astro.params;
 ---
-<OrganizerLayout title="Branding & Domain — ivyticketing">
+<OrganizerLayout title="Branding & Domain - ivyticketing">
   <div id="branding" data-org-id={orgId} class="space-y-6">
     <p class="text-slate-500">Memuat branding…</p>
   </div>
@@ -26,7 +26,7 @@ const { orgId } = Astro.params;
     const orgId = root.dataset.orgId!;
 
     function fmtDate(v: string | null | undefined): string {
-      if (!v) return "—";
+      if (!v) return "-";
       const d = new Date(v);
       if (isNaN(d.getTime())) return esc(v);
       return d.toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" });

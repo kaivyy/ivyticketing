@@ -81,8 +81,8 @@ func (r *fakeAccessRepoFull) GetActiveGrantForParticipant(_ context.Context, _ d
 	return db.AccessGrant{}, pgx.ErrNoRows
 }
 func (r *fakeAccessRepoFull) ExpireGrant(_ context.Context, _ uuid.UUID) error { return nil }
-func (r *fakeAccessRepoFull) ConsumeGrant(_ context.Context, _ db.ConsumeGrantParams) error {
-	return nil
+func (r *fakeAccessRepoFull) ConsumeGrant(_ context.Context, _ db.ConsumeGrantParams) (db.AccessGrant, error) {
+	return db.AccessGrant{}, nil
 }
 func (r *fakeAccessRepoFull) ListExpiredActiveGrants(_ context.Context, _ int32) ([]db.AccessGrant, error) {
 	return nil, nil

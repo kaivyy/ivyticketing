@@ -1,35 +1,165 @@
 ---
 import PublicLayout from "../layouts/PublicLayout.astro";
 ---
-<PublicLayout title="Masuk — ivyticketing">
-  <h1 class="text-2xl font-bold mb-6">Masuk</h1>
-  <form id="login-form" class="space-y-4 rounded-lg border border-slate-200 bg-white p-6">
-    <div>
-      <label class="block text-sm font-medium mb-1" for="email">Email</label>
-      <input id="email" type="email" required class="w-full rounded border border-slate-300 px-3 py-2" />
+
+<PublicLayout title="Masuk : ivyticketing">
+  <div class="mx-auto max-w-md py-12">
+    <div class="mb-8 text-center">
+      <div class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-orange-600 font-bold text-lg text-white mb-3">
+        IVY
+      </div>
+      <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Masuk ke Akun Anda</h1>
+      <p class="mt-1 text-sm text-slate-500">
+        Kelola tiket balap, pantau antrean, atau akses konsol organizer.
+      </p>
     </div>
-    <div>
-      <label class="block text-sm font-medium mb-1" for="password">Kata sandi</label>
-      <input id="password" type="password" required class="w-full rounded border border-slate-300 px-3 py-2" />
+
+    <form id="login-form" class="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="email">
+          Alamat Email
+        </label>
+        <input
+          id="email"
+          type="email"
+          required
+          autocomplete="email"
+          placeholder="nama@email.com"
+          class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+        />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="password">
+          Kata Sandi
+        </label>
+        <input
+          id="password"
+          type="password"
+          required
+          autocomplete="current-password"
+          placeholder="••••••••"
+          class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+        />
+      </div>
+
+      <p id="error" class="text-sm font-medium text-red-600 hidden rounded bg-red-50 p-2.5 border border-red-200"></p>
+
+      <button
+        id="submit-btn"
+        type="submit"
+        class="min-h-[44px] w-full rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-white shadow hover:bg-orange-500 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer"
+      >
+        Masuk
+      </button>
+
+      <div class="pt-3 border-t border-slate-100 text-center text-xs text-slate-600">
+        Belum memiliki akun atlet?
+        <a href="/register" class="font-bold text-orange-600 hover:text-orange-700 underline underline-offset-2 ml-1">
+          Daftar Akun Baru di Sini
+        </a>
+      </div>
+    </form>
+
+    <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Akses Cepat Pengujian:</span>
+        <span class="text-[10px] bg-slate-200 text-slate-700 font-semibold px-2 py-0.5 rounded">Demo Mode</span>
+      </div>
+      <div class="space-y-2">
+        <button
+          type="button"
+          id="btn-demo-organizer"
+          class="w-full flex items-center justify-between p-2.5 rounded-lg border border-sky-200 bg-white hover:bg-sky-50 text-left transition-colors cursor-pointer group"
+        >
+          <div>
+            <div class="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+              <span>Ivy Organizer Lead</span>
+              <span class="bg-sky-100 text-sky-800 text-[10px] px-1.5 py-0.5 rounded font-medium">Organizer Portal</span>
+            </div>
+            <div class="text-[11px] text-slate-500 font-mono mt-0.5">organizer@ivyticketing.com</div>
+          </div>
+          <span class="text-xs font-medium text-sky-600 group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+        </button>
+
+        <button
+          type="button"
+          id="btn-demo-admin"
+          class="w-full flex items-center justify-between p-2.5 rounded-lg border border-purple-200 bg-white hover:bg-purple-50 text-left transition-colors cursor-pointer group"
+        >
+          <div>
+            <div class="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+              <span>Super Administrator</span>
+              <span class="bg-purple-100 text-purple-800 text-[10px] px-1.5 py-0.5 rounded font-medium">Admin Console</span>
+            </div>
+            <div class="text-[11px] text-slate-500 font-mono mt-0.5">admin@ivyticketing.com</div>
+          </div>
+          <span class="text-xs font-medium text-purple-600 group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+        </button>
+      </div>
     </div>
-    <p id="error" class="text-sm text-red-600 hidden"></p>
-    <button type="submit" class="w-full rounded bg-slate-900 px-4 py-2 text-white">Masuk</button>
-  </form>
+  </div>
 
   <script>
-    import { login } from "../lib/auth";
+    import { login, getMe } from "../lib/auth";
+
     const form = document.getElementById("login-form") as HTMLFormElement;
+    const btn = document.getElementById("submit-btn") as HTMLButtonElement;
     const errEl = document.getElementById("error") as HTMLParagraphElement;
+    const demoOrganizerBtn = document.getElementById("btn-demo-organizer");
+    const demoAdminBtn = document.getElementById("btn-demo-admin");
+
+    demoOrganizerBtn?.addEventListener("click", () => {
+      (document.getElementById("email") as HTMLInputElement).value = "organizer@ivyticketing.com";
+      (document.getElementById("password") as HTMLInputElement).value = "organizer123456";
+      form.requestSubmit();
+    });
+
+    demoAdminBtn?.addEventListener("click", () => {
+      (document.getElementById("email") as HTMLInputElement).value = "admin@ivyticketing.com";
+      (document.getElementById("password") as HTMLInputElement).value = "admin123456";
+      form.requestSubmit();
+    });
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       errEl.classList.add("hidden");
-      const email = (document.getElementById("email") as HTMLInputElement).value;
+      btn.disabled = true;
+      btn.textContent = "Memverifikasi...";
+
+      const email = (document.getElementById("email") as HTMLInputElement).value.trim();
       const password = (document.getElementById("password") as HTMLInputElement).value;
+
       try {
         await login(email, password);
-        window.location.href = "/participant/dashboard";
+        const me = await getMe();
+
+        // Cek parameter redirect di URL jika ada
+        const params = new URLSearchParams(window.location.search);
+        const redirectUrl = params.get("redirect");
+        if (redirectUrl && redirectUrl.startsWith("/")) {
+          window.location.href = redirectUrl;
+          return;
+        }
+
+        // Pengalihan cerdas berbasis peran pengguna
+        if (me?.user?.isPlatformAdmin) {
+          window.location.href = "/admin/warroom";
+        } else if (me?.memberships && me.memberships.length > 0) {
+          const orgTarget = me.memberships[0].organizationSlug || me.memberships[0].organizationId;
+          window.location.href = `/org/${orgTarget}/dashboard`;
+        } else {
+          window.location.href = "/participant/dashboard";
+        }
       } catch (err) {
-        errEl.textContent = (err as Error).message;
+        btn.disabled = false;
+        btn.textContent = "Masuk";
+        const msg = (err as Error).message || "";
+        if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+          errEl.textContent = "Gagal terhubung ke server API. Pastikan server aktif dan port dapat diakses.";
+        } else {
+          errEl.textContent = msg || "Email atau kata sandi tidak sesuai.";
+        }
         errEl.classList.remove("hidden");
       }
     });
