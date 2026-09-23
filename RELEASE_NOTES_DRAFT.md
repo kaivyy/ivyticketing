@@ -1,6 +1,6 @@
-# IvyTicketing <next-version>
+# IvyTicketing v1.0.0
 
-> **Note**: Version tag placeholder `<next-version>` requires human decision based on whether this release is tagged as `v0.2.0`, `v1.0.0`, or following the project's semantic versioning roadmap (advancing from the Phase 27 / v0.1.0 baseline).
+IvyTicketing v1.0.0 marks the official major public launch of the platform, introducing a full multi-sport tournament competition engine, multi-vendor chip timing integration, critical concurrency & security remediations, and a source-verified 36-file documentation suite.
 
 ## Highlights
 

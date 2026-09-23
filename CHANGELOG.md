@@ -4,7 +4,7 @@ All notable changes to ivyticketing are documented here.
 
 ---
 
-## [Unreleased] : 2026-09-23
+## [1.0.0] : 2026-09-23
 
 ### Major Enhancements: Multi-Sport Competition Engine, Security Remediation, and Documentation System
 
